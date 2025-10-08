@@ -2,8 +2,28 @@
 """
 Comprehensive Unit Tests for todo.py
 
-This test suite covers all edge cases and validation scenarios for the
-add(), update(), and next_task() functions.
+TEST OVERVIEW FOR TEAM:
+=======================
+Total: 14 comprehensive test cases for the add() function
+
+Test Categories:
+• 3 VALID INPUT tests - Basic valid tasks, completed tasks, edge case dates
+• 1 DUPLICATE test - Ensures duplicate tasks are properly rejected  
+• 2 TUPLE LENGTH tests - Tasks with too few elements (0-4) and too many (6-10)
+• 5 DATA TYPE tests - Invalid types for item, type, started, due, and done fields
+• 1 NON-TUPLE test - Lists, dicts, strings, integers, None, sets (6 variations)
+• 2 BOUNDARY tests - Very long strings (1000+ chars) and empty strings
+
+What Each Test Validates:
+• Valid cases: Normal workflow with proper datetime objects and strings
+• Duplicate prevention: Database integrity and business logic
+• Input validation: Proper tuple structure (exactly 5 elements required)
+• Type safety: String items/types, datetime objects for dates, None for optional done
+• Error handling: Graceful rejection of malformed inputs
+• Edge cases: Boundary conditions and stress testing
+
+💡 For Team Members: Copy the setup pattern from this file to get automatic
+   database cleanup, logging, and environment management for your tests.
 """
 
 import pytest
