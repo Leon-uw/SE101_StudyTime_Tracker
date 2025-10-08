@@ -1,20 +1,7 @@
-2025-10-07 17:45:09,321 [INFO] test_todo: ============================================================
-2025-10-07 17:45:09,321 [INFO] test_todo: STARTING TO-DO FUNCTION TEST SESSION
-2025-10-07 17:45:09,321 [INFO] test_todo: ============================================================
-2025-10-07 17:45:09,659 [INFO] test_todo: Testing add function with basic valid task
-2025-10-07 17:45:10,189 [INFO] test_todo: Testing add function with already completed task
-2025-10-07 17:45:10,479 [INFO] test_todo: Testing add function with same start and due dates
-2025-10-07 17:45:10,624 [INFO] test_todo: Testing add function with duplicate task
-2025-10-07 17:45:11,052 [INFO] test_todo: Testing add function with tasks having too few elements
-2025-10-07 17:45:11,248 [INFO] test_todo: Testing add function with tasks having too many elements
-2025-10-07 17:45:11,385 [INFO] test_todo: Testing add function with invalid item data types
-2025-10-07 17:45:11,590 [INFO] test_todo: Testing add function with invalid type field data types
-2025-10-07 17:45:11,789 [INFO] test_todo: Testing add function with invalid started date data types
-2025-10-07 17:45:11,969 [INFO] test_todo: Testing add function with invalid due date data types
-2025-10-07 17:45:12,155 [INFO] test_todo: Testing add function with invalid done date data types
-2025-10-07 17:45:12,340 [INFO] test_todo: Testing add function with non-tuple inputs
-2025-10-07 17:45:12,542 [INFO] test_todo: Testing add function with very long strings
-2025-10-07 17:45:12,649 [INFO] test_todo: Testing add function with empty strings
-2025-10-07 17:45:12,737 [INFO] test_todo: ============================================================
-2025-10-07 17:45:12,737 [INFO] test_todo: TO-DO FUNCTION TEST SESSION COMPLETED
-2025-10-07 17:45:12,737 [INFO] test_todo: ============================================================
+2025-10-08 18:14:43,462 [INFO] test_todo: ============================================================
+2025-10-08 18:14:43,462 [INFO] test_todo: STARTING TO-DO FUNCTION TEST SESSION
+2025-10-08 18:14:43,462 [INFO] test_todo: ============================================================
+2025-10-08 18:14:43,573 [INFO] test_todo: Testing add function with basic valid task
+2025-10-08 18:14:43,609 [INFO] test_todo: ============================================================
+2025-10-08 18:14:43,609 [INFO] test_todo: TO-DO FUNCTION TEST SESSION COMPLETED
+2025-10-08 18:14:43,609 [INFO] test_todo: ============================================================

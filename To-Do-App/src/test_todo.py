@@ -10,76 +10,27 @@ import pytest
 import datetime
 import time
 import logging
-import sys
-from todo import add
+from todo import add, connect2DB
+from shared_setup import setup_test_environment, cleanup_after_test
 
-# Configure logging for tests - create a dedicated file handler
-test_logger = logging.getLogger('test_todo')
-test_logger.setLevel(logging.INFO)
+# Simple setup - just these 2 lines
+if not setup_test_environment():
+    pytest.skip("Missing database credentials in .env file")
 
-# Create file handler
-file_handler = logging.FileHandler('test_todo.log', mode='w')
-file_handler.setLevel(logging.INFO)
-
-# Create formatter
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s')
-file_handler.setFormatter(formatter)
-
-# Add handler to logger
-test_logger.addHandler(file_handler)
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_logging():
-    """Setup logging for the test session"""
-    test_logger.info("=" * 60)
-    test_logger.info("STARTING TO-DO FUNCTION TEST SESSION")
-    test_logger.info("=" * 60)
-    
-    yield
-    
-    test_logger.info("=" * 60)
-    test_logger.info("TO-DO FUNCTION TEST SESSION COMPLETED")
-    test_logger.info("=" * 60)
+# Clean database before each test
+@pytest.fixture(autouse=True)
+def clean_database():
+    from shared_setup import cleanup_test_data
+    cleanup_test_data()
 
 class TestAddFunction:
     """Comprehensive unit tests for the add() function"""
-    
-    def setup_method(self):
-        """Setup run before each test method - clean up test data"""
-        from todo import connect2DB
-        
-        # Clean up any existing test data
-        connection = connect2DB()
-        if connection:
-            cursor = connection.cursor()
-            try:
-                # Delete test tasks that might interfere with tests
-                test_items = [
-                    "Unit test task",
-                    "Duplicate test task", 
-                    "Already completed task",
-                    "Invalid type test",
-                    "Invalid length test",
-                    "Edge case task",
-                    "Boundary test task"
-                ]
-                
-                for item in test_items:
-                    cursor.execute("DELETE FROM ToDoData WHERE item = %s", (item,))
-                
-                connection.commit()
-                cursor.close()
-                connection.close()
-            except Exception as e:
-                print(f"Cleanup warning: {e}")
-                cursor.close()
-                connection.close()
 
     # ==================== VALID INPUT TESTS ====================
     
     def test_add_valid_task_basic(self):
         """Test adding a basic valid task"""
-        test_logger.info("Testing add function with basic valid task")
+        logging.info("Testing add function with basic valid task")
         test_task = (
             "Unit test task",
             "Testing", 
@@ -93,7 +44,7 @@ class TestAddFunction:
     
     def test_add_valid_task_with_completion_date(self):
         """Test adding a task that's already completed"""
-        test_logger.info("Testing add function with already completed task")
+        logging.info("Testing add function with already completed task")
         completed_task = (
             "Already completed task",
             "Testing",
@@ -107,7 +58,7 @@ class TestAddFunction:
     
     def test_add_task_with_same_start_and_due_date(self):
         """Test adding a task where start and due dates are the same"""
-        test_logger.info("Testing add function with same start and due dates")
+        logging.info("Testing add function with same start and due dates")
         same_date = datetime.datetime(2025, 10, 1, 12, 0, 0)
         test_task = (
             "Edge case task",
@@ -124,7 +75,7 @@ class TestAddFunction:
     
     def test_add_duplicate_task_fails(self):
         """Test that adding a duplicate task fails"""
-        test_logger.info("Testing add function with duplicate task")
+        logging.info("Testing add function with duplicate task")
         test_task = (
             "Duplicate test task",
             "Testing", 
@@ -145,7 +96,7 @@ class TestAddFunction:
     
     def test_add_task_with_too_few_elements(self):
         """Test that task tuples with too few elements are rejected"""
-        test_logger.info("Testing add function with tasks having too few elements")
+        logging.info("Testing add function with tasks having too few elements")
         short_tasks = [
             (),  # Empty tuple
             ("Item only",),  # 1 element
@@ -160,7 +111,7 @@ class TestAddFunction:
     
     def test_add_task_with_too_many_elements(self):
         """Test that task tuples with too many elements are rejected"""
-        test_logger.info("Testing add function with tasks having too many elements")
+        logging.info("Testing add function with tasks having too many elements")
         long_tasks = [
             # 6 elements
             ("Item", "Type", datetime.datetime.now(), datetime.datetime.now(), None, "extra"),
@@ -179,7 +130,7 @@ class TestAddFunction:
     
     def test_add_task_with_invalid_item_types(self):
         """Test that tasks with invalid item types are rejected"""
-        test_logger.info("Testing add function with invalid item data types")
+        logging.info("Testing add function with invalid item data types")
         invalid_item_tasks = [
             # Integer item
             (123, "Type", datetime.datetime.now(), datetime.datetime.now(), None),
@@ -201,7 +152,7 @@ class TestAddFunction:
     
     def test_add_task_with_invalid_type_field_types(self):
         """Test that tasks with invalid type field types are rejected"""
-        test_logger.info("Testing add function with invalid type field data types")
+        logging.info("Testing add function with invalid type field data types")
         invalid_type_tasks = [
             # Integer type
             ("Item", 123, datetime.datetime.now(), datetime.datetime.now(), None),
@@ -221,7 +172,7 @@ class TestAddFunction:
     
     def test_add_task_with_invalid_started_types(self):
         """Test that tasks with invalid started date types are rejected"""
-        test_logger.info("Testing add function with invalid started date data types")
+        logging.info("Testing add function with invalid started date data types")
         invalid_started_tasks = [
             # String started
             ("Item", "Type", "2025-09-30", datetime.datetime.now(), None),
@@ -241,7 +192,7 @@ class TestAddFunction:
     
     def test_add_task_with_invalid_due_types(self):
         """Test that tasks with invalid due date types are rejected"""
-        test_logger.info("Testing add function with invalid due date data types")
+        logging.info("Testing add function with invalid due date data types")
         invalid_due_tasks = [
             # String due
             ("Item", "Type", datetime.datetime.now(), "2025-10-01", None),
@@ -261,7 +212,7 @@ class TestAddFunction:
     
     def test_add_task_with_invalid_done_types(self):
         """Test that tasks with invalid done date types are rejected"""
-        test_logger.info("Testing add function with invalid done date data types")
+        logging.info("Testing add function with invalid done date data types")
         invalid_done_tasks = [
             # String done (should be datetime or None)
             ("Item", "Type", datetime.datetime.now(), datetime.datetime.now(), "completed"),
@@ -283,7 +234,7 @@ class TestAddFunction:
     
     def test_add_non_tuple_inputs(self):
         """Test that non-tuple inputs are rejected"""
-        test_logger.info("Testing add function with non-tuple inputs")
+        logging.info("Testing add function with non-tuple inputs")
         non_tuple_inputs = [
             # List instead of tuple
             ["Item", "Type", datetime.datetime.now(), datetime.datetime.now(), None],
@@ -307,7 +258,7 @@ class TestAddFunction:
     
     def test_add_task_with_very_long_strings(self):
         """Test adding tasks with very long item names and types"""
-        test_logger.info("Testing add function with very long strings")
+        logging.info("Testing add function with very long strings")
         long_item = "x" * 1000  # Very long item name
         long_type = "y" * 500   # Very long type
         
@@ -326,7 +277,7 @@ class TestAddFunction:
     
     def test_add_task_with_empty_strings(self):
         """Test adding tasks with empty item names and types"""
-        test_logger.info("Testing add function with empty strings")
+        logging.info("Testing add function with empty strings")
         empty_string_tasks = [
             # Empty item name
             ("", "Type", datetime.datetime.now(), datetime.datetime.now(), None),
@@ -340,6 +291,10 @@ class TestAddFunction:
             result = add(task)
             # Document behavior - might be valid depending on business rules
             assert isinstance(result, bool), f"Should return boolean for empty strings: {task[:2]}"
+
+# Cleanup after all tests
+def teardown_module():
+    cleanup_after_test()
 
 if __name__ == "__main__":
     # This allows running the tests directly with: python test_todo.py

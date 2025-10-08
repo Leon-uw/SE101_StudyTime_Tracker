@@ -1,7 +1,7 @@
 DEBUG = False;
 
 import pymysql
-
+import os
 import getpass
 import argparse
 import datetime
@@ -50,15 +50,22 @@ def parseInput(defaultHost, defaultDatabase, defaultUser, defaultPassword,defaul
 # connect2DB connects to the database server with passed parameters
 #
 
-#def connect2DB(username, password):
-def connect2DB():
+def connect2DB(username=None, password=None, db=None):
+    """
+    Connect to database using provided credentials or environment variables
+    """
+    # Use environment variables as defaults if parameters not provided
+    username = username or os.getenv('TODO_DB_USER', 'default_user')
+    password = password or os.getenv('TODO_DB_PASSWORD', 'default_password') 
+    db = db or os.getenv('TODO_DB_NAME', 'default_db')
+    
     try:
         # Establishing the connection
         connection = pymysql.connect(
             host     = "riku.shoshin.uwaterloo.ca",
-            user     = "l48cai",
-            database = "se101_l48cai",
-            password = "cai770904"
+            user     = username,
+            database = db,
+            password = password
         )
         
         return connection
@@ -85,14 +92,18 @@ def queryDatabase(connection):
         print(f"Query Error: {err}")
         return None
     
-def add(task):
-
-    """Find the next task based on the earliest due date among uncompleted tasks"""
-    '''username = str(input("Username: "))
-    password = str(input("Password: "))
+def add(task, username=None, password=None, database=None):
+    """
+    Add a task to the database
     
-    connection = connect2DB(username, password)'''
-    connection = connect2DB()
+    Args:
+        task: Tuple containing (item, type, started, due, done)
+        username: Database username (optional, uses env var if not provided)
+        password: Database password (optional, uses env var if not provided) 
+        database: Database name (optional, uses env var if not provided)
+    """
+    
+    connection = connect2DB(username, password, database)
     if connection is None:
         return False
     
