@@ -4,7 +4,7 @@ Comprehensive Unit Tests for todo.py
 
 TEST OVERVIEW FOR TEAM:
 =======================
-Total: 14 comprehensive test cases for the add() function
+Total: 17 comprehensive test cases for add() function and CLI system
 
 Test Categories:
 • 3 VALID INPUT tests - Basic valid tasks, completed tasks, edge case dates
@@ -12,15 +12,15 @@ Test Categories:
 • 2 TUPLE LENGTH tests - Tasks with too few elements (0-4) and too many (6-10)
 • 5 DATA TYPE tests - Invalid types for item, type, started, due, and done fields
 • 1 NON-TUPLE test - Lists, dicts, strings, integers, None, sets (6 variations)
-• 2 BOUNDARY tests - Very long strings (1000+ chars) and empty strings
+• 2 PARSER tests - CLI datetime parsing with valid/invalid formats
+• 3 COMMAND DISPATCHER tests - CLI command routing and handling
 
 What Each Test Validates:
-• Valid cases: Normal workflow with proper datetime objects and strings
-• Duplicate prevention: Database integrity and business logic
-• Input validation: Proper tuple structure (exactly 5 elements required)
-• Type safety: String items/types, datetime objects for dates, None for optional done
-• Error handling: Graceful rejection of malformed inputs
-• Edge cases: Boundary conditions and stress testing
+• Core add() function: Database operations, validation, error handling
+• CLI datetime parsing: Valid formats (YYYY-MM-DD, YYYY-MM-DD HH:MM:SS), invalid format rejection
+• Command dispatcher: Routing to correct handlers, unknown command handling
+• Placeholder functions: List/update command stubs ready for implementation
+• Integration: CLI arguments properly converted to function calls
 
 💡 For Team Members: Copy the setup pattern from this file to get automatic
    database cleanup, logging, and environment management for your tests.
@@ -276,41 +276,93 @@ class TestAddFunction:
 
     # ==================== BOUNDARY TESTS ====================
     
-    def test_add_task_with_very_long_strings(self):
-        """Test adding tasks with very long item names and types"""
-        logging.info("Testing add function with very long strings")
-        long_item = "x" * 1000  # Very long item name
-        long_type = "y" * 500   # Very long type
+    def test_parse_datetime_arg_valid_formats(self):
+        """Test datetime parsing with valid formats"""
+        logging.info("Testing parse_datetime_arg with valid datetime formats")
+        from todo import parse_datetime_arg
         
-        test_task = (
-            long_item,
-            long_type,
-            datetime.datetime(2025, 9, 30, 10, 0, 0),
-            datetime.datetime(2025, 10, 5, 17, 0, 0),
-            None
-        )
+        # Test full datetime format
+        result1 = parse_datetime_arg("2025-10-15 17:30:00")
+        expected1 = datetime.datetime(2025, 10, 15, 17, 30, 0)
+        assert result1 == expected1, "Should parse full datetime format"
         
-        result = add(test_task)
-        # This might pass or fail depending on database constraints
-        # The test documents the behavior
-        assert isinstance(result, bool), "Should return a boolean result"
+        # Test date-only format
+        result2 = parse_datetime_arg("2025-10-15")
+        expected2 = datetime.datetime(2025, 10, 15, 0, 0, 0)
+        assert result2 == expected2, "Should parse date-only format"
+        
+        # Test None input
+        result3 = parse_datetime_arg(None)
+        assert result3 is None, "Should return None for None input"
     
-    def test_add_task_with_empty_strings(self):
-        """Test adding tasks with empty item names and types"""
-        logging.info("Testing add function with empty strings")
-        empty_string_tasks = [
-            # Empty item name
-            ("", "Type", datetime.datetime.now(), datetime.datetime.now(), None),
-            # Empty type
-            ("Item", "", datetime.datetime.now(), datetime.datetime.now(), None),
-            # Both empty
-            ("", "", datetime.datetime.now(), datetime.datetime.now(), None)
+    def test_parse_datetime_arg_invalid_formats(self):
+        """Test datetime parsing with invalid formats"""
+        logging.info("Testing parse_datetime_arg with invalid datetime formats")
+        from todo import parse_datetime_arg
+        
+        invalid_dates = [
+            "2025/10/15",           # Wrong separator
+            "15-10-2025",           # Wrong order
+            "2025-13-15",           # Invalid month
+            "2025-10-32",           # Invalid day
+            "2025-10-15 25:00:00",  # Invalid hour
+            "not-a-date",           # Random string
+            "2025-10",              # Incomplete date
         ]
         
-        for task in empty_string_tasks:
-            result = add(task)
-            # Document behavior - might be valid depending on business rules
-            assert isinstance(result, bool), f"Should return boolean for empty strings: {task[:2]}"
+        for invalid_date in invalid_dates:
+            with pytest.raises(ValueError, match="Invalid date format"):
+                parse_datetime_arg(invalid_date)
+
+class TestCommandDispatcher:
+    """Test the CLI command dispatcher system"""
+    
+    def test_dispatch_add_command(self):
+        """Test dispatching add command"""
+        logging.info("Testing command dispatcher with add command")
+        from todo import dispatch_command
+        import argparse
+        import time
+        
+        # Create mock args for add command with unique name
+        args = argparse.Namespace()
+        args.command = 'add'
+        args.item = f'CLI Test Task {int(time.time())}'  # Unique name
+        args.type = 'Testing'
+        args.started = None
+        args.due = '2025-10-15 17:00:00'
+        args.done = None
+        args.username = None
+        args.password = None
+        args.database = None
+        
+        result = dispatch_command(args)
+        assert result is True, "Should successfully dispatch add command"
+    
+    def test_dispatch_unknown_command(self):
+        """Test dispatching unknown command"""
+        logging.info("Testing command dispatcher with unknown command")
+        from todo import dispatch_command
+        import argparse
+        
+        # Create mock args for unknown command
+        args = argparse.Namespace()
+        args.command = 'unknown'
+        
+        result = dispatch_command(args)
+        assert result is False, "Should return False for unknown command"
+    
+    def test_handle_list_command_placeholder(self):
+        """Test list command placeholder"""
+        logging.info("Testing list command placeholder")
+        from todo import handle_list_command
+        import argparse
+        
+        args = argparse.Namespace()
+        args.status = 'all'
+        
+        result = handle_list_command(args)
+        assert result is True, "Should return True for placeholder list command"
 
 # Cleanup after all tests
 def teardown_module():

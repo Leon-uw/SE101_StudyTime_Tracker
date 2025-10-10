@@ -32,6 +32,28 @@ def parseInput(defaultHost, defaultDatabase, defaultUser, defaultPassword,defaul
     # Add the password argument which may or may not take a parameter
     parser.add_argument('-p', '--password', nargs='?', action=OptionalPassword, help="Password (optional)")
     
+    # Create subparsers for different commands
+    subparsers = parser.add_subparsers(dest='command', required=True, help='Available commands')
+    
+    # Add subparser for 'add' command
+    parser_add = subparsers.add_parser('add', help='Add a new task')
+    parser_add.add_argument('item', type=str, help='The description of the task')
+    parser_add.add_argument('--type', type=str, required=True, help='The category of the task')
+    parser_add.add_argument('--started', type=str, help='The start date (format: YYYY-MM-DD HH:MM:SS)')
+    parser_add.add_argument('--due', type=str, required=True, help='The due date (format: YYYY-MM-DD HH:MM:SS)')
+    parser_add.add_argument('--done', type=str, help='The completion date (for completed tasks)')
+    
+    # Add subparser for 'list' command (example for future)
+    parser_list = subparsers.add_parser('list', help='List tasks')
+    parser_list.add_argument('--status', choices=['all', 'pending', 'completed'], default='all', help='Filter by status')
+    
+    # Add subparser for 'update' command (example for future)
+    parser_update = subparsers.add_parser('update', help='Update a task')
+    parser_update.add_argument('item', type=str, help='The task to update')
+    parser_update.add_argument('--type', type=str, help='New category')
+    parser_update.add_argument('--due', type=str, help='New due date')
+    parser_update.add_argument('--done', type=str, help='Mark as completed with date')
+    
     # Parse the arguments
     args = parser.parse_args()
 
@@ -173,3 +195,70 @@ def add(task, username=None, password=None, database=None):
         cursor.close()
         connection.close()
         return False
+
+def parse_datetime_arg(date_string):
+    """Parse datetime string argument"""
+    if not date_string:
+        return None
+    try:
+        return datetime.datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        try:
+            return datetime.datetime.strptime(date_string, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date_string}. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS")
+
+def handle_add_command(args):
+    """Handle the 'add' subcommand"""
+    started = parse_datetime_arg(args.started) or datetime.datetime.now()
+    due = parse_datetime_arg(args.due)
+    done = parse_datetime_arg(args.done)
+    
+    task = (args.item, args.type, started, due, done)
+    return add(task, args.username, args.password, args.database)
+
+def handle_list_command(args):
+    """Handle the 'list' subcommand - placeholder for future implementation"""
+    print(f"List command (status: {args.status}) - Not implemented yet")
+    return True
+
+def handle_update_command(args):
+    """Handle the 'update' subcommand - placeholder for future implementation"""
+    print(f"Update command for '{args.item}' - Not implemented yet")
+    return True
+
+def dispatch_command(args):
+    """General command dispatcher"""
+    command_handlers = {
+        'add': handle_add_command,
+        'list': handle_list_command,
+        'update': handle_update_command,
+    }
+    
+    handler = command_handlers.get(args.command)
+    if handler:
+        return handler(args)
+    else:
+        print(f"Unknown command: {args.command}")
+        return False
+
+if __name__ == "__main__":
+    # Default values
+    defaultHost = "riku.shoshin.uwaterloo.ca"
+    defaultDatabase = os.getenv('TODO_DB_NAME', 'default_db')
+    defaultUser = os.getenv('TODO_DB_USER', 'default_user')
+    defaultPassword = os.getenv('TODO_DB_PASSWORD', '')
+    defaultID = "12345678"
+    
+    # Parse arguments
+    args = parseInput(defaultHost, defaultDatabase, defaultUser, defaultPassword, defaultID)
+    
+    # Dispatch command to appropriate handler
+    try:
+        success = dispatch_command(args)
+        if success:
+            print("Command completed successfully!")
+        else:
+            print("Command failed")
+    except Exception as e:
+        print(f"Error: {e}")
