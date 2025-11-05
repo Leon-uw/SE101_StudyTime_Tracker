@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Time Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .main-container { display: flex; flex-direction: row; gap: 2em; }
+        .left-panel { flex: 3; min-width: 0; }
+        .right-panel { flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .table-container { max-height: 450px; overflow-y: auto; border: 1px solid #ddd; margin-bottom: 1em; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; text-align: left; padding: 8px; }
+        thead th { position: sticky; top: 0; background-color: #f2f2f2; z-index: 1; }
+        .summary-row { background-color: #e9ecef; font-weight: bold; }
+        .summary-row td { border-top: 2px solid #6c757d; border-bottom: 2px solid #6c757d; }
+        input[type="text"], input[type="number"] { width: 95%; padding: 4px; box-sizing: border-box; }
+        .action-btn { padding: 5px 10px; cursor: pointer; }
+        #addRowBtn { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .flash-messages { margin-bottom: 1em; }
+        .alert { padding: 15px; margin-bottom: 10px; border-radius: 4px; }
+        .alert-success { color: #155724; background-color: #d4edda; }
+        .alert-error { color: #721c24; background-color: #f8d7da; }
+        .filter-form { margin-bottom: 1em; display: flex; align-items: center; }
+        .filter-form label { margin-right: 10px; font-weight: bold; }
+        .filter-form select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <h1>Study Log Dashboard</h1>
+    
+    <div class="main-container">
+        
+        <div class="left-panel">
+            <form class="filter-form" method="GET" action="/">
+                <label for="subject-filter">Filter by Subject:</label>
+                <select name="subject" id="subject-filter" onchange="this.form.submit()">
+                    <option value="all">All Subjects</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject }}" {% if subject == selected_subject %}selected{% endif %}>
+                            {{ subject }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+            <datalist id="subject-list">
+                {% for subject in subjects %}
+                    <option value="{{ subject }}"></option>
+                {% endfor %}
+            </datalist>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Subject</th><th>Study Time</th><th>Assignment Name</th><th>Grade</th><th>Weight</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="study-table-body">
+                        {% if summary_data %}
+                            <tr class="summary-row">
+                                <td><strong>Summary for {{ selected_subject }}</strong></td>
+                                <td>{{ "%.1f"|format(summary_data.total_hours) }} hours (total)</td><td>-</td>
+                                <td>{{ "%.1f"|format(summary_data.average_grade) }}% (avg)</td>
+                                <td>{{ summary_data.total_weight }}% (total)</td><td>-</td>
+                            </tr>
+                        {% endif %}
+                        {% for row in data %}
+                            <tr data-id="{{ row.id }}">
+                                <td>{{ row.subject }}</td><td>{{ "%.1f"|format(row.study_time) }} hours</td>
+                                <td>{{ row.assignment_name }}</td><td>{{ row.grade }}%</td>
+                                <td>{{ row.weight }}%</td><td><button class="action-btn">Edit</button></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button id="addRowBtn">Add New Assignment</button>
+        </div>
+
+        <div class="right-panel">
+            <h2>Hours Breakdown</h2>
+            <canvas id="hoursPieChart"></canvas>
+        </div>
+    </div>
+
+    <!-- This entire script block should be replaced to ensure it is correct. -->
+    <script>
+        // --- JavaScript for Table Editing and Adding Rows ---
+        const tableBody = document.getElementById('study-table-body');
+        const addRowBtn = document.getElementById('addRowBtn');
+
+        addRowBtn.addEventListener('click', function() {
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `<td><input type="text" name="subject" placeholder="Type or select a subject" required list="subject-list"></td><td><input type="number" name="study_time" step="0.1" min="0" placeholder="e.g., 2.5" required></td><td><input type="text" name="assignment_name" placeholder="e.g., Chapter 3 Quiz" required></td><td><input type="number" name="grade" min="0" max="100" placeholder="e.g., 91" required></td><td><input type="number" name="weight" min="0" max="100" placeholder="e.g., 5" required></td><td><button class="action-btn">Save</button></td>`;
+            tableBody.appendChild(newRow);
+        });
+
+        tableBody.addEventListener('click', function (event) {
+            if (!event.target.classList.contains('action-btn')) return;
+            const button = event.target;
+            const row = button.closest('tr');
+            if (button.textContent === 'Edit') {
+                button.textContent = 'Save';
+                const cells = row.querySelectorAll('td');
+                cells[0].innerHTML = `<input type="text" name="subject" value="${cells[0].textContent}" required list="subject-list">`;
+                const timeValue = parseFloat(cells[1].textContent) || 0;
+                cells[1].innerHTML = `<input type="number" name="study_time" value="${timeValue.toFixed(1)}" step="0.1" min="0" required>`;
+                cells[2].innerHTML = `<input type="text" name="assignment_name" value="${cells[2].textContent}" required>`;
+                const gradeValue = parseInt(cells[3].textContent, 10) || 0;
+                cells[3].innerHTML = `<input type="number" name="grade" value="${gradeValue}" min="0" max="100" required>`;
+                const weightValue = parseInt(cells[4].textContent, 10) || 0;
+                cells[4].innerHTML = `<input type="number" name="weight" value="${weightValue}" min="0" max="100" required>`;
+            } else if (button.textContent === 'Save') {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.style.display = 'none';
+                form.action = row.dataset.id ? `/update/${row.dataset.id}` : `/add`;
+                row.querySelectorAll('input').forEach(input => form.appendChild(input.cloneNode()));
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+
+        // --- JavaScript to render the Pie Chart ---
+        (function() {
+            const ctx = document.getElementById('hoursPieChart').getContext('2d');
+            const chartLabels = {{ chart_labels|safe }};
+            const chartValues = {{ chart_values|safe }};
+
+            if (chartLabels && chartLabels.length > 0) {
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Hours Studied',
+                            data: chartValues,
+                            backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top'
+                            }
+                        }
+                    }
+                });
+            }
+        })(); // This is the line that had the syntax error.
+    </script>
+</body>
+</html>
