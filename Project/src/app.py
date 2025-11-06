@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, url_for, jsonify
 import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key'
 
+# In-memory "database"
 study_data = [
     { "id": 1, "subject": "Mathematics", "study_time": 2.5, "assignment_name": "Homework 1", "grade": 85, "weight": 10 },
     { "id": 2, "subject": "History", "study_time": 1.5, "assignment_name": "Essay", "grade": 92, "weight": 15 },
@@ -13,7 +14,6 @@ study_data = [
 ]
 next_id = 6
 
-# The main route and helper functions remain the same
 @app.route('/')
 def display_table():
     filter_subject = request.args.get('subject')
@@ -35,58 +35,60 @@ def display_table():
     return render_template('index.html', data=data_to_display, subjects=unique_subjects, selected_subject=filter_subject, summary_data=summary_data, chart_labels=json.dumps(chart_labels), chart_values=json.dumps(chart_values))
 
 def process_form_data(form):
-    required_fields = ['subject', 'assignment_name', 'study_time', 'weight']
+    required_fields = ['assignment_name', 'study_time', 'weight']
     if not all([form.get(key) for key in required_fields]):
-        flash("Error: Subject, Assignment, Time, and Weight are required.", "error")
-        return None
+        return None, "Assignment, Time, and Weight are required."
+    
+    subject = form.get('subject') or form.get('current_filter')
+    if not subject or subject == 'all':
+        return None, "A valid subject is required."
+        
     try:
         grade_str = form.get('grade')
-        return {
-            "subject": form.get('subject'), "study_time": float(form.get('study_time')),
-            "assignment_name": form.get('assignment_name'), "grade": int(grade_str) if grade_str and grade_str.strip() else None,
+        data = {
+            "subject": subject,
+            "study_time": float(form.get('study_time')),
+            "assignment_name": form.get('assignment_name'),
+            "grade": int(grade_str) if grade_str and grade_str.strip() else None,
             "weight": int(form.get('weight'))
         }
+        return data, None
     except ValueError:
-        flash("Error: Invalid data. Time, grade, and weight must be valid numbers.", "error")
-        return None
+        return None, "Invalid data. Time, grade, and weight must be valid numbers."
 
 @app.route('/add', methods=['POST'])
 def add_log():
     global next_id
-    log_data = process_form_data(request.form)
-    if log_data:
-        log_data['id'] = next_id
-        study_data.append(log_data)
-        next_id += 1
-        flash("New assignment added successfully!", "success")
-    return redirect(url_for('display_table'))
+    log_data, error = process_form_data(request.form)
+    if error:
+        return jsonify({'status': 'error', 'message': error}), 400
+    
+    log_data['id'] = next_id
+    study_data.append(log_data)
+    next_id += 1
+    return jsonify({'status': 'success', 'message': 'Assignment added!', 'log': log_data})
 
 @app.route('/update/<int:log_id>', methods=['POST'])
 def update_log(log_id):
     update_index = next((i for i, log in enumerate(study_data) if log['id'] == log_id), -1)
     if update_index == -1:
-        flash("Error: Could not find assignment to update.", "error")
-    else:
-        updated_data = process_form_data(request.form)
-        if updated_data:
-            updated_data['id'] = log_id
-            study_data[update_index] = updated_data
-            flash("Assignment updated successfully!", "success")
-    return redirect(url_for('display_table'))
+        return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
+        
+    updated_data, error = process_form_data(request.form)
+    if error:
+        return jsonify({'status': 'error', 'message': error}), 400
 
-# --- NEW: Route for deleting an assignment ---
+    updated_data['id'] = log_id
+    study_data[update_index] = updated_data
+    return jsonify({'status': 'success', 'message': 'Assignment updated!', 'log': updated_data})
+
 @app.route('/delete/<int:log_id>', methods=['POST'])
 def delete_log(log_id):
-    # Find the specific log entry to delete
     log_to_delete = next((log for log in study_data if log['id'] == log_id), None)
-    
     if log_to_delete:
         study_data.remove(log_to_delete)
-        flash("Assignment deleted successfully!", "success")
-    else:
-        flash("Error: Could not find assignment to delete.", "error")
-        
-    return redirect(url_for('display_table'))
+        return jsonify({'status': 'success', 'message': 'Assignment deleted!'})
+    return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)

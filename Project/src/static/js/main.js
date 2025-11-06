@@ -2,50 +2,107 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.getElementById('study-table-body');
     const addRowBtn = document.getElementById('addRowBtn');
 
-    // --- NEW: A helper function to validate a row before saving ---
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = type;
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    }
+
     function validateRow(row) {
         const invalidFields = [];
         const requiredInputs = row.querySelectorAll('input[required]');
-
         requiredInputs.forEach(input => {
-            // First, remove any old error styling
             input.classList.remove('input-error');
-            
-            // Check if the input is empty
             if (input.value.trim() === '') {
-                // Add the input's name to our list of errors
-                const fieldName = input.name.replace('_', ' '); // e.g., 'study_time' -> 'study time'
-                invalidFields.push(fieldName.charAt(0).toUpperCase() + fieldName.slice(1)); // Capitalize
-                
-                // Apply the error style to the input field
+                const fieldName = input.name.replace('_', ' ');
+                invalidFields.push(fieldName.charAt(0).toUpperCase() + fieldName.slice(1));
                 input.classList.add('input-error');
             }
         });
-
         if (invalidFields.length > 0) {
-            // If there are errors, show an alert and return false
             alert(`Please fill out all required fields:\n- ${invalidFields.join('\n- ')}`);
             return false;
         }
-
-        // If all checks pass, return true
         return true;
     }
 
+    async function handleSave(row) {
+        if (!validateRow(row)) return;
+
+        const logId = row.dataset.id;
+        const isNew = !logId;
+        const url = isNew ? '/add' : `/update/${logId}`;
+        const formData = new FormData();
+        
+        row.querySelectorAll('input').forEach(input => formData.append(input.name, input.value));
+        
+        const filterDropdown = document.getElementById('subject-filter');
+        const currentFilter = filterDropdown ? filterDropdown.value : 'all';
+        formData.append('current_filter', currentFilter);
+
+        try {
+            const response = await fetch(url, { method: 'POST', body: formData });
+            const result = await response.json();
+
+            if (!response.ok) {
+                showToast(result.message, 'error');
+                return;
+            }
+
+            showToast(result.message, 'success');
+            const savedLog = result.log;
+
+            // --- NEW LOGIC: Check if the saved item belongs in the current view ---
+            if (currentFilter && currentFilter !== 'all' && savedLog.subject !== currentFilter) {
+                // If the current filter is active and the saved subject doesn't match,
+                // remove the row from the view.
+                row.remove();
+            } else {
+                // Otherwise, update the row as normal.
+                row.innerHTML = `
+                    <td>${savedLog.subject}</td>
+                    <td>${parseFloat(savedLog.study_time).toFixed(1)} hours</td>
+                    <td>${savedLog.assignment_name}</td>
+                    <td>${savedLog.grade !== null ? savedLog.grade + '%' : '-'}</td>
+                    <td>${savedLog.weight}%</td>
+                    <td>
+                        <button class="action-btn edit-btn">Edit</button>
+                        <button class="action-btn delete-btn">Delete</button>
+                    </td>
+                `;
+                if (isNew) {
+                    row.dataset.id = savedLog.id;
+                }
+            }
+            // --- End of new logic ---
+
+        } catch (error) {
+            console.error('Save failed:', error);
+            showToast('A network error occurred. Please try again.', 'error');
+        }
+    }
+    
     if (addRowBtn) {
         addRowBtn.addEventListener('click', function() {
-            const newRow = document.createElement('tr'); 
-            newRow.innerHTML = `<td><input type="text" name="subject" required list="subject-list"></td><td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" min="0" max="100" placeholder="Optional"></td><td><input type="number" name="weight" min="0" max="100" required></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
-            tableBody.appendChild(newRow); 
+            const newRow = document.createElement('tr');
+            const filterDropdown = document.getElementById('subject-filter');
+            const currentFilter = filterDropdown ? filterDropdown.value : 'all';
+            const defaultValue = (currentFilter && currentFilter !== 'all') ? currentFilter : '';
+            const placeholderText = defaultValue ? '' : 'Type or select a subject';
+            const subjectInputHtml = `<input type="text" name="subject" value="${defaultValue}" placeholder="${placeholderText}" required list="subject-list">`;
+            
+            newRow.innerHTML = `<td>${subjectInputHtml}</td><td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" min="0" max="100" placeholder="Optional"></td><td><input type="number" name="weight" min="0" max="100" required></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
+            tableBody.appendChild(newRow);
         });
     }
 
     if (tableBody) {
-        tableBody.addEventListener('click', function (event) {
+        tableBody.addEventListener('click', async function (event) {
             if (!event.target.classList.contains('action-btn')) return;
             const button = event.target;
             const row = button.closest('tr');
-            const logId = row.dataset.id;
 
             if (button.classList.contains('edit-btn')) {
                 button.textContent = 'Save';
@@ -59,43 +116,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 cells[2].innerHTML = `<input type="text" name="assignment_name" value="${cells[2].textContent.trim()}" required>`;
                 cells[3].innerHTML = `<input type="number" name="grade" value="${gradeValue}" min="0" max="100" placeholder="Optional">`;
                 cells[4].innerHTML = `<input type="number" name="weight" value="${parseInt(cells[4].textContent, 10) || 0}" min="0" max="100" required>`;
-            
             } else if (button.classList.contains('save-btn')) {
-                // --- UPDATED: Validate before submitting ---
-                if (validateRow(row)) {
-                    // If validation passes, submit the form
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.style.display = 'none';
-                    form.action = logId ? `/update/${logId}` : `/add`;
-                    row.querySelectorAll('input').forEach(input => form.appendChild(input.cloneNode()));
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-            
+                await handleSave(row);
             } else if (button.classList.contains('delete-btn')) {
                 if (confirm("Are you sure you want to delete this assignment?")) {
+                    const logId = row.dataset.id;
                     if (!logId) { row.remove(); return; }
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.style.display = 'none';
-                    form.action = `/delete/${logId}`;
-                    document.body.appendChild(form);
-                    form.submit();
+                    const response = await fetch(`/delete/${logId}`, { method: 'POST' });
+                    const result = await response.json();
+                    showToast(result.message, response.ok ? 'success' : 'error');
+                    if (response.ok) row.remove();
                 }
             }
         });
 
-        tableBody.addEventListener('keydown', function(event) {
+        tableBody.addEventListener('keydown', async function(event) {
             if (event.key === 'Enter' && event.target.matches('input')) {
                 event.preventDefault();
-                const row = event.target.closest('tr');
-                if (row) {
-                    const saveButton = row.querySelector('.save-btn');
-                    if (saveButton) {
-                        saveButton.click(); // This will now trigger the click handler with the validation logic
-                    }
-                }
+                await handleSave(event.target.closest('tr'));
             }
         });
     }
