@@ -1,0 +1,130 @@
+/* General Body Styles */
+body { 
+    font-family: sans-serif; 
+    margin: 2em; 
+}
+
+/* Layout Containers */
+.main-container { 
+    display: flex; 
+    flex-direction: row; 
+    gap: 2em; 
+}
+.left-panel { 
+    flex: 3; 
+    min-width: 0; 
+}
+.right-panel { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+}
+
+/* Table and Scroll Container */
+.table-container { 
+    max-height: 450px; 
+    overflow-y: auto; 
+    border: 1px solid #ddd; 
+    margin-bottom: 1em; 
+}
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+}
+th, td { 
+    border: 1px solid #ddd; 
+    text-align: left; 
+    padding: 8px; 
+}
+thead th { 
+    position: sticky; 
+    top: 0; 
+    background-color: #f2f2f2; 
+    z-index: 1; 
+}
+.summary-row { 
+    background-color: #e9ecef; 
+    font-weight: bold; 
+}
+.summary-row td { 
+    border-top: 2px solid #6c757d; 
+    border-bottom: 2px solid #6c757d; 
+}
+
+/* --- UPDATED: Target the last column (Actions) --- */
+th:last-child, td:last-child {
+    width: 1%; /* Make the column as narrow as possible */
+    white-space: nowrap; /* Prevent the buttons from wrapping to a new line */
+}
+
+
+/* Form Elements and Buttons */
+input { 
+    width: 95%; 
+    padding: 4px; 
+    box-sizing: border-box; 
+}
+.action-btn { 
+    padding: 5px 10px; 
+    cursor: pointer; 
+    margin-right: 5px; 
+    border-radius: 4px; /* Added a default radius to all action buttons */
+    border: 1px solid #ccc; /* Added a default border */
+}
+#addRowBtn { 
+    padding: 10px 15px; 
+    background-color: #007bff; 
+    color: white; 
+    border: none; 
+    border-radius: 4px; 
+    cursor: pointer; 
+}
+.delete-btn { 
+    background-color: #dc3545; 
+    color: white; 
+    border: 1px solid #dc3545; 
+}
+
+/* --- UPDATED: Added rounded edges specifically to delete-btn --- */
+/* (This now overrides the default radius if you want something different) */
+.delete-btn {
+    border-radius: 5px;
+}
+
+
+/* Validation and Messaging */
+.input-error {
+    border: 2px solid #dc3545 !important; /* Use !important to override other styles */
+    background-color: #f8d7da;
+}
+.flash-messages { 
+    margin-bottom: 1em; 
+}
+.alert { 
+    padding: 15px; 
+    margin-bottom: 10px; 
+    border-radius: 4px; 
+}
+.alert-success { 
+    color: #155724; 
+    background-color: #d4edda; 
+}
+.alert-error { 
+    color: #721c24; 
+    background-color: #f8d7da; 
+}
+.filter-form { 
+    margin-bottom: 1em; 
+    display: flex; 
+    align-items: center; 
+}
+.filter-form label { 
+    margin-right: 10px; 
+    font-weight: bold; 
+}
+.filter-form select { 
+    padding: 8px; 
+    border-radius: 4px; 
+    border: 1px solid #ccc; 
+}
