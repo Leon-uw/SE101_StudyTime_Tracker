@@ -14,21 +14,35 @@ study_data = [
 ]
 next_id = 6
 
+def calculate_summary(subject):
+    """A reusable helper function for calculating summaries for a given subject."""
+    if not subject or subject == 'all':
+        return None
+
+    subject_items = [log for log in study_data if log['subject'] == subject]
+    
+    if not subject_items:
+        return None
+
+    graded_items = [log for log in subject_items if log.get('grade') is not None]
+    total_hours = sum(log['study_time'] for log in subject_items)
+    total_weight = sum(log['weight'] for log in graded_items)
+    weighted_grade_sum = sum(log['grade'] * log['weight'] for log in graded_items)
+    average_grade = weighted_grade_sum / total_weight if total_weight > 0 else 0
+    
+    return {'total_hours': total_hours, 'average_grade': average_grade, 'total_weight': total_weight}
+
 @app.route('/')
 def display_table():
     filter_subject = request.args.get('subject')
     unique_subjects = sorted(list(set(log['subject'] for log in study_data)))
     data_to_display = study_data
-    summary_data = None
+    
     if filter_subject and filter_subject != 'all':
         data_to_display = [log for log in study_data if log['subject'] == filter_subject]
-        if data_to_display:
-            graded_items = [log for log in data_to_display if log.get('grade') is not None]
-            total_hours = sum(log['study_time'] for log in data_to_display)
-            total_weight = sum(log['weight'] for log in graded_items)
-            weighted_grade_sum = sum(log['grade'] * log['weight'] for log in graded_items)
-            average_grade = weighted_grade_sum / total_weight if total_weight > 0 else 0
-            summary_data = {'total_hours': total_hours, 'average_grade': average_grade, 'total_weight': total_weight}
+
+    summary_data = calculate_summary(filter_subject)
+
     chart_data = {s: sum(log['study_time'] for log in study_data if log['subject'] == s) for s in unique_subjects}
     chart_labels = list(chart_data.keys())
     chart_values = list(chart_data.values())
@@ -66,7 +80,11 @@ def add_log():
     log_data['id'] = next_id
     study_data.append(log_data)
     next_id += 1
-    return jsonify({'status': 'success', 'message': 'Assignment added!', 'log': log_data})
+    
+    current_filter = request.form.get('current_filter')
+    summary = calculate_summary(current_filter)
+    
+    return jsonify({'status': 'success', 'message': 'Assignment added!', 'log': log_data, 'summary': summary})
 
 @app.route('/update/<int:log_id>', methods=['POST'])
 def update_log(log_id):
@@ -80,14 +98,22 @@ def update_log(log_id):
 
     updated_data['id'] = log_id
     study_data[update_index] = updated_data
-    return jsonify({'status': 'success', 'message': 'Assignment updated!', 'log': updated_data})
+    
+    current_filter = request.form.get('current_filter')
+    summary = calculate_summary(current_filter)
+
+    return jsonify({'status': 'success', 'message': 'Assignment updated!', 'log': updated_data, 'summary': summary})
 
 @app.route('/delete/<int:log_id>', methods=['POST'])
 def delete_log(log_id):
+    current_filter = request.args.get('current_filter') 
+    
     log_to_delete = next((log for log in study_data if log['id'] == log_id), None)
     if log_to_delete:
         study_data.remove(log_to_delete)
-        return jsonify({'status': 'success', 'message': 'Assignment deleted!'})
+        summary = calculate_summary(current_filter)
+        return jsonify({'status': 'success', 'message': 'Assignment deleted!', 'summary': summary})
+        
     return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
 
 if __name__ == '__main__':

@@ -28,6 +28,30 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    function updateSummaryRow(summaryData, subjectName) {
+        let summaryRow = tableBody.querySelector('.summary-row');
+        if (summaryData) {
+            const summaryHtml = `
+                <td><strong>Summary for ${subjectName}</strong></td>
+                <td>${summaryData.total_hours.toFixed(1)}h (total)</td>
+                <td>-</td>
+                <td>${summaryData.average_grade.toFixed(1)}% (avg)</td>
+                <td>${summaryData.total_weight}% (graded)</td>
+                <td>-</td>
+            `;
+            if (summaryRow) {
+                summaryRow.innerHTML = summaryHtml;
+            } else {
+                summaryRow = document.createElement('tr');
+                summaryRow.className = 'summary-row';
+                summaryRow.innerHTML = summaryHtml;
+                tableBody.prepend(summaryRow);
+            }
+        } else if (summaryRow) {
+            summaryRow.remove();
+        }
+    }
+
     async function handleSave(row) {
         if (!validateRow(row)) return;
 
@@ -35,9 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const isNew = !logId;
         const url = isNew ? '/add' : `/update/${logId}`;
         const formData = new FormData();
-        
         row.querySelectorAll('input').forEach(input => formData.append(input.name, input.value));
-        
         const filterDropdown = document.getElementById('subject-filter');
         const currentFilter = filterDropdown ? filterDropdown.value : 'all';
         formData.append('current_filter', currentFilter);
@@ -45,42 +67,22 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch(url, { method: 'POST', body: formData });
             const result = await response.json();
-
-            if (!response.ok) {
-                showToast(result.message, 'error');
-                return;
-            }
+            if (!response.ok) { showToast(result.message, 'error'); return; }
 
             showToast(result.message, 'success');
             const savedLog = result.log;
 
-            // --- NEW LOGIC: Check if the saved item belongs in the current view ---
+            updateSummaryRow(result.summary, currentFilter);
+
             if (currentFilter && currentFilter !== 'all' && savedLog.subject !== currentFilter) {
-                // If the current filter is active and the saved subject doesn't match,
-                // remove the row from the view.
                 row.remove();
             } else {
-                // Otherwise, update the row as normal.
-                row.innerHTML = `
-                    <td>${savedLog.subject}</td>
-                    <td>${parseFloat(savedLog.study_time).toFixed(1)} hours</td>
-                    <td>${savedLog.assignment_name}</td>
-                    <td>${savedLog.grade !== null ? savedLog.grade + '%' : '-'}</td>
-                    <td>${savedLog.weight}%</td>
-                    <td>
-                        <button class="action-btn edit-btn">Edit</button>
-                        <button class="action-btn delete-btn">Delete</button>
-                    </td>
-                `;
-                if (isNew) {
-                    row.dataset.id = savedLog.id;
-                }
+                row.innerHTML = `<td>${savedLog.subject}</td><td>${parseFloat(savedLog.study_time).toFixed(1)} hours</td><td>${savedLog.assignment_name}</td><td>${savedLog.grade !== null ? savedLog.grade + '%' : '-'}</td><td>${savedLog.weight}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+                if (isNew) { row.dataset.id = savedLog.id; }
             }
-            // --- End of new logic ---
-
         } catch (error) {
             console.error('Save failed:', error);
-            showToast('A network error occurred. Please try again.', 'error');
+            showToast('A network error occurred.', 'error');
         }
     }
     
@@ -122,10 +124,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (confirm("Are you sure you want to delete this assignment?")) {
                     const logId = row.dataset.id;
                     if (!logId) { row.remove(); return; }
-                    const response = await fetch(`/delete/${logId}`, { method: 'POST' });
+                    
+                    const filterDropdown = document.getElementById('subject-filter');
+                    const currentFilter = filterDropdown ? filterDropdown.value : 'all';
+                    
+                    const response = await fetch(`/delete/${logId}?current_filter=${currentFilter}`, { method: 'POST' });
                     const result = await response.json();
+                    
                     showToast(result.message, response.ok ? 'success' : 'error');
-                    if (response.ok) row.remove();
+                    
+                    if (response.ok) {
+                        updateSummaryRow(result.summary, currentFilter);
+                        row.remove();
+                    }
                 }
             }
         });
@@ -138,7 +149,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Chart.js rendering logic (no changes)
     const ctx = document.getElementById('hoursPieChart');
     if (ctx) {
         try {
