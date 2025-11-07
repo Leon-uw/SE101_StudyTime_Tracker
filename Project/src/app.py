@@ -147,5 +147,31 @@ def logout():
     flash('Logged out successfully!', 'info')
     return redirect(url_for('login'))
 
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
+        confirm = request.form.get('confirm_password').strip()
+
+        # Validation
+        if not username or not password:
+            flash("Username and password are required.", "error")
+            return redirect(url_for('register'))
+        if username in users:
+            flash("Username already exists.", "error")
+            return redirect(url_for('register'))
+        if password != confirm:
+            flash("Passwords do not match.", "error")
+            return redirect(url_for('register'))
+
+        # Save locally in the in-memory dictionary
+        users[username] = password
+        flash("Account created successfully! Please log in.", "success")
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
