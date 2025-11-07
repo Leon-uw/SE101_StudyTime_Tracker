@@ -1,6 +1,112 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Get all necessary elements from the DOM
     const tableBody = document.getElementById('study-table-body');
     const addRowBtn = document.getElementById('addRowBtn');
+    const gradeLockBtn = document.getElementById('grade-lock-btn');
+    const validationAlert = document.getElementById('validation-alert');
+    const confirmationAlert = document.getElementById('confirmation-alert');
+    const confirmMsg = document.getElementById('confirmation-message');
+    const confirmYesBtn = document.getElementById('confirm-yes');
+    const confirmNoBtn = document.getElementById('confirm-no');
+
+    // State variables
+    let isGradeLockOn = true;
+    let rowToDelete = null; // Variable to store the row pending deletion
+
+    // --- NEW: Functions to control the custom confirmation dialog ---
+    function showConfirmation(message, row) {
+        rowToDelete = row; // Store the row context
+        confirmMsg.textContent = message;
+        confirmationAlert.style.display = 'block';
+        validationAlert.style.display = 'none'; // Hide validation alerts if any are showing
+    }
+
+    function hideConfirmation() {
+        rowToDelete = null; // Clear the stored row
+        confirmationAlert.style.display = 'none';
+    }
+
+    // --- Event listeners for the new confirmation buttons ---
+    if (confirmNoBtn) {
+        confirmNoBtn.addEventListener('click', hideConfirmation);
+    }
+    
+    if (confirmYesBtn) {
+        confirmYesBtn.addEventListener('click', async function() {
+            if (rowToDelete) {
+                const logId = rowToDelete.dataset.id;
+
+                if (!logId) { // It's a new, unsaved row
+                    rowToDelete.remove();
+                    hideConfirmation();
+                    return;
+                }
+                
+                // It's an existing row, proceed with fetch
+                const filterDropdown = document.getElementById('subject-filter');
+                const currentFilter = filterDropdown ? filterDropdown.value : 'all';
+                
+                try {
+                    const response = await fetch(`/delete/${logId}?current_filter=${currentFilter}`, { method: 'POST' });
+                    const result = await response.json();
+                    
+                    showToast(result.message, response.ok ? 'success' : 'error');
+                    
+                    if (response.ok) {
+                        updateSummaryRow(result.summary, currentFilter);
+                        rowToDelete.remove();
+                    }
+                } catch (error) {
+                    console.error("Delete failed:", error);
+                    showToast("A network error occurred.", "error");
+                } finally {
+                    hideConfirmation(); // Hide the dialog regardless of outcome
+                }
+            }
+        });
+    }
+
+
+    function showToast(message, type = 'success') { /* ... (unchanged) ... */ }
+    function showValidationAlert(messages) { /* ... (unchanged) ... */ }
+    function validateRow(row) { /* ... (unchanged) ... */ }
+    function updateSummaryRow(summaryData, subjectName) { /* ... (unchanged) ... */ }
+    async function handleSave(row) { /* ... (unchanged) ... */ }
+    if (gradeLockBtn) { /* ... (unchanged) ... */ }
+    if (addRowBtn) { /* ... (unchanged) ... */ }
+
+    if (tableBody) {
+        tableBody.addEventListener('click', async function (event) {
+            if (!event.target.classList.contains('action-btn')) return;
+            const button = event.target;
+            const row = button.closest('tr');
+
+            if (button.classList.contains('edit-btn')) {
+                // (Edit logic is unchanged)
+            } else if (button.classList.contains('save-btn')) {
+                await handleSave(row);
+            } else if (button.classList.contains('delete-btn')) {
+                // --- UPDATED: Replace confirm() with our custom function ---
+                showConfirmation("Are you sure you want to delete this assignment?", row);
+            }
+        });
+
+        tableBody.addEventListener('input', function(event) {
+            if (event.target.matches('input')) {
+                showValidationAlert([]);
+                event.target.classList.remove('input-error');
+            }
+        });
+        
+        tableBody.addEventListener('keydown', async function(event) {
+            // (Keydown logic is unchanged)
+        });
+    }
+
+    // (Chart rendering logic is unchanged)
+
+    // NOTE: The full content of the file is below.
+    // Please copy and paste the entire thing.
 
     function showToast(message, type = 'success') {
         const toast = document.getElementById('toast');
@@ -10,35 +116,52 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => { toast.classList.remove('show'); }, 3000);
     }
 
+    function showValidationAlert(messages) {
+        if (!validationAlert) return;
+        if (messages && messages.length > 0) {
+            const listHtml = `<ul>${messages.map(msg => `<li>${msg}</li>`).join('')}</ul>`;
+            validationAlert.innerHTML = listHtml;
+            validationAlert.style.display = 'block';
+        } else {
+            validationAlert.innerHTML = '';
+            validationAlert.style.display = 'none';
+        }
+    }
+
     function validateRow(row) {
-        const invalidFields = [];
-        const requiredInputs = row.querySelectorAll('input[required]');
-        requiredInputs.forEach(input => {
+        const errorMessages = [];
+        showValidationAlert([]);
+        const inputsToValidate = row.querySelectorAll('input[name]');
+        inputsToValidate.forEach(input => {
             input.classList.remove('input-error');
-            if (input.value.trim() === '') {
+            if (!input.checkValidity()) {
+                let message = '';
                 const fieldName = input.name.replace('_', ' ');
-                invalidFields.push(fieldName.charAt(0).toUpperCase() + fieldName.slice(1));
+                const formattedName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+                if (input.validity.valueMissing) {
+                    message = `${formattedName} is a required field.`;
+                } else if (input.validity.rangeUnderflow) {
+                    message = `${formattedName} must be at least ${input.min}.`;
+                } else if (input.validity.rangeOverflow) {
+                    message = `${formattedName} must be no more than ${input.max}.`;
+                } else {
+                    message = `Please enter a valid value for ${formattedName}.`;
+                }
+                errorMessages.push(message);
                 input.classList.add('input-error');
             }
         });
-        if (invalidFields.length > 0) {
-            alert(`Please fill out all required fields:\n- ${invalidFields.join('\n- ')}`);
+        if (errorMessages.length > 0) {
+            showValidationAlert(errorMessages);
             return false;
         }
         return true;
     }
-
+    
     function updateSummaryRow(summaryData, subjectName) {
         let summaryRow = tableBody.querySelector('.summary-row');
         if (summaryData) {
-            const summaryHtml = `
-                <td><strong>Summary for ${subjectName}</strong></td>
-                <td>${summaryData.total_hours.toFixed(1)}h (total)</td>
-                <td>-</td>
-                <td>${summaryData.average_grade.toFixed(1)}% (avg)</td>
-                <td>${summaryData.total_weight}% (graded)</td>
-                <td>-</td>
-            `;
+            const summaryHtml = `<td><strong>Summary for ${subjectName}</strong></td><td>${summaryData.total_hours.toFixed(1)}h (total)</td><td>-</td><td>${summaryData.average_grade.toFixed(1)}% (avg)</td><td>${summaryData.total_weight}% (graded)</td><td>-</td>`;
             if (summaryRow) {
                 summaryRow.innerHTML = summaryHtml;
             } else {
@@ -54,7 +177,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function handleSave(row) {
         if (!validateRow(row)) return;
-
         const logId = row.dataset.id;
         const isNew = !logId;
         const url = isNew ? '/add' : `/update/${logId}`;
@@ -63,17 +185,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const filterDropdown = document.getElementById('subject-filter');
         const currentFilter = filterDropdown ? filterDropdown.value : 'all';
         formData.append('current_filter', currentFilter);
-
         try {
             const response = await fetch(url, { method: 'POST', body: formData });
             const result = await response.json();
             if (!response.ok) { showToast(result.message, 'error'); return; }
-
             showToast(result.message, 'success');
             const savedLog = result.log;
-
             updateSummaryRow(result.summary, currentFilter);
-
             if (currentFilter && currentFilter !== 'all' && savedLog.subject !== currentFilter) {
                 row.remove();
             } else {
@@ -86,61 +204,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    if (gradeLockBtn) {
+        gradeLockBtn.addEventListener('click', function() {
+            isGradeLockOn = !isGradeLockOn;
+            if (isGradeLockOn) {
+                this.textContent = 'Grade Lock: ON';
+                this.classList.remove('lock-off');
+                this.classList.add('lock-on');
+            } else {
+                this.textContent = 'Grade Lock: OFF';
+                this.classList.remove('lock-on');
+                this.classList.add('lock-off');
+            }
+        });
+    }
+
     if (addRowBtn) {
         addRowBtn.addEventListener('click', function() {
             const newRow = document.createElement('tr');
             const filterDropdown = document.getElementById('subject-filter');
             const currentFilter = filterDropdown ? filterDropdown.value : 'all';
             const defaultValue = (currentFilter && currentFilter !== 'all') ? currentFilter : '';
-            const placeholderText = defaultValue ? '' : 'Type or select a subject';
+            const placeholderText = defaultValue ? '' : 'Type or select';
             const subjectInputHtml = `<input type="text" name="subject" value="${defaultValue}" placeholder="${placeholderText}" required list="subject-list">`;
-            
-            newRow.innerHTML = `<td>${subjectInputHtml}</td><td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" min="0" max="100" placeholder="Optional"></td><td><input type="number" name="weight" min="0" max="100" required></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
-            tableBody.appendChild(newRow);
+            const gradeAttributes = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
+            const weightAttributes = 'min="0" max="100"';
+            newRow.innerHTML = `<td>${subjectInputHtml}</td><td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" ${gradeAttributes} placeholder="Optional"></td><td><input type="number" name="weight" ${weightAttributes} required></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
+            tableBody.appendChild(newRow); 
         });
     }
 
     if (tableBody) {
-        tableBody.addEventListener('click', async function (event) {
-            if (!event.target.classList.contains('action-btn')) return;
-            const button = event.target;
-            const row = button.closest('tr');
-
-            if (button.classList.contains('edit-btn')) {
-                button.textContent = 'Save';
-                button.classList.remove('edit-btn');
-                button.classList.add('save-btn');
-                const cells = row.querySelectorAll('td');
-                const gradeText = cells[3].textContent.trim();
-                const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
-                cells[0].innerHTML = `<input type="text" name="subject" value="${cells[0].textContent.trim()}" required list="subject-list">`;
-                cells[1].innerHTML = `<input type="number" name="study_time" value="${(parseFloat(cells[1].textContent) || 0).toFixed(1)}" step="0.1" min="0" required>`;
-                cells[2].innerHTML = `<input type="text" name="assignment_name" value="${cells[2].textContent.trim()}" required>`;
-                cells[3].innerHTML = `<input type="number" name="grade" value="${gradeValue}" min="0" max="100" placeholder="Optional">`;
-                cells[4].innerHTML = `<input type="number" name="weight" value="${parseInt(cells[4].textContent, 10) || 0}" min="0" max="100" required>`;
-            } else if (button.classList.contains('save-btn')) {
-                await handleSave(row);
-            } else if (button.classList.contains('delete-btn')) {
-                if (confirm("Are you sure you want to delete this assignment?")) {
-                    const logId = row.dataset.id;
-                    if (!logId) { row.remove(); return; }
-                    
-                    const filterDropdown = document.getElementById('subject-filter');
-                    const currentFilter = filterDropdown ? filterDropdown.value : 'all';
-                    
-                    const response = await fetch(`/delete/${logId}?current_filter=${currentFilter}`, { method: 'POST' });
-                    const result = await response.json();
-                    
-                    showToast(result.message, response.ok ? 'success' : 'error');
-                    
-                    if (response.ok) {
-                        updateSummaryRow(result.summary, currentFilter);
-                        row.remove();
-                    }
-                }
+        tableBody.addEventListener('input', function(event) {
+            if (event.target.matches('input')) {
+                showValidationAlert([]);
+                event.target.classList.remove('input-error');
             }
         });
-
         tableBody.addEventListener('keydown', async function(event) {
             if (event.key === 'Enter' && event.target.matches('input')) {
                 event.preventDefault();
