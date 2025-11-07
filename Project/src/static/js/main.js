@@ -28,11 +28,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Helper Functions (Toast, Validation, Summary, Save) ---
     function showToast(message, type = 'success') {
-        const toast = document.getElementById('toast');
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        // Remove existing toasts if you want only one at a time
+        container.innerHTML = '';
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
         toast.textContent = message;
-        toast.className = type;
-        toast.classList.add('show');
-        setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
     }
 
     function showValidationAlert(messages) {

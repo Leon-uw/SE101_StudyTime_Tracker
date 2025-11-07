@@ -6,11 +6,18 @@
     <title>Study Time Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <a href="{{ url_for('logout') }}" class="logout-btn">⎋ Log out</a>
 </head>
 <body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}'>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}<div class="flash-messages">{% for c, m in messages %}<div class="alert alert-{{ c }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+        {% if messages %}
+            <div class="toast-container">
+                {% for category, message in messages %}
+                    <div class="toast {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
     {% endwith %}
 
     <h1>Study Log Dashboard</h1>
@@ -50,7 +57,6 @@
         </div>
     </div>
 
-    <div id="toast"></div>
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 </body>
 </html>

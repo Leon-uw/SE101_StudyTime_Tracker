@@ -1,5 +1,11 @@
-from flask import Flask, render_template, request, url_for, jsonify
+from flask import Flask, render_template, request, url_for, jsonify, session, redirect, flash
 import json
+
+users = {
+    "alice": "1234",
+    "bob": "password",
+    "admin": "admin"
+}
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key'
@@ -34,6 +40,8 @@ def calculate_summary(subject):
 
 @app.route('/')
 def display_table():
+    if 'user' not in session:
+        return redirect(url_for('login'))
     filter_subject = request.args.get('subject')
     unique_subjects = sorted(list(set(log['subject'] for log in study_data)))
     data_to_display = study_data
@@ -115,6 +123,55 @@ def delete_log(log_id):
         return jsonify({'status': 'success', 'message': 'Assignment deleted!', 'summary': summary})
         
     return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        if username in users and users[username] == password:
+            session['user'] = username
+            flash('Login successful!', 'success')
+            return redirect(url_for('display_table'))
+        else:
+            flash('Invalid username or password', 'error')
+            return redirect(url_for('login'))
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    flash('Logged out successfully!', 'info')
+    return redirect(url_for('login'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
+        confirm = request.form.get('confirm_password').strip()
+
+        # Validation
+        if not username or not password:
+            flash("Username and password are required.", "error")
+            return redirect(url_for('register'))
+        if username in users:
+            flash("Username already exists.", "error")
+            return redirect(url_for('register'))
+        if password != confirm:
+            flash("Passwords do not match.", "error")
+            return redirect(url_for('register'))
+
+        # Save locally in the in-memory dictionary
+        users[username] = password
+        flash("Account created successfully! Please log in.", "success")
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
