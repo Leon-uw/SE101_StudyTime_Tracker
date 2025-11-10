@@ -35,17 +35,20 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.appendChild(container);
         }
 
-        // Remove existing toasts if you want only one at a time
-        container.innerHTML = '';
-
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
+
+        // Optional: click to remove immediately
+        toast.addEventListener('click', () => toast.remove());
+
         container.appendChild(toast);
 
+        // Trigger fade after a delay
         setTimeout(() => {
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 500);
+            toast.style.opacity = 0;
+            toast.style.transform = 'translateY(-20px)';
+            setTimeout(() => toast.remove(), 500); // remove after fade
         }, 3000);
     }
 
