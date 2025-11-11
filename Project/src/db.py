@@ -20,12 +20,12 @@ TABLE_NAME = os.getenv("GC_TABLE_NAME", "grades")
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    course TEXT NOT NULL,
-    time_spent INT NOT NULL,
-    assignment_no INT NOT NULL,
-    grade DECIMAL(5,2) NOT NULL,
-    weight DECIMAL(6,3) NOT NULL,
-    user_id INT NULL
+    Subject varchar(255) NOT NULL,
+    StudyTime INT NOT NULL,
+    AssignmentName varchar(255) NOT NULL,
+    Grade INT NOT NULL,
+    Weight INT NOT NULL,
+    UserID INT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
