@@ -20,11 +20,10 @@ DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     id INT AUTO_INCREMENT PRIMARY KEY,
     Subject varchar(255) NOT NULL,
-    StudyTime INT NOT NULL,
+    StudyTime double NOT NULL,
     AssignmentName varchar(255) NOT NULL,
-    Grade INT NOT NULL,
-    Weight INT NOT NULL,
-    UserID INT NULL
+    Grade double NOT NULL,
+    Weight double NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
