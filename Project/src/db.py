@@ -3,12 +3,11 @@ import os
 import mysql.connector
 
 # Read from env so tests/CI can inject creds safely
-DB_HOST = os.getenv("GC_DB_HOST", "localhost")
-DB_PORT = int(os.getenv("GC_DB_PORT", "3306"))
-DB_USER = os.getenv("GC_DB_USER", "root")
-DB_PASS = os.getenv("GC_DB_PASS", "")
-DB_NAME = os.getenv("GC_DB_NAME", "gradecalc_dev")
-TABLE_NAME = os.getenv("GC_TABLE_NAME", "grades")
+DB_HOST = 'riku.shoshin.uwaterloo.ca'
+DB_USER = os.getenv("Userid", "root")
+DB_PASS = os.getenv("Password", "")
+DB_NAME = 'SE101_Team_21'
+TABLE_NAME = os.getenv("{DB_USER}'s table", "grades")
 
 # Your required columns:
 # courses -> course (TEXT so we don't guess a max length)
@@ -31,7 +30,7 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
 
 def _connect(db=None):
     return mysql.connector.connect(
-        host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASS, database=db or DB_NAME
+        host=DB_HOST, user=DB_USER, password=DB_PASS, database=db or DB_NAME
     )
 
 def init_db():
