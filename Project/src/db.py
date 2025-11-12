@@ -7,7 +7,7 @@ DB_HOST = 'riku.shoshin.uwaterloo.ca'
 DB_USER = os.getenv("Userid", "root")
 DB_PASS = os.getenv("Password", "")
 DB_NAME = 'SE101_Team_21'
-TABLE_NAME = os.getenv("{DB_USER}'s table", "grades")
+TABLE_NAME = f"{DB_USER}_grades"
 
 # Your required columns:
 # courses -> course (TEXT so we don't guess a max length)
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     Subject varchar(255) NOT NULL,
     StudyTime double NOT NULL,
     AssignmentName varchar(255) NOT NULL,
-    Grade double NOT NULL,
+    Grade double NULL,
     Weight double NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
@@ -35,7 +35,7 @@ def _connect(db=None):
 def init_db():
     """Create database and table if they don't exist."""
     # Create DB if missing
-    admin = mysql.connector.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASS)
+    admin = mysql.connector.connect(host=DB_HOST, user=DB_USER, password=DB_PASS)
     admin.autocommit = True
     cur = admin.cursor()
     cur.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME} DEFAULT CHARSET utf8mb4")

@@ -24,7 +24,6 @@
 
     <div id="validation-alert"></div>
     
-    <!-- NEW: Structure for the custom confirmation dialog -->
     <div id="confirmation-alert">
         <p id="confirmation-message"></p>
         <div class="confirmation-buttons">
@@ -45,7 +44,7 @@
                     <thead><tr><th>Subject</th><th>Study Time</th><th>Assignment Name</th><th>Grade</th><th>Weight</th><th>Actions</th></tr></thead>
                     <tbody id="study-table-body">
                         {% if summary_data %}<tr class="summary-row"><td><strong>Summary for {{ selected_subject }}</strong></td><td>{{ "%.1f"|format(summary_data.total_hours) }}h (total)</td><td>-</td><td>{{ "%.1f"|format(summary_data.average_grade) }}% (avg)</td><td>{{ summary_data.total_weight }}% (graded)</td><td>-</td></tr>{% endif %}
-                        {% for row in data %}<tr data-id="{{ row.id }}"><td>{{ row.subject }}</td><td>{{ "%.1f"|format(row.study_time) }} hours</td><td>{{ row.assignment_name }}</td><td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td><td>{{ row.weight }}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td></tr>{% endfor %}
+                        {% for row in data %}<tr data-id="{{ row.id }}"><td>{{ row.Subject }}</td><td>{{ "%.1f"|format(row.StudyTime) }} hours</td><td>{{ row.AssignmentName }}</td><td>{% if row.Grade is not none %}{{ row.Grade }}%{% else %}-{% endif %}</td><td>{{ row.Weight }}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td></tr>{% endfor %}
                     </tbody>
                 </table>
             </div>
