@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Element Selectors ---
     const tableBody = document.getElementById('study-table-body');
     const addRowBtn = document.getElementById('addRowBtn');
     const gradeLockBtn = document.getElementById('grade-lock-btn');
@@ -7,10 +8,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmMsg = document.getElementById('confirmation-message');
     const confirmYesBtn = document.getElementById('confirm-yes');
     const confirmNoBtn = document.getElementById('confirm-no');
+    const subjectFilterDropdown = document.getElementById('subject-filter');
     
+    // --- State Variables ---
     let isGradeLockOn = true;
     let rowToDelete = null;
+    const subjectCategoriesMap = JSON.parse(document.body.dataset.subjectCategories || '{}');
 
+    // --- Helper Functions ---
     function showToast(message, type = 'success') {
         let container = document.querySelector('.toast-container');
         if (!container) {
@@ -64,10 +69,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 let message = '';
                 const fieldName = input.name.replace('_', ' ');
                 const formattedName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-                if (input.validity.valueMissing) { message = `${formattedName} is a required field.`; }
-                else if (input.validity.rangeUnderflow) { message = `${formattedName} must be at least ${input.min}.`; }
-                else if (input.validity.rangeOverflow) { message = `${formattedName} must be no more than ${input.max}.`; }
-                else { message = `Please enter a valid value for ${formattedName}.`; }
+                if (input.validity.valueMissing) {
+                    message = `${formattedName} is a required field.`;
+                } else if (input.validity.rangeUnderflow) {
+                    message = `${formattedName} must be at least ${input.min}.`;
+                } else if (input.validity.rangeOverflow) {
+                    message = `${formattedName} must be no more than ${input.max}.`;
+                } else {
+                    message = `Please enter a valid value for ${formattedName}.`;
+                }
                 errorMessages.push(message);
                 input.classList.add('input-error');
             }
@@ -96,6 +106,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function updateAllOpenInputsForGradeLock() {
+        const allInputs = tableBody.querySelectorAll('input[name="grade"], input[name="weight"]');
+        allInputs.forEach(input => {
+            if (input.name === 'grade') {
+                if (isGradeLockOn) {
+                    input.min = 0;
+                    input.max = 100;
+                } else {
+                    input.min = 0;
+                    input.removeAttribute('max');
+                }
+            } else if (input.name === 'weight') {
+                input.min = 0;
+                input.max = 100;
+            }
+        });
+    }
+    
+    function updateSubjectDropdown(newSubject) {
+        if (![...subjectFilterDropdown.options].some(opt => opt.value === newSubject)) {
+            const newOption = new Option(newSubject, newSubject);
+            subjectFilterDropdown.add(newOption);
+            document.getElementById('subject-list').appendChild(new Option(newSubject, newSubject));
+        }
+    }
+
+    function updateCategoryMapAndFilter(subject, newCategory) {
+        if (!subjectCategoriesMap[subject]) {
+            subjectCategoriesMap[subject] = [];
+        }
+        if (!subjectCategoriesMap[subject].includes(newCategory)) {
+            subjectCategoriesMap[subject].push(newCategory);
+            subjectCategoriesMap[subject].sort();
+            
+            const categoryFilter = document.getElementById('category-filter');
+            if (categoryFilter && subjectFilterDropdown.value === subject) {
+                const newOption = new Option(newCategory, newCategory);
+                categoryFilter.add(newOption);
+            }
+        }
+    }
+
     async function handleSave(row) {
         if (!validateRow(row)) return;
         const logId = row.dataset.id;
@@ -103,17 +155,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const url = isNew ? '/add' : `/update/${logId}`;
         const formData = new FormData();
         row.querySelectorAll('input').forEach(input => formData.append(input.name, input.value));
-        const filterDropdown = document.getElementById('subject-filter');
-        const currentFilter = filterDropdown ? filterDropdown.value : 'all';
-        formData.append('current_filter', currentFilter);
+        
+        const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
+        const categoryFilterDropdown = document.getElementById('category-filter');
+        const currentCategoryFilter = categoryFilterDropdown ? categoryFilterDropdown.value : 'all';
+        formData.append('current_filter', currentSubjectFilter);
+        
         try {
             const response = await fetch(url, { method: 'POST', body: formData });
             const result = await response.json();
             if (!response.ok) { showToast(result.message, 'error'); return; }
             showToast(result.message, 'success');
             const savedLog = result.log;
-            updateSummaryRow(result.summary, currentFilter);
-            if (currentFilter && currentFilter !== 'all' && savedLog.subject !== currentFilter) {
+
+            updateSubjectDropdown(savedLog.subject);
+            updateCategoryMapAndFilter(savedLog.subject, savedLog.category);
+            
+            updateSummaryRow(result.summary, currentSubjectFilter);
+            const subjectMatches = !currentSubjectFilter || currentSubjectFilter === 'all' || savedLog.subject === currentSubjectFilter;
+            const categoryMatches = !currentCategoryFilter || currentCategoryFilter === 'all' || savedLog.category === currentCategoryFilter;
+            
+            if (!subjectMatches || !categoryMatches) {
                 row.remove();
             } else {
                 row.innerHTML = `<td>${savedLog.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${savedLog.category}</span></td><td>${parseFloat(savedLog.study_time).toFixed(1)} hours</td><td>${savedLog.assignment_name}</td><td>${savedLog.grade !== null ? savedLog.grade + '%' : '-'}</td><td>${savedLog.weight}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
@@ -125,14 +187,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // --- Event Listeners ---
     if (confirmNoBtn) { confirmNoBtn.addEventListener('click', hideConfirmation); }
     if (confirmYesBtn) {
         confirmYesBtn.addEventListener('click', async function() {
             if (rowToDelete) {
                 const logId = rowToDelete.dataset.id;
                 if (!logId) { rowToDelete.remove(); hideConfirmation(); return; }
-                const filterDropdown = document.getElementById('subject-filter');
-                const currentFilter = filterDropdown ? filterDropdown.value : 'all';
+                const currentFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
                 try {
                     const response = await fetch(`/delete/${logId}?current_filter=${currentFilter}`, { method: 'POST' });
                     const result = await response.json();
@@ -153,20 +215,23 @@ document.addEventListener('DOMContentLoaded', function() {
             this.textContent = isGradeLockOn ? 'Grade Lock: ON' : 'Grade Lock: OFF';
             this.classList.toggle('lock-on', isGradeLockOn);
             this.classList.toggle('lock-off', !isGradeLockOn);
+            updateAllOpenInputsForGradeLock();
         });
     }
 
     if (addRowBtn) {
         addRowBtn.addEventListener('click', function() {
             const newRow = document.createElement('tr');
-            const filterDropdown = document.getElementById('subject-filter');
-            const currentFilter = filterDropdown ? filterDropdown.value : 'all';
-            const defaultValue = (currentFilter && currentFilter !== 'all') ? currentFilter : '';
-            const placeholderText = defaultValue ? '' : 'Type or select';
-            const subjectInputHtml = `<input type="text" name="subject" value="${defaultValue}" placeholder="${placeholderText}" required list="subject-list">`;
+            const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
+            const categoryFilterDropdown = document.getElementById('category-filter');
+            const currentCategoryFilter = categoryFilterDropdown ? categoryFilterDropdown.value : 'all';
+            const subjectDefault = (currentSubjectFilter !== 'all') ? currentSubjectFilter : '';
+            const categoryDefault = (currentCategoryFilter !== 'all') ? currentCategoryFilter : '';
+            const subjectInputHtml = `<input type="text" name="subject" value="${subjectDefault}" placeholder="${subjectDefault ? '' : 'Type or select'}" required list="subject-list">`;
+            const categoryInputHtml = `<input type="text" name="category" value="${categoryDefault}" placeholder="${categoryDefault ? '' : 'e.g., Homework'}" required list="category-suggestions">`;
             const gradeAttributes = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
             const weightAttributes = 'min="0" max="100"';
-            newRow.innerHTML = `<td>${subjectInputHtml}</td><td><input type="text" name="category" required placeholder="e.g., Homework" list="category-suggestions"></td><td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" ${gradeAttributes} placeholder="Optional"></td><td><input type="number" name="weight" ${weightAttributes} required></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
+            newRow.innerHTML = `<td>${subjectInputHtml}</td><td>${categoryInputHtml}</td><td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" ${gradeAttributes} placeholder="Optional"></td><td><input type="number" name="weight" ${weightAttributes} required></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
             tableBody.appendChild(newRow);
             const subjectInput = newRow.querySelector('input[name="subject"]');
             if (subjectInput.value) {
@@ -186,8 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 button.classList.add('save-btn');
                 const cells = row.querySelectorAll('td');
                 const subjectText = cells[0].textContent.trim();
-                // Get the category text directly from the span
-                const categoryText = cells[1].querySelector('.category-tag') ? cells[1].querySelector('.category-tag').textContent.trim() : '';
+                const categoryText = cells[1].querySelector('.category-tag').textContent.trim();
                 const gradeText = cells[4].textContent.trim();
                 const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
                 const gradeAttributes = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';

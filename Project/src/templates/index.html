@@ -7,39 +7,54 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
-<body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}' data-subject-categories='{{ subject_categories_map|safe }}'>
+<body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}' data-subject-categories='{{ subject_categories_map_json|safe }}'>
 
     <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
     
     <div class="toast-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="toast {{ category }} show">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
+            {% if messages %}{% for category, message in messages %}<div class="toast {{ category }} show">{{ message }}</div>{% endfor %}{% endif %}
         {% endwith %}
     </div>
 
     <h1>Study Log Dashboard</h1>
 
     <div id="validation-alert"></div>
-    <div id="confirmation-alert">
-        <p id="confirmation-message"></p>
-        <div class="confirmation-buttons">
-            <button id="confirm-yes">Yes</button>
-            <button id="confirm-no">No</button>
-        </div>
-    </div>
+    <div id="confirmation-alert"><p id="confirmation-message"></p><div class="confirmation-buttons"><button id="confirm-yes">Yes</button><button id="confirm-no">No</button></div></div>
     
     <div class="main-container">
         <div class="left-panel">
             <div class="filter-form">
-                <form id="filter-form" method="GET" action="/"><label for="subject-filter">Filter by Subject:</label><select name="subject" id="subject-filter" onchange="this.form.submit()"><option value="all">All Subjects</option>{% for subject in subjects %}<option value="{{ subject }}" {% if subject == selected_subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}</select></form>
+                <form id="filter-form" method="GET" action="/">
+                    <label for="subject-filter">Filter by Subject:</label>
+                    <select name="subject" id="subject-filter" onchange="this.form.submit()">
+                        <option value="all">All Subjects</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject }}" {% if subject == selected_subject %}selected{% endif %}>
+                                {{ subject }}
+                            </option>
+                        {% endfor %}
+                    </select>
+
+                    <!-- THIS IS THE FIX: Using the Python dictionary for the `if` check -->
+                    {% if selected_subject and selected_subject != 'all' and subject_categories_map_py[selected_subject] %}
+                        <label for="category-filter" style="margin-left: 15px;">Category:</label>
+                        <select name="category" id="category-filter" onchange="this.form.submit()">
+                            <option value="all">All Categories</option>
+                            {% for category in subject_categories_map_py[selected_subject] %}
+                                <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>
+                                    {{ category }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    {% endif %}
+                </form>
                 <button type="button" id="grade-lock-btn" class="grade-lock-btn lock-on">Grade Lock: ON</button>
             </div>
+            
             <datalist id="subject-list">{% for subject in subjects %}<option value="{{ subject }}"></option>{% endfor %}</datalist>
             <datalist id="category-suggestions"></datalist>
+
             <div class="table-container">
                 <table>
                     <thead><tr><th>Subject</th><th>Category</th><th>Study Time</th><th>Assignment Name</th><th>Grade</th><th>Weight</th><th>Actions</th></tr></thead>
