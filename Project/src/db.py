@@ -42,10 +42,12 @@ def init_db():
     cur.close()
     admin.close()
 
-    # Create table if missing
+    # Create table if missing - drop and recreate to update schema
     conn = _connect(DB_NAME)
     try:
         cur = conn.cursor()
+        # Drop table if it exists to ensure schema is updated
+        cur.execute(f"DROP TABLE IF EXISTS {TABLE_NAME}")
         cur.execute(DDL)
         conn.commit()
     finally:

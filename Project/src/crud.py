@@ -1,6 +1,9 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from db import init_db, _connect, TABLE_NAME
 import mysql.connector
-import os
 
 def get_all_grades():
     """Get all grade records from the database."""
@@ -24,6 +27,7 @@ def add_grade(subject, study_time, assignment_name, grade, weight):
         """
         curs.execute(query, (subject, study_time, assignment_name, grade, weight))
         conn.commit()
+        return curs.lastrowid  # Return the ID of the inserted record
     except mysql.connector.Error as e:
         conn.rollback()
         raise e
@@ -48,5 +52,5 @@ def update_grade(grade_id, subject, study_time, assignment_name, grade, weight):
         conn.rollback()
         raise e
     finally:
-        conn.close()
         curs.close()
+        conn.close()
