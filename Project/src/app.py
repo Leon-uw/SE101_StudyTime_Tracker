@@ -17,15 +17,11 @@ study_data = [
 ]
 next_id = 7
 
-# Decorator to protect routes that require a logged-in user
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user' not in session:
-            # For AJAX requests, return a JSON error instead of redirecting
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'status': 'error', 'message': 'Authentication required'}), 401
-            # For regular page loads, redirect to the login page
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest': return jsonify({'status': 'error', 'message': 'Authentication required'}), 401
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -43,33 +39,29 @@ def calculate_summary(subject):
 
 def process_form_data(form):
     required_fields = ['category', 'assignment_name', 'study_time', 'weight']
-    if not all([form.get(key) for key in required_fields]):
-        return None, "Category, Assignment, Time, and Weight are required."
-    
+    if not all([form.get(key) for key in required_fields]): return None, "Category, Assignment, Time, and Weight are required."
     subject = form.get('subject') or form.get('current_filter')
-    if not subject or subject == 'all':
-        return None, "A valid subject is required."
-        
+    if not subject or subject == 'all': return None, "A valid subject is required."
     try:
         grade_str = form.get('grade')
-        data = {
-            "subject": subject,
-            "category": form.get('category'),
-            "study_time": float(form.get('study_time')),
-            "assignment_name": form.get('assignment_name'),
-            "grade": int(grade_str) if grade_str and grade_str.strip() else None,
-            "weight": int(form.get('weight'))
-        }
+        data = { "subject": subject, "category": form.get('category'), "study_time": float(form.get('study_time')), "assignment_name": form.get('assignment_name'), "grade": int(grade_str) if grade_str and grade_str.strip() else None, "weight": int(form.get('weight')) }
         return data, None
-    except ValueError:
-        return None, "Invalid data. Time, grade, and weight must be valid numbers."
+    except ValueError: return None, "Invalid data. Time, grade, and weight must be valid numbers."
 
 @app.route('/')
 @login_required
 def display_table():
     filter_subject = request.args.get('subject')
+    filter_category = request.args.get('category')
+    
     unique_subjects = sorted(list(set(log['subject'] for log in study_data)))
-    data_to_display = [log for log in study_data if not filter_subject or filter_subject == 'all' or log['subject'] == filter_subject]
+    data_to_display = study_data
+    
+    if filter_subject and filter_subject != 'all':
+        data_to_display = [log for log in study_data if log['subject'] == filter_subject]
+        if filter_category and filter_category != 'all':
+            data_to_display = [log for log in data_to_display if log['category'] == filter_category]
+
     summary_data = calculate_summary(filter_subject)
     
     subject_categories_map = {}
@@ -86,8 +78,11 @@ def display_table():
     return render_template(
         'index.html', 
         data=data_to_display, subjects=unique_subjects, selected_subject=filter_subject,
+        selected_category=filter_category,
         summary_data=summary_data, chart_labels=json.dumps(chart_labels), chart_values=json.dumps(chart_values),
-        subject_categories_map=json.dumps(subject_categories_map)
+        # --- THIS IS THE FIX: Pass both the Python dict and the JSON string ---
+        subject_categories_map_py=subject_categories_map,          # For Jinja2 template logic
+        subject_categories_map_json=json.dumps(subject_categories_map) # For JavaScript
     )
 
 @app.route('/add', methods=['POST'])
