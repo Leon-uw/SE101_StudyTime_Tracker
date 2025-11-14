@@ -129,20 +129,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function applyWeightPreview(newAssignmentRow) {
+    function applyWeightPreview(assignmentRow, isEditing = false) {
         revertWeightPreview();
-        const subject = newAssignmentRow.querySelector('select[name="subject"]').value;
-        const category = newAssignmentRow.querySelector('select[name="category"]').value;
+        const subject = assignmentRow.querySelector('select[name="subject"]').value;
+        const category = assignmentRow.querySelector('select[name="category"]').value;
         if (!subject || !category) return;
         const categoryData = (weightCategoriesMap[subject] || []).find(c => c.name === category);
         if (!categoryData) return;
+        
+        // Get existing rows in this subject/category
         const existingRows = Array.from(assignmentTableBody.querySelectorAll('tr[data-id]')).filter(row => {
+            // Skip the row being edited to avoid counting it twice
+            if (isEditing && row === assignmentRow) return false;
+            
             const cells = row.querySelectorAll('td');
-            return cells.length > 1 && cells[0].textContent.trim() === subject && cells[1].querySelector('.category-tag').lastChild.textContent.trim() === category;
+            // Check if it's in view mode (not being edited)
+            if (cells.length > 1 && cells[1].querySelector('.category-tag')) {
+                return cells[0].textContent.trim() === subject && 
+                       cells[1].querySelector('.category-tag').lastChild.textContent.trim() === category;
+            }
+            // Check if it's in edit mode
+            const subjectSelect = row.querySelector('select[name="subject"]');
+            const categorySelect = row.querySelector('select[name="category"]');
+            if (subjectSelect && categorySelect) {
+                return subjectSelect.value === subject && categorySelect.value === category;
+            }
+            return false;
         });
+        
         const newTotalAssessments = existingRows.length + 1;
         const newCalculatedWeight = newTotalAssessments > 0 ? (categoryData.total_weight / newTotalAssessments) : 0;
-        newAssignmentRow.querySelector('input[name="weight"]').value = newCalculatedWeight.toFixed(2);
+        assignmentRow.querySelector('input[name="weight"]').value = newCalculatedWeight.toFixed(2);
+        
         existingRows.forEach(row => {
             const weightCell = row.querySelectorAll('td')[5];
             weightPreviewState.set(row, weightCell.innerHTML);
@@ -304,6 +322,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (confirmYesBtn) {
         confirmYesBtn.addEventListener('click', async function() {
             if (itemToDelete.row) {
+                // Clear any validation alerts when deleting
+                showValidationAlert([]);
+                
                 const {
                     row,
                     type
@@ -329,8 +350,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (response.ok) {
                         if (isAssignment) {
                             renderAssignmentTable(result.updated_assignments, result.summary, currentFilter);
-                            const categoryName = row.querySelectorAll('td')[1].querySelector('.category-tag').lastChild.textContent.trim();
-                            updateCategoryTableRow(currentFilter, categoryName);
+                            
+                            // Extract category name - handle both edit mode and view mode
+                            let categoryName;
+                            const categoryCell = row.querySelectorAll('td')[1];
+                            
+                            // Check if row is in edit mode (has select dropdown)
+                            const categorySelect = categoryCell.querySelector('select[name="category"]');
+                            if (categorySelect) {
+                                categoryName = categorySelect.value;
+                            } else {
+                                // Row is in view mode (has category-tag span)
+                                const categoryTag = categoryCell.querySelector('.category-tag');
+                                if (categoryTag) {
+                                    categoryName = categoryTag.lastChild.textContent.trim();
+                                }
+                            }
+                            
+                            if (categoryName) {
+                                updateCategoryTableRow(currentFilter, categoryName);
+                            }
                         } else {
                             window.location.reload(); // Reload to see category deletion reflected
                         }
@@ -409,9 +448,11 @@ document.addEventListener('DOMContentLoaded', function() {
             revertWeightPreview();
             revertPredictorWeightPreview();
             const newRow = document.createElement('tr');
-            const currentSubject = subjectFilterDropdown.value;
-            const subjectDefault = (currentSubject !== 'all') ? currentSubject : '';
             const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
+
+            // Get the current subject filter
+            const currentSubjectFilter = subjectFilterDropdown.value;
+            const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
 
             // Get all subjects from the filter dropdown
             const allSubjects = Array.from(subjectFilterDropdown.options)
@@ -422,18 +463,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const subjectSelect = document.createElement('select');
             subjectSelect.name = 'subject';
             subjectSelect.required = true;
+            subjectSelect.setAttribute('autocomplete', 'off');
 
-            // If viewing a specific subject, lock it to that subject
-            if (subjectDefault) {
-                subjectSelect.style.backgroundColor = '#eee';
-                subjectSelect.style.pointerEvents = 'none'; // Prevent interaction
+            if (isSubjectFiltered) {
+                // If filtering by subject, lock it to that subject
                 const option = document.createElement('option');
-                option.value = subjectDefault;
-                option.textContent = subjectDefault;
+                option.value = currentSubjectFilter;
+                option.textContent = currentSubjectFilter;
                 option.selected = true;
                 subjectSelect.appendChild(option);
+                subjectSelect.disabled = true;
+                subjectSelect.style.backgroundColor = '#eee';
             } else {
-                // Add default option if no subject filter is active
+                // If viewing all subjects, show dropdown with all options
+                // Add default option
                 const defaultOpt = document.createElement('option');
                 defaultOpt.value = '';
                 defaultOpt.disabled = true;
@@ -456,13 +499,32 @@ document.addEventListener('DOMContentLoaded', function() {
             const categorySelect = document.createElement('select');
             categorySelect.name = 'category';
             categorySelect.required = true;
-            categorySelect.innerHTML = `<option value="" disabled selected>Select subject first</option>`;
+            
+            if (isSubjectFiltered) {
+                // If subject is filtered, populate categories immediately
+                categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
+                if (weightCategoriesMap[currentSubjectFilter]) {
+                    weightCategoriesMap[currentSubjectFilter].forEach(catObj => {
+                        const option = new Option(catObj.name, catObj.name);
+                        categorySelect.add(option);
+                    });
+                }
+            } else {
+                categorySelect.innerHTML = `<option value="" disabled selected>Select subject first</option>`;
+            }
+            
             const categoryTd = document.createElement('td');
             categoryTd.appendChild(categorySelect);
 
             newRow.innerHTML = `${subjectTd.outerHTML}${categoryTd.outerHTML}<td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" ${gradeAttrs} placeholder="Optional"></td><td><input type="number" name="weight" required readonly style="background-color: #eee;"></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
             assignmentTableBody.appendChild(newRow);
             const subjectInput = newRow.querySelector('select[name="subject"]');
+
+            if (!isSubjectFiltered) {
+                // Fix: Explicitly set the value back to empty string to show "-- Select Subject --"
+                subjectInput.value = '';
+            }
+
             if (subjectInput.value) {
                 subjectInput.dispatchEvent(new Event('change', {
                     bubbles: true
@@ -489,6 +551,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
                 const gradeAttributes = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
 
+                // Check if we're in a subject filter
+                const currentSubjectFilter = subjectFilterDropdown.value;
+                const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
+
                 // Get all subjects from the filter dropdown
                 const allSubjects = Array.from(subjectFilterDropdown.options)
                     .map(opt => opt.value)
@@ -498,15 +564,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 const subjectSelect = document.createElement('select');
                 subjectSelect.name = 'subject';
                 subjectSelect.required = true;
-                allSubjects.forEach(subject => {
+                
+                if (isSubjectFiltered) {
+                    // If filtering by subject, lock it to that subject
                     const option = document.createElement('option');
-                    option.value = subject;
-                    option.textContent = subject;
-                    if (subject === subjectText) {
-                        option.selected = true;
-                    }
+                    option.value = subjectText;
+                    option.textContent = subjectText;
+                    option.selected = true;
                     subjectSelect.appendChild(option);
-                });
+                    subjectSelect.disabled = true;
+                    subjectSelect.style.backgroundColor = '#eee';
+                } else {
+                    // If viewing all subjects, allow editing
+                    allSubjects.forEach(subject => {
+                        const option = document.createElement('option');
+                        option.value = subject;
+                        option.textContent = subject;
+                        if (subject === subjectText) {
+                            option.selected = true;
+                        }
+                        subjectSelect.appendChild(option);
+                    });
+                }
 
                 const categorySelect = document.createElement('select');
                 categorySelect.name = 'category';
@@ -536,10 +615,25 @@ document.addEventListener('DOMContentLoaded', function() {
             if (event.target.name === 'subject') {
                 const subjectValue = event.target.value;
                 const row = event.target.closest('tr');
+
+                // Revert weight preview first
+                revertWeightPreview();
+
+                // Clear all fields except subject
                 const categorySelect = row.querySelector('select[name="category"]');
                 if (!categorySelect) return;
 
-                // Clear existing options
+                const studyTimeInput = row.querySelector('input[name="study_time"]');
+                const assignmentNameInput = row.querySelector('input[name="assignment_name"]');
+                const gradeInput = row.querySelector('input[name="grade"]');
+                const weightInput = row.querySelector('input[name="weight"]');
+
+                if (studyTimeInput) studyTimeInput.value = '';
+                if (assignmentNameInput) assignmentNameInput.value = '';
+                if (gradeInput) gradeInput.value = '';
+                if (weightInput) weightInput.value = '';
+
+                // Clear and repopulate category dropdown
                 categorySelect.innerHTML = '<option value="" disabled selected>Select category</option>';
 
                 // Add categories if they exist
@@ -555,21 +649,48 @@ document.addEventListener('DOMContentLoaded', function() {
             const target = event.target;
             if (target.name === 'category') {
                 const row = target.closest('tr');
-                if (!row.dataset.id) {
-                    applyWeightPreview(row);
-                }
+
+                // Revert any existing weight preview first
+                revertWeightPreview();
+
+                // Clear all fields except subject and category
+                const studyTimeInput = row.querySelector('input[name="study_time"]');
+                const assignmentNameInput = row.querySelector('input[name="assignment_name"]');
+                const gradeInput = row.querySelector('input[name="grade"]');
+                const weightInput = row.querySelector('input[name="weight"]');
+
+                if (studyTimeInput) studyTimeInput.value = '';
+                if (assignmentNameInput) assignmentNameInput.value = '';
+                if (gradeInput) gradeInput.value = '';
+                if (weightInput) weightInput.value = '';
+
+                // Fill in defaults if category is selected
                 const subject = row.querySelector('select[name="subject"]').value;
                 const categoryName = target.value;
-                const categoryData = (weightCategoriesMap[subject] || []).find(c => c.name === categoryName);
-                if (categoryData) {
-                    const nameInput = row.querySelector('input[name="assignment_name"]');
-                    if (categoryData.default_name) {
-                        if (categoryData.default_name.includes('#')) {
-                            const existingCount = Array.from(document.querySelectorAll('#study-table-body tr[data-id]')).filter(r => r.querySelectorAll('td')[1].textContent.trim().includes(categoryName)).length;
-                            nameInput.value = categoryData.default_name.replace('#', existingCount + 1);
-                        } else {
-                            nameInput.value = categoryData.default_name;
+
+                if (subject && categoryName) {
+                    const categoryData = (weightCategoriesMap[subject] || []).find(c => c.name === categoryName);
+                    if (categoryData) {
+                        // Fill in weight
+                        if (weightInput) {
+                            if (categoryData.num_assessments > 0) {
+                                weightInput.value = (categoryData.total_weight / categoryData.num_assessments).toFixed(2);
+                            }
                         }
+
+                        // Fill in default assignment name if available
+                        if (assignmentNameInput && categoryData.default_name) {
+                            if (categoryData.default_name.includes('#')) {
+                                const existingCount = Array.from(document.querySelectorAll('#study-table-body tr[data-id]')).filter(r => r.querySelectorAll('td')[1].textContent.trim().includes(categoryName)).length;
+                                assignmentNameInput.value = categoryData.default_name.replace('#', existingCount + 1);
+                            } else {
+                                assignmentNameInput.value = categoryData.default_name;
+                            }
+                        }
+
+                        // Apply weight preview for both new and edited assignments
+                        const isEditing = !!row.dataset.id;
+                        applyWeightPreview(row, isEditing);
                     }
                 }
             }

@@ -101,7 +101,7 @@
                                 <option value="{{ selected_subject }}" selected>{{ selected_subject }}</option>
                             </select>
                             {% else %}
-                            <select name="subject" id="predict-subject">
+                            <select name="subject" id="predict-subject" autocomplete="off">
                                 <option value="" disabled selected>-- Select Subject --</option>
                                 {% for subject in subjects %}
                                 <option value="{{ subject }}">{{ subject }}</option>
