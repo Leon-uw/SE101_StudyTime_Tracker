@@ -402,57 +402,104 @@ def predict():
     grade_lock = request.form.get('grade_lock', 'true').lower() == 'true'
     max_grade = float(request.form.get('max_grade', 100)) if not grade_lock else 100
     
-    # Try to get category-specific data first
-    category_data = [
-        log for log in study_data 
-        if log['subject'] == subject 
-        and log['category'] == category
-        and log.get('grade') is not None
-    ] if category else []
+    # --- 1. Filter Data Sets ---
+    graded_data = [log for log in study_data if log.get('grade') is not None]
     
-    # Fall back to subject-level data if not enough category data
-    subject_data = [
-        log for log in study_data 
-        if log['subject'] == subject 
-        and log.get('grade') is not None
-    ]
+    all_data = graded_data
+    subject_data = [log for log in all_data if log['subject'] == subject]
+    category_data = [log for log in subject_data if log['category'] == category]
     
-    # Fall back to all data if not enough subject data
-    all_data = [
-        log for log in study_data 
-        if log.get('grade') is not None
-    ]
+    n_all = len(all_data)
+    n_subject = len(subject_data)
+    n_category = len(category_data)
     
-    # Determine which dataset to use and set confidence accordingly
-    if len(category_data) >= 2:
-        filtered_data = category_data
-        data_source = f"{subject} - {category}"
-        confidence_multiplier = 1.0
-    elif len(subject_data) >= 2:
-        filtered_data = subject_data
-        data_source = f"{subject} (all categories)"
-        confidence_multiplier = 0.8
-    elif len(all_data) >= 2:
-        filtered_data = all_data
-        data_source = "all subjects (general estimate)"
-        confidence_multiplier = 0.5
-    else:
+    # Check for minimum data required
+    if n_all < 2:
         return jsonify({
             'status': 'error',
             'message': 'Not enough historical data. Need at least 2 graded assignments total.'
         }), 400
+
+    # --- 2. Estimate k for each scope ---
+    def get_k_and_data(data):
+        if len(data) < 2:
+            return 0, [], [], []
+        hours = [log['study_time'] for log in data]
+        grades = [log['grade'] for log in data]
+        weights = [log['weight'] / 100 for log in data]
+        k_val = estimate_k(hours, grades, weights, max_grade)
+        return k_val, hours, grades, weights
+
+    k_all, _, _, _ = get_k_and_data(all_data)
+    k_subject, _, _, _ = get_k_and_data(subject_data)
+    k_category, past_hours, past_grades, past_weights = get_k_and_data(category_data)
+
+    # --- 3. Determine Blended k using confidence-based weighting ---
     
-    # Extract actual user data
-    past_hours = [log['study_time'] for log in filtered_data]
-    past_grades = [log['grade'] for log in filtered_data]
-    past_weights = [log['weight'] / 100 for log in filtered_data]
+    # Thresholds for 'full' confidence in a scope
+    SUBJECT_THRESHOLD = 5
+    CATEGORY_THRESHOLD = 5
     
-    for log in filtered_data:
-        print(f"  {log['study_time']}h → {log['grade']}%, weight={log['weight']}%")
+    # Sigmoid-like weighting function (simplified for clear cut-off)
+    # The weight increases linearly up to the threshold, then stays at 1.0
     
-    # Calculate learning efficiency (k) from the relationship between hours and grades
-    k = estimate_k(past_hours, past_grades, past_weights, max_grade)
-        
+    # 3a. Category Weight (blends Category k with Subject k)
+    # Weight goes from 0 (n_cat=0) to 1.0 (n_cat >= CATEGORY_THRESHOLD)
+    category_weight = min(1.0, n_category / CATEGORY_THRESHOLD)
+    
+    if n_category >= 2:
+        # Blend Category k with Subject k
+        k_blended_subject = (category_weight * k_category) + ((1 - category_weight) * k_subject)
+        data_source = f"{subject} - {category} (Blended with Subject)"
+        filtered_data = category_data # Use most specific data for confidence/examples
+    elif n_subject >= 2:
+        k_blended_subject = k_subject
+        data_source = f"{subject} (Pure Subject)"
+        filtered_data = subject_data
+    else:
+        k_blended_subject = k_all
+        data_source = f"All Subjects (Pure General)"
+        filtered_data = all_data
+
+    # 3b. Subject Weight (blends Subject/Category k with All k)
+    # Weight goes from 0 (n_sub=0) to 1.0 (n_sub >= SUBJECT_THRESHOLD)
+    subject_weight = min(1.0, n_subject / SUBJECT_THRESHOLD)
+    
+    if n_subject >= 2:
+        # Final Blend: Blended-Subject-k with All-k
+        k_final = (subject_weight * k_blended_subject) + ((1 - subject_weight) * k_all)
+        data_source_detail = f"Subject Weight: {subject_weight:.0%}"
+        if n_category >= 2:
+             data_source_detail += f", Category Weight: {category_weight:.0%}"
+    else:
+        # Fallback: Only use All k
+        k_final = k_all
+        data_source_detail = "Only All Data (General)"
+    
+    k = k_final # The final blended k value
+    
+    # Re-extract data from the most specific scope with at least 2 points for examples and confidence
+    if n_category >= 2:
+        data_for_context = category_data
+    elif n_subject >= 2:
+        data_for_context = subject_data
+    else:
+        data_for_context = all_data
+
+    # Extract data for prediction calculation (redundant check, k is final, but good practice)
+    if not data_for_context:
+        return jsonify({
+            'status': 'error',
+            'message': 'Internal error: Data context not found.'
+        }), 500
+
+    # Extract actual user data from the best available source
+    past_hours = [log['study_time'] for log in data_for_context]
+    past_grades = [log['grade'] for log in data_for_context]
+    past_weights = [log['weight'] / 100 for log in data_for_context]
+    
+    # --- 4. Make Prediction (rest of the original logic) ---
+    
     # Normalize weight input
     weight_decimal = weight / 100
         
@@ -461,12 +508,12 @@ def predict():
         hours = float(hours)
         predicted_grade = predict_grade(hours, weight_decimal, k, max_grade)
         
-        # Calculate confidence based on data points and similarity
-        base_confidence = calculate_confidence(filtered_data, hours, weight)
-        adjusted_confidence = round(base_confidence * confidence_multiplier)
+        # Calculate confidence based on data points and similarity (using the best available data)
+        base_confidence = calculate_confidence(data_for_context, hours, weight)
+        adjusted_confidence = round(base_confidence) # Keep original confidence logic
         
         # Find similar assignments for context
-        similar = find_similar_assignment(filtered_data, hours)
+        similar = find_similar_assignment(data_for_context, hours)
         
         # Show more precision for grades very close to max
         if predicted_grade >= max_grade - 1:
@@ -478,19 +525,18 @@ def predict():
             'mode': 'grade_from_hours',
             'predicted_grade': grade_display,
             'confidence': adjusted_confidence,
-            'data_points': len(filtered_data),
+            'data_points': len(data_for_context),
             'data_source': data_source,
-            'message': f'Based on {len(filtered_data)} assignments from {data_source}'
+            'k_value': round(k, 3), # New: show k value
+            'data_source_detail': data_source_detail, # New: show weighting
+            'message': f'Based on {len(data_for_context)} assignments from {data_source}'
         }
-        
+        # ... (rest of the response generation logic for grade_from_hours)
         if predicted_grade >= max_grade - 0.5:
             response['note_about_grade'] = f"Grade is very close to maximum ({max_grade}% is theoretically unreachable)"
         
         if similar:
             response['similar_example'] = f"Previously: {similar['study_time']:.1f}h → {similar['grade']}%"
-        
-        if confidence_multiplier < 1.0:
-            response['note'] = f"Using broader data because limited {subject}" + (f" - {category}" if category else "") + " history"
         
         return jsonify(response)
     
@@ -513,8 +559,8 @@ def predict():
         required = required_hours(target_grade, weight_decimal, k, max_grade)
         
         # Check if prediction is reasonable based on your past data
-        max_past_hours = max(past_hours)
-        avg_past_hours = sum(past_hours) / len(past_hours)
+        max_past_hours = max(past_hours) if past_hours else 0
+        avg_past_hours = sum(past_hours) / len(past_hours) if past_hours else 0
         
         if required == float('inf'):
             return jsonify({
@@ -523,26 +569,28 @@ def predict():
             }), 400
         
         # Only warn if it's WAY beyond past experience (>3x your max)
-        if required > max_past_hours * 3:
+        if required > max_past_hours * 3 and max_past_hours > 0:
             return jsonify({
                 'status': 'error',
                 'message': f'Target grade of {target_grade}% would require {required:.1f} hours, which is beyond your typical study pattern (your max was {max_past_hours:.1f}h). Consider a more achievable target or verify your inputs.'
             }), 400
         
         # Calculate confidence
-        base_confidence = calculate_confidence(filtered_data, required, weight)
-        adjusted_confidence = round(base_confidence * confidence_multiplier)
+        base_confidence = calculate_confidence(data_for_context, required, weight)
+        adjusted_confidence = round(base_confidence)
         
         # Find similar grade for context
-        similar = find_similar_grade(filtered_data, target_grade)
+        similar = find_similar_grade(data_for_context, target_grade)
         
         response = {
             'mode': 'hours_from_grade',
             'required_hours': round(required, 1),
             'confidence': adjusted_confidence,
-            'data_points': len(filtered_data),
+            'data_points': len(data_for_context),
             'data_source': data_source,
-            'message': f'Based on {len(filtered_data)} assignments from {data_source}'
+            'k_value': round(k, 3), # New: show k value
+            'data_source_detail': data_source_detail, # New: show weighting
+            'message': f'Based on {len(data_for_context)} assignments from {data_source}'
         }
         
         if adjusted_target_note:
@@ -552,11 +600,8 @@ def predict():
             response['similar_example'] = f"Previously: {similar['study_time']:.1f}h → {similar['grade']}%"
         
         # Warning if significantly more than usual (but not an error)
-        if required > avg_past_hours * 2:
+        if required > avg_past_hours * 2 and avg_past_hours > 0:
             response['warning'] = f"This is significantly more than your average of {avg_past_hours:.1f}h. Make sure you have enough time!"
-        
-        if confidence_multiplier < 1.0:
-            response['note'] = f"Using broader data because limited {subject}" + (f" - {category}" if category else "") + " history"
         
         return jsonify(response)
     
