@@ -620,5 +620,42 @@ def predict():
             'message': 'Provide either hours or target grade, not both.'
         }), 400
 
+@app.route('/add_subject', methods=['POST'])
+@login_required
+def add_subject():
+    subject_name = request.form.get('subject_name', '').strip()
+
+    if not subject_name:
+        return jsonify({'status': 'error', 'message': 'Subject name cannot be empty.'}), 400
+
+    # Get all existing subjects
+    all_subjects = set(log['subject'] for log in study_data)
+
+    if subject_name in all_subjects:
+        return jsonify({'status': 'error', 'message': 'Subject already exists.'}), 400
+
+    # Initialize empty category list for the new subject
+    weight_categories[subject_name] = []
+
+    return jsonify({'status': 'success', 'subject': subject_name})
+
+@app.route('/delete_subject', methods=['POST'])
+@login_required
+def delete_subject():
+    subject_name = request.form.get('subject_name', '').strip()
+
+    if not subject_name:
+        return jsonify({'status': 'error', 'message': 'Subject name cannot be empty.'}), 400
+
+    # Delete all assignments for this subject
+    global study_data
+    study_data = [log for log in study_data if log['subject'] != subject_name]
+
+    # Delete weight categories for this subject
+    if subject_name in weight_categories:
+        del weight_categories[subject_name]
+
+    return jsonify({'status': 'success', 'message': f'Subject "{subject_name}" deleted successfully.'})
+
 if __name__ == '__main__':
     app.run(debug=True)

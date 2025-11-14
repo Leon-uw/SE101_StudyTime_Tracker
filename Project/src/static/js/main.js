@@ -710,4 +710,75 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- Add Subject Button Handler ---
+    const addSubjectBtn = document.getElementById('add-subject-btn');
+    if (addSubjectBtn) {
+        addSubjectBtn.addEventListener('click', function() {
+            const subjectName = prompt('Enter new subject name:');
+            if (!subjectName || !subjectName.trim()) {
+                return;
+            }
+
+            fetch('/add_subject', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({subject_name: subjectName.trim()})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Navigate to the new subject's filter page
+                    window.location.href = '/?subject=' + encodeURIComponent(data.subject);
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error adding subject: ' + error.message, 'error');
+            });
+        });
+    }
+
+    // --- Delete Subject Button Handler with Double Confirmation ---
+    const deleteSubjectBtn = document.getElementById('delete-subject-btn');
+    if (deleteSubjectBtn) {
+        deleteSubjectBtn.addEventListener('click', function() {
+            const subjectName = this.dataset.subject;
+
+            // First confirmation
+            const firstConfirm = confirm(`Are you sure you want to delete the subject "${subjectName}"?\n\nThis will delete ALL assignments and categories for this subject.\n\nClick OK to continue.`);
+
+            if (!firstConfirm) {
+                return;
+            }
+
+            // Second confirmation
+            const secondConfirm = confirm(`FINAL WARNING: This action cannot be undone!\n\nDelete "${subjectName}" and all its data permanently?`);
+
+            if (!secondConfirm) {
+                return;
+            }
+
+            // Proceed with deletion
+            fetch('/delete_subject', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: new URLSearchParams({subject_name: subjectName})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    // Navigate back to "All Subjects" view
+                    window.location.href = '/';
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error deleting subject: ' + error.message, 'error');
+            });
+        });
+    }
+
 });

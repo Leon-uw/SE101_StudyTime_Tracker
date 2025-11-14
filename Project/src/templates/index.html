@@ -21,6 +21,11 @@
                 <form id="filter-form" method="GET" action="/"><label for="subject-filter">Filter by Subject:</label><select name="subject" id="subject-filter" onchange="this.form.submit()"><option value="all">All Subjects</option>{% for subject in subjects %}<option value="{{ subject }}" {% if subject == selected_subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}</select>
                     {% if selected_subject and selected_subject != 'all' and subject_categories_map_py[selected_subject] %}<label for="category-filter">Category:</label><select name="category" id="category-filter" onchange="this.form.submit()"><option value="all">All Categories</option>{% for category in subject_categories_map_py[selected_subject] %}<option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select>{% endif %}
                 </form>
+                {% if not selected_subject or selected_subject == 'all' %}
+                <button type="button" id="add-subject-btn" class="subject-action-btn">+ Add Subject</button>
+                {% elif selected_subject and selected_subject != 'all' %}
+                <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn" data-subject="{{ selected_subject }}">Delete Subject</button>
+                {% endif %}
                 <button type="button" id="grade-lock-btn" class="grade-lock-btn lock-on">Grade Lock: ON</button>
             </div>
             
