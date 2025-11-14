@@ -412,15 +412,51 @@ document.addEventListener('DOMContentLoaded', function() {
             const currentSubject = subjectFilterDropdown.value;
             const subjectDefault = (currentSubject !== 'all') ? currentSubject : '';
             const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
+
+            // Get all subjects from the filter dropdown
+            const allSubjects = Array.from(subjectFilterDropdown.options)
+                .map(opt => opt.value)
+                .filter(val => val !== 'all');
+
+            // Create subject select dropdown
+            const subjectSelect = document.createElement('select');
+            subjectSelect.name = 'subject';
+            subjectSelect.required = true;
+
+            // Add default option if no subject filter is active
+            if (!subjectDefault) {
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.disabled = true;
+                defaultOpt.selected = true;
+                defaultOpt.textContent = '-- Select Subject --';
+                subjectSelect.appendChild(defaultOpt);
+            }
+
+            // Add all subjects
+            allSubjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject;
+                option.textContent = subject;
+                if (subject === subjectDefault) {
+                    option.selected = true;
+                }
+                subjectSelect.appendChild(option);
+            });
+
+            const subjectTd = document.createElement('td');
+            subjectTd.appendChild(subjectSelect);
+
             const categorySelect = document.createElement('select');
             categorySelect.name = 'category';
             categorySelect.required = true;
             categorySelect.innerHTML = `<option value="" disabled selected>Select subject first</option>`;
-            const td = document.createElement('td');
-            td.appendChild(categorySelect);
-            newRow.innerHTML = `<td><input type="text" name="subject" value="${subjectDefault}" placeholder="${subjectDefault ? '' : 'Type or select'}" required list="subject-list"></td>${td.outerHTML}<td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" ${gradeAttrs} placeholder="Optional"></td><td><input type="number" name="weight" required readonly style="background-color: #eee;"></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
+            const categoryTd = document.createElement('td');
+            categoryTd.appendChild(categorySelect);
+
+            newRow.innerHTML = `${subjectTd.outerHTML}${categoryTd.outerHTML}<td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" ${gradeAttrs} placeholder="Optional"></td><td><input type="number" name="weight" required readonly style="background-color: #eee;"></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
             assignmentTableBody.appendChild(newRow);
-            const subjectInput = newRow.querySelector('input[name="subject"]');
+            const subjectInput = newRow.querySelector('select[name="subject"]');
             if (subjectInput.value) {
                 subjectInput.dispatchEvent(new Event('change', {
                     bubbles: true
@@ -446,6 +482,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 const gradeText = cells[4].textContent.trim();
                 const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
                 const gradeAttributes = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
+
+                // Get all subjects from the filter dropdown
+                const allSubjects = Array.from(subjectFilterDropdown.options)
+                    .map(opt => opt.value)
+                    .filter(val => val !== 'all');
+
+                // Create subject select dropdown
+                const subjectSelect = document.createElement('select');
+                subjectSelect.name = 'subject';
+                subjectSelect.required = true;
+                allSubjects.forEach(subject => {
+                    const option = document.createElement('option');
+                    option.value = subject;
+                    option.textContent = subject;
+                    if (subject === subjectText) {
+                        option.selected = true;
+                    }
+                    subjectSelect.appendChild(option);
+                });
+
                 const categorySelect = document.createElement('select');
                 categorySelect.name = 'category';
                 categorySelect.required = true;
@@ -456,7 +512,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         categorySelect.add(option);
                     });
                 }
-                cells[0].innerHTML = `<input type="text" name="subject" value="${subjectText}" required list="subject-list">`;
+                cells[0].innerHTML = '';
+                cells[0].appendChild(subjectSelect);
                 cells[1].innerHTML = '';
                 cells[1].appendChild(categorySelect);
                 cells[2].innerHTML = `<input type="number" name="study_time" value="${(parseFloat(cells[2].textContent) || 0).toFixed(1)}" step="0.1" min="0" required>`;
@@ -471,7 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         assignmentTableBody.addEventListener('change', function(event) {
             if (event.target.name === 'subject') {
-                const subjectValue = event.target.value.trim();
+                const subjectValue = event.target.value;
                 const row = event.target.closest('tr');
                 const categorySelect = row.querySelector('select[name="category"]');
                 if (!categorySelect) return;
@@ -566,9 +623,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         document.getElementById('assignment_name').value = '';
         document.getElementById('weight').value = '';
-        document.getElementById('hours').value = '';
-        document.getElementById('target_grade').value = '';
-        document.getElementById('prediction-result').textContent = '';
+
+        const hoursInput = document.getElementById('hours');
+        hoursInput.value = '';
+        hoursInput.style.color = '';
+        hoursInput.style.fontWeight = '';
+
+        const targetGradeInput = document.getElementById('target_grade');
+        targetGradeInput.value = '';
+        targetGradeInput.style.color = '';
+        targetGradeInput.style.fontWeight = '';
+
+        const resultDiv = document.getElementById('prediction-result');
+        resultDiv.textContent = '';
+        resultDiv.style.color = '';
+        resultDiv.style.backgroundColor = '';
+        resultDiv.style.border = '';
         revertPredictorWeightPreview();
     }
 
@@ -610,13 +680,85 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Clear fields except subject and category when category changes
             document.getElementById('assignment_name').value = '';
-            document.getElementById('hours').value = '';
-            document.getElementById('target_grade').value = '';
-            document.getElementById('prediction-result').textContent = '';
+
+            const hoursInput = document.getElementById('hours');
+            hoursInput.value = '';
+            hoursInput.style.color = '';
+            hoursInput.style.fontWeight = '';
+
+            const targetGradeInput = document.getElementById('target_grade');
+            targetGradeInput.value = '';
+            targetGradeInput.style.color = '';
+            targetGradeInput.style.fontWeight = '';
+
+            const resultDiv = document.getElementById('prediction-result');
+            resultDiv.textContent = '';
+            resultDiv.style.color = '';
+            resultDiv.style.backgroundColor = '';
+            resultDiv.style.border = '';
 
             // Apply weight preview
             applyPredictorWeightPreview(subject, category);
         });
+
+        // Add Enter key handler for predictor inputs
+        const predictorInputs = [
+            document.getElementById('assignment_name'),
+            document.getElementById('hours'),
+            document.getElementById('target_grade')
+        ];
+
+        predictorInputs.forEach(input => {
+            if (input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const predictBtn = document.getElementById('predict-btn');
+                        if (predictBtn) {
+                            predictBtn.click();
+                        }
+                    }
+                });
+            }
+        });
+
+        // Clear predicted value styling when user edits target grade
+        const targetGradeInput = document.getElementById('target_grade');
+        if (targetGradeInput) {
+            targetGradeInput.addEventListener('input', function() {
+                // Remove green styling
+                this.style.color = '';
+                this.style.fontWeight = '';
+
+                // Clear prediction result
+                const resultDiv = document.getElementById('prediction-result');
+                if (resultDiv) {
+                    resultDiv.textContent = '';
+                    resultDiv.style.color = '';
+                    resultDiv.style.backgroundColor = '';
+                    resultDiv.style.border = '';
+                }
+            });
+        }
+
+        // Clear predicted value styling when user edits hours
+        const hoursInput = document.getElementById('hours');
+        if (hoursInput) {
+            hoursInput.addEventListener('input', function() {
+                // Remove blue styling
+                this.style.color = '';
+                this.style.fontWeight = '';
+
+                // Clear prediction result
+                const resultDiv = document.getElementById('prediction-result');
+                if (resultDiv) {
+                    resultDiv.textContent = '';
+                    resultDiv.style.color = '';
+                    resultDiv.style.backgroundColor = '';
+                    resultDiv.style.border = '';
+                }
+            });
+        }
     }
 
     // Handle the predictor button click
@@ -689,11 +831,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         resultDiv.style.color = '#155724';
                         resultDiv.style.backgroundColor = '#d4edda';
                         resultDiv.style.border = '1px solid #c3e6cb';
+
+                        // Fill in target grade field with predicted value and style it green
+                        const targetGradeInput = document.getElementById('target_grade');
+                        if (targetGradeInput) {
+                            targetGradeInput.value = data.predicted_grade;
+                            targetGradeInput.style.color = '#28a745';
+                            targetGradeInput.style.fontWeight = 'bold';
+                        }
                     } else if (data.mode === 'hours_from_grade') {
                         resultDiv.textContent = `Required Hours: ${data.required_hours} hours`;
                         resultDiv.style.color = '#004085';
                         resultDiv.style.backgroundColor = '#d1ecf1';
                         resultDiv.style.border = '1px solid #bee5eb';
+
+                        // Fill in hours field with predicted value and style it blue
+                        const hoursInput = document.getElementById('hours');
+                        if (hoursInput) {
+                            hoursInput.value = data.required_hours;
+                            hoursInput.style.color = '#007bff';
+                            hoursInput.style.fontWeight = 'bold';
+                        }
                     }
                 } else {
                     resultDiv.textContent = data.message || 'Error making prediction';
@@ -706,6 +864,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 resultDiv.style.color = 'red';
                 resultDiv.style.backgroundColor = '#f8d7da';
                 resultDiv.style.border = '1px solid #f5c6cb';
+            }
+        });
+    }
+
+    // --- Reset Predictor Button Handler ---
+    const resetPredictorBtn = document.getElementById('reset-predictor-btn');
+    if (resetPredictorBtn) {
+        resetPredictorBtn.addEventListener('click', function() {
+            // Clear all predictor fields including subject
+            clearPredictorFields(false);
+            // Reset subject to first option
+            if (predictSubject) {
+                predictSubject.selectedIndex = 0;
+                updatePredictorCategories();
             }
         });
     }

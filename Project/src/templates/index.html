@@ -28,9 +28,7 @@
                 {% endif %}
                 <button type="button" id="grade-lock-btn" class="grade-lock-btn lock-on">Grade Lock: ON</button>
             </div>
-            
-            <datalist id="subject-list">{% for subject in subjects %}<option value="{{ subject }}"></option>{% endfor %}</datalist>
-            
+
             <h2>Assignments</h2>
             <div class="table-container">
                 <table>
@@ -123,6 +121,7 @@
                         </td>
                         <td>
                             <button type="button" id="predict-btn" class="action-btn">Predict</button>
+                            <button type="button" id="reset-predictor-btn" class="action-btn" style="background-color: #6c757d; border-color: #6c757d; color: white;">Reset</button>
                         </td>
                     </tr>
                 </tbody>
