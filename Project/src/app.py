@@ -254,9 +254,12 @@ def add_log():
     next_id += 1
     recalculate_weights(log_data['subject'], log_data['category'])
     summary = calculate_summary(request.form.get('current_filter'))
-    
+
     current_subject_filter = request.form.get('current_filter')
-    assignments_to_return = [log for log in study_data if log['subject'] == current_subject_filter]
+    if current_subject_filter and current_subject_filter != 'all':
+        assignments_to_return = [log for log in study_data if log['subject'] == current_subject_filter]
+    else:
+        assignments_to_return = study_data
 
     return jsonify({'status': 'success', 'message': 'Assignment added!', 'log': log_data, 'summary': summary, 'updated_assignments': assignments_to_return})
 
@@ -280,7 +283,10 @@ def update_log(log_id):
     
     current_subject_filter = request.form.get('current_filter')
     summary = calculate_summary(current_subject_filter)
-    assignments_to_return = [log for log in study_data if log['subject'] == current_subject_filter]
+    if current_subject_filter and current_subject_filter != 'all':
+        assignments_to_return = [log for log in study_data if log['subject'] == current_subject_filter]
+    else:
+        assignments_to_return = study_data
 
     return jsonify({'status': 'success', 'message': 'Assignment updated!', 'log': updated_data, 'summary': summary, 'updated_assignments': assignments_to_return})
 
@@ -294,7 +300,10 @@ def delete_log(log_id):
         study_data.remove(log_to_delete)
         recalculate_weights(subject, category)
         summary = calculate_summary(current_filter)
-        assignments_to_return = [log for log in study_data if log['subject'] == current_filter]
+        if current_filter and current_filter != 'all':
+            assignments_to_return = [log for log in study_data if log['subject'] == current_filter]
+        else:
+            assignments_to_return = study_data
         return jsonify({'status': 'success', 'message': 'Assignment deleted!', 'summary': summary, 'updated_assignments': assignments_to_return})
     return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
 

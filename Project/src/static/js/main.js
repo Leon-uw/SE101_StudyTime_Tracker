@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     const weightCategoriesMap = JSON.parse(document.body.dataset.weightCategories || '{}');
     let weightPreviewState = new Map();
+    let predictorWeightPreviewState = new Map();
 
     // --- Helper Functions ---
     function showToast(message, type = 'success') {
@@ -93,6 +94,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 input.classList.add('input-error');
             }
         });
+
+        // Additional validation for grade lock
+        const gradeInput = row.querySelector('input[name="grade"]');
+        if (gradeInput && gradeInput.value && isGradeLockOn) {
+            const gradeValue = parseFloat(gradeInput.value);
+            if (gradeValue > 100) {
+                errorMessages.push('Grade cannot exceed 100% when Grade Lock is ON.');
+                gradeInput.classList.add('input-error');
+            }
+        }
+
         if (errorMessages.length > 0) {
             showValidationAlert(errorMessages);
             return false;
@@ -144,6 +156,54 @@ document.addEventListener('DOMContentLoaded', function() {
             if (weightCell) weightCell.innerHTML = originalHtml;
         });
         weightPreviewState.clear();
+    }
+
+    function revertPredictorWeightPreview() {
+        predictorWeightPreviewState.forEach((originalHtml, row) => {
+            const weightCell = row.querySelectorAll('td')[5];
+            if (weightCell) weightCell.innerHTML = originalHtml;
+        });
+        predictorWeightPreviewState.clear();
+    }
+
+    function applyPredictorWeightPreview(subject, category) {
+        revertPredictorWeightPreview();
+
+        const predictWeight = document.getElementById('weight');
+
+        if (!subject || !category) {
+            if (predictWeight) predictWeight.value = '';
+            return;
+        }
+
+        const categoryData = (weightCategoriesMap[subject] || []).find(c => c.name === category);
+        if (!categoryData) {
+            if (predictWeight) predictWeight.value = '';
+            return;
+        }
+
+        // Find existing assignments in this subject/category
+        const existingRows = Array.from(assignmentTableBody.querySelectorAll('tr[data-id]')).filter(row => {
+            const cells = row.querySelectorAll('td');
+            return cells.length > 1 &&
+                   cells[0].textContent.trim() === subject &&
+                   cells[1].querySelector('.category-tag')?.lastChild.textContent.trim() === category;
+        });
+
+        const newTotalAssessments = existingRows.length + 1;
+        const newCalculatedWeight = newTotalAssessments > 0 ? (categoryData.total_weight / newTotalAssessments) : 0;
+
+        // Set the predictor weight field
+        if (predictWeight) {
+            predictWeight.value = newCalculatedWeight.toFixed(2);
+        }
+
+        // Apply preview to existing assignments
+        existingRows.forEach(row => {
+            const weightCell = row.querySelectorAll('td')[5];
+            predictorWeightPreviewState.set(row, weightCell.innerHTML);
+            weightCell.innerHTML = `<em>${newCalculatedWeight.toFixed(2)}%</em>`;
+        });
     }
 
     function renderAssignmentTable(assignments, summaryData, subject) {
@@ -291,6 +351,16 @@ document.addEventListener('DOMContentLoaded', function() {
             this.textContent = isGradeLockOn ? 'Grade Lock: ON' : 'Grade Lock: OFF';
             this.classList.toggle('lock-on', isGradeLockOn);
             this.classList.toggle('lock-off', !isGradeLockOn);
+
+            // Update all grade input fields max attribute
+            const allGradeInputs = document.querySelectorAll('input[name="grade"]');
+            allGradeInputs.forEach(input => {
+                if (isGradeLockOn) {
+                    input.setAttribute('max', '100');
+                } else {
+                    input.removeAttribute('max');
+                }
+            });
         });
     }
 
@@ -337,6 +407,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (addRowBtn) {
         addRowBtn.addEventListener('click', function() {
             revertWeightPreview();
+            revertPredictorWeightPreview();
             const newRow = document.createElement('tr');
             const currentSubject = subjectFilterDropdown.value;
             const subjectDefault = (currentSubject !== 'all') ? currentSubject : '';
@@ -351,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
             assignmentTableBody.appendChild(newRow);
             const subjectInput = newRow.querySelector('input[name="subject"]');
             if (subjectInput.value) {
-                subjectInput.dispatchEvent(new Event('input', {
+                subjectInput.dispatchEvent(new Event('change', {
                     bubbles: true
                 }));
             }
@@ -365,6 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const row = button.closest('tr');
             if (button.classList.contains('edit-btn')) {
                 revertWeightPreview();
+                revertPredictorWeightPreview();
                 button.textContent = 'Save';
                 button.classList.remove('edit-btn');
                 button.classList.add('save-btn');
@@ -409,11 +481,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Add categories if they exist
                 if (subjectValue && weightCategoriesMap[subjectValue]) {
-                    weightCategoriesMap[subjectValue].forEach(catName => {
-                        const option = document.createElement('option');
-                        option.value = catName;
-                        option.textContent = catName;
-                        categorySelect.appendChild(option);
+                    weightCategoriesMap[subjectValue].forEach(catObj => {
+                        const option = new Option(catObj.name, catObj.name);
+                        categorySelect.add(option);
                     });
                 }
             }
@@ -485,111 +555,159 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Get the subject categories map from the data attribute
-    const subjectCategoriesMap = JSON.parse(document.body.dataset.subjectCategories || '{}');
-
     // Get the predictor form elements
     const predictSubject = document.getElementById('predict-subject');
     const predictCategory = document.getElementById('predict-category');
 
+    // Function to clear predictor fields
+    function clearPredictorFields(keepSubject = false) {
+        if (!keepSubject) {
+            predictCategory.innerHTML = '<option value="">-- Select Category --</option>';
+        }
+        document.getElementById('assignment_name').value = '';
+        document.getElementById('weight').value = '';
+        document.getElementById('hours').value = '';
+        document.getElementById('target_grade').value = '';
+        document.getElementById('prediction-result').textContent = '';
+        revertPredictorWeightPreview();
+    }
+
     // Function to populate category dropdown based on selected subject
     function updatePredictorCategories() {
         const selectedSubject = predictSubject.value;
-        const categories = subjectCategoriesMap[selectedSubject] || [];
-        
+        const categoryObjs = weightCategoriesMap[selectedSubject] || [];
+
         // Clear existing options
         predictCategory.innerHTML = '';
-        
+
         // Add default option
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
         defaultOption.textContent = '-- Select Category --';
         predictCategory.appendChild(defaultOption);
-        
-        // Add category options
-        categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            option.textContent = category;
-            predictCategory.appendChild(option);
+
+        // Add category options - extract names from category objects
+        categoryObjs.forEach(catObj => {
+            const option = new Option(catObj.name, catObj.name);
+            predictCategory.add(option);
         });
+
+        // Clear all other fields when subject changes
+        clearPredictorFields(true);
     }
 
     // Initialize categories on page load
     if (predictSubject && predictCategory) {
         updatePredictorCategories();
-        
+
         // Update categories when subject changes
         predictSubject.addEventListener('change', updatePredictorCategories);
+
+        // Update weight preview when category changes
+        predictCategory.addEventListener('change', function() {
+            const subject = predictSubject.value;
+            const category = predictCategory.value;
+
+            // Clear fields except subject and category when category changes
+            document.getElementById('assignment_name').value = '';
+            document.getElementById('hours').value = '';
+            document.getElementById('target_grade').value = '';
+            document.getElementById('prediction-result').textContent = '';
+
+            // Apply weight preview
+            applyPredictorWeightPreview(subject, category);
+        });
     }
 
-    // Handle the predictor form submission
-    const predictorForm = document.getElementById('predictor-form');
-    if (predictorForm) {
-        predictorForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(predictorForm);
+    // Handle the predictor button click
+    const predictBtn = document.getElementById('predict-btn');
+    if (predictBtn) {
+        predictBtn.addEventListener('click', async () => {
             const resultDiv = document.getElementById('prediction-result');
-            
+
+            // Get input values
+            const subject = document.getElementById('predict-subject').value;
+            const category = document.getElementById('predict-category').value;
+            const assignmentName = document.getElementById('assignment_name').value;
+            const weight = document.getElementById('weight').value;
+            const hours = document.getElementById('hours').value;
+            const targetGrade = document.getElementById('target_grade').value;
+
+            // Validate positive values
+            if (weight && parseFloat(weight) < 0) {
+                resultDiv.textContent = 'Error: Weight must be a positive number';
+                resultDiv.style.color = 'red';
+                resultDiv.style.backgroundColor = '#f8d7da';
+                resultDiv.style.border = '1px solid #f5c6cb';
+                return;
+            }
+            if (hours && parseFloat(hours) < 0) {
+                resultDiv.textContent = 'Error: Hours must be a positive number';
+                resultDiv.style.color = 'red';
+                resultDiv.style.backgroundColor = '#f8d7da';
+                resultDiv.style.border = '1px solid #f5c6cb';
+                return;
+            }
+            if (targetGrade && parseFloat(targetGrade) < 0) {
+                resultDiv.textContent = 'Error: Target grade must be a positive number';
+                resultDiv.style.color = 'red';
+                resultDiv.style.backgroundColor = '#f8d7da';
+                resultDiv.style.border = '1px solid #f5c6cb';
+                return;
+            }
+
+            // Validate that either hours OR target_grade is provided (not both, not neither)
+            if ((!hours && !targetGrade) || (hours && targetGrade)) {
+                resultDiv.textContent = 'Error: Please provide either Hours OR Target Grade (not both)';
+                resultDiv.style.color = 'red';
+                resultDiv.style.backgroundColor = '#f8d7da';
+                resultDiv.style.border = '1px solid #f5c6cb';
+                return;
+            }
+
+            // Create FormData
+            const formData = new FormData();
+            formData.append('subject', subject);
+            if (category) formData.append('category', category);
+            if (assignmentName) formData.append('assignment_name', assignmentName);
+            if (weight) formData.append('weight', weight);
+            if (hours) formData.append('hours', hours);
+            if (targetGrade) formData.append('target_grade', targetGrade);
+            formData.append('grade_lock', isGradeLockOn ? 'true' : 'false');
+
             try {
                 const response = await fetch('/predict', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     if (data.mode === 'grade_from_hours') {
                         resultDiv.textContent = `Predicted Grade: ${data.predicted_grade}%`;
-                        resultDiv.style.color = 'green';
+                        resultDiv.style.color = '#155724';
+                        resultDiv.style.backgroundColor = '#d4edda';
+                        resultDiv.style.border = '1px solid #c3e6cb';
                     } else if (data.mode === 'hours_from_grade') {
                         resultDiv.textContent = `Required Hours: ${data.required_hours} hours`;
-                        resultDiv.style.color = 'blue';
+                        resultDiv.style.color = '#004085';
+                        resultDiv.style.backgroundColor = '#d1ecf1';
+                        resultDiv.style.border = '1px solid #bee5eb';
                     }
                 } else {
                     resultDiv.textContent = data.message || 'Error making prediction';
                     resultDiv.style.color = 'red';
+                    resultDiv.style.backgroundColor = '#f8d7da';
+                    resultDiv.style.border = '1px solid #f5c6cb';
                 }
             } catch (error) {
                 resultDiv.textContent = 'Error: ' + error.message;
                 resultDiv.style.color = 'red';
+                resultDiv.style.backgroundColor = '#f8d7da';
+                resultDiv.style.border = '1px solid #f5c6cb';
             }
         });
     }
-    document.getElementById('predictor-form').addEventListener('submit', async function(e){
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const response = await fetch('/predict', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await response.json();
-
-        // Sync grade lock status with predictor
-        const gradeLockBtn = document.getElementById('grade-lock-btn');
-        const predictGradeLock = document.getElementById('predict-grade-lock');
-        const maxGradeContainer = document.getElementById('max-grade-container');
-
-        if (gradeLockBtn) {
-            gradeLockBtn.addEventListener('click', () => {
-                const isLocked = gradeLockBtn.classList.contains('lock-on');
-                predictGradeLock.value = isLocked ? 'true' : 'false';
-                maxGradeContainer.style.display = isLocked ? 'none' : 'block';
-            });
-        }
-        
-        if (data.mode === 'grade_from_hours') {
-            document.getElementById('prediction-result').textContent = 
-                `Predicted Grade: ${data.predicted_grade}`;
-        } else if (data.mode === 'hours_from_grade') {
-            document.getElementById('prediction-result').textContent = 
-                `Required Hours: ${data.required_hours}`;
-        } else {
-            document.getElementById('prediction-result').textContent = data.message;
-        }
-    });
 
 });

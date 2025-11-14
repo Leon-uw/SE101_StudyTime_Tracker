@@ -113,32 +113,27 @@ input, select { width: 95%; padding: 8px; box-sizing: border-box; border-radius:
     color: white;
 }
 
-.predictor-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;        /* wrap on small screens */
-    align-items: flex-start; /* align top of each field */
+/* Predictor Section - Matches Category Section Styling */
+.predictor-section {
+    background-color: white;
+    padding: 1.5em;
+    border-radius: 8px;
+    margin-top: 2em;
+    border: 1px solid #ddd;
 }
-
-.predictor-field {
-    display: flex;
-    flex-direction: column; /* label on top, input below */
-    gap: 4px;
+.predictor-section h2 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5em;
 }
-
-.predictor-field select,
-.predictor-field input {
-    width: 180px;           
-    padding: 4px 6px;
-    box-sizing: border-box;
+.predictor-section .table-container {
+    margin-bottom: 0;
 }
-
-#assignment_name {
-    width: 150px;            /* wider for assignment name */
+.predictor-section input::placeholder {
+    color: #999;
+    font-size: 0.9em;
 }
-
-.predictor-field button {
-    height: 30px;
-    padding: 4px 10px;
-    align-self: flex-end;    /* keeps button aligned nicely */
+#prediction-result {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
 }
