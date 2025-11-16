@@ -307,6 +307,41 @@ def delete_log(log_id):
         return jsonify({'status': 'success', 'message': 'Assignment deleted!', 'summary': summary, 'updated_assignments': assignments_to_return})
     return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
 
+@app.route('/delete_multiple', methods=['POST'])
+@login_required
+def delete_multiple():
+    current_filter = request.args.get('current_filter')
+    ids_to_delete = request.json.get('ids', [])
+    
+    if not ids_to_delete:
+        return jsonify({'status': 'error', 'message': 'No assignments selected.'}), 400
+    
+    deleted_count = 0
+    subjects_to_recalc = set()
+    
+    for log_id in ids_to_delete:
+        log_to_delete = next((log for log in study_data if log['id'] == log_id), None)
+        if log_to_delete:
+            subjects_to_recalc.add((log_to_delete['subject'], log_to_delete['category']))
+            study_data.remove(log_to_delete)
+            deleted_count += 1
+    
+    for subject, category in subjects_to_recalc:
+        recalculate_weights(subject, category)
+    
+    summary = calculate_summary(current_filter)
+    if current_filter and current_filter != 'all':
+        assignments_to_return = [log for log in study_data if log['subject'] == current_filter]
+    else:
+        assignments_to_return = study_data
+    
+    return jsonify({
+        'status': 'success',
+        'message': f'{deleted_count} assignment(s) deleted!',
+        'summary': summary,
+        'updated_assignments': assignments_to_return
+    })
+
 @app.route('/category/add', methods=['POST'])
 @login_required
 def add_category():

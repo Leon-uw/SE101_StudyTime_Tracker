@@ -32,14 +32,20 @@
             <h2>Assignments</h2>
             <div class="table-container">
                 <table>
-                    <thead><tr><th>Subject</th><th>Category</th><th>Study Time</th><th>Assignment Name</th><th>Grade</th><th>Weight</th><th>Actions</th></tr></thead>
+                    <thead><tr><th><input type="checkbox" id="selectAll"></th><th>Subject</th><th>Category</th><th>Study Time</th><th>Assignment Name</th><th>Grade</th><th>Weight</th><th>Actions</th></tr></thead>
                     <tbody id="study-table-body">
                         {% if summary_data %}<tr class="summary-row"><td><strong>Summary for {{ selected_subject }}</strong></td><td>-</td><td>{{ "%.1f"|format(summary_data.total_hours) }}h (total)</td><td>-</td><td>{{ "%.1f"|format(summary_data.average_grade) }}% (avg)</td><td>{{ "%.2f"|format(summary_data.total_weight) }}% (graded)</td><td>-</td></tr>{% endif %}
-                        {% for row in data %}<tr data-id="{{ row.id }}"><td>{{ row.subject }}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> {{ row.category }}</span></td><td>{{ "%.1f"|format(row.study_time) }} hours</td><td>{{ row.assignment_name }}</td><td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td><td>{{ "%.2f"|format(row.weight) }}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td></tr>{% endfor %}
+                        {% for row in data %}<tr data-id="{{ row.id }}"><td><input type="checkbox" class="select-assignment" data-id="{{ row.id }}"></td><td>{{ row.subject }}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> {{ row.category }}</span></td><td>{{ "%.1f"|format(row.study_time) }} hours</td><td>{{ row.assignment_name }}</td><td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td><td>{{ "%.2f"|format(row.weight) }}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td></tr>{% endfor %}
                     </tbody>
                 </table>
             </div>
             <button id="addRowBtn">Add New Assignment</button>
+            <button id="deleteSelectedBtn" style="display:none; background-color: #dc3545; margin-left: 10px;">
+                Delete Selected (<span id="selectedCount">0</span>)
+            </button>
+            <button id="deselectAllBtn" style="display:none; margin-left: 10px;">
+                Deselect All
+            </button>
 
             {% if selected_subject and selected_subject != 'all' %}
             <div class="category-section">
