@@ -1,0 +1,22 @@
+# To-Do App Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core Flask Framework
+flask>=2.3.0
+
+# Database Connectors
+pymysql>=1.1.0
+mysql-connector-python>=8.1.0
+
+# Security & Encryption
+cryptography>=41.0.0
+
+# Testing Framework
+pytest>=7.4.0
+pytest-html>=3.2.0
+
+# Development Dependencies
+python-dotenv>=1.0.0
+
+# Optional: For better logging and debugging
+colorama>=0.4.6
