@@ -1,250 +1,241 @@
 /* General Body Styles */
 body { 
-    font-family: sans-serif; 
-    margin: 2em; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    background-color: #f4f6f9; 
+    margin: 0; 
+    padding: 2em; 
 }
 
-/* Layout Containers */
-.main-container { 
-    display: flex; 
-    flex-direction: row; 
-    gap: 2em; 
+h1, h2 {
+    color: #333;
 }
-.left-panel { 
-    flex: 3; 
-    min-width: 0; 
-}
-.right-panel { 
-    flex: 1; 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-}
+
+/* --- Login/Register Form Styles --- */
+.form-container { background: white; padding: 2.5rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 400px; margin: 4em auto; text-align: center; }
+.form-container h1 { margin-top: 0; }
+.form-container input { display: block; margin-bottom: 15px; padding: 12px; width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+.form-container button { padding: 12px 20px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; width: 100%; font-size: 16px; }
+.form-container p { margin-top: 15px; }
+
+/* Layout Containers for Dashboard */
+.main-container { display: flex; flex-direction: row; gap: 2em; }
+.left-panel { flex: 3; min-width: 0; }
+.right-panel { flex: 1; display: flex; flex-direction: column; align-items: center; }
+
+/* Category Definitions Section */
+.category-section { background-color: white; padding: 1.5em; border-radius: 8px; margin-top: 2em; border: 1px solid #ddd; }
+.category-section h2 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 0.5em; }
 
 /* Table and Scroll Container */
-.table-container { 
-    max-height: 450px; 
-    overflow-y: auto; 
-    border: 1px solid #ddd; 
-    margin-bottom: 1em; 
-}
-table { 
-    width: 100%; 
-    border-collapse: collapse; 
-}
-th, td { 
-    border: 1px solid #ddd; 
-    text-align: left; 
-    padding: 8px; 
-}
-thead th { 
-    position: sticky; 
-    top: 0; 
-    background-color: #f2f2f2; 
-    z-index: 1; 
-}
-.summary-row { 
-    background-color: #e9ecef; 
-    font-weight: bold; 
-}
-.summary-row td { 
-    border-top: 2px solid #6c757d; 
-    border-bottom: 2px solid #6c757d; 
-}
-th:last-child, td:last-child {
-    width: 1%;
-    white-space: nowrap;
-}
+.table-container { max-height: 450px; overflow-y: auto; border: 1px solid #ddd; margin-bottom: 1em; background: white; border-radius: 4px;}
+table { width: 100%; border-collapse: collapse; }
+th, td { border-bottom: 1px solid #eee; text-align: left; padding: 12px; vertical-align: middle; }
+th { border-top: none; }
+td:first-child, th:first-child { padding-left: 15px; }
+thead th { position: sticky; top: 0; background-color: #f8f9fa; z-index: 1; border-bottom: 2px solid #dee2e6; }
+.summary-row { background-color: #e9ecef; font-weight: bold; }
+.summary-row td { border-top: 2px solid #6c757d; border-bottom: 2px solid #6c757d; }
+th:last-child, td:last-child { width: 1%; white-space: nowrap; }
+
+/* Category Tag Style */
+.category-tag { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 12px; background-color: #e9ecef; font-size: 0.9em; font-weight: 500; color: #495057; }
+.category-tag svg { width: 1em; height: 1em; margin-right: 5px; stroke-width: 2.5; }
+.calculated-weight { color: #6c757d; font-style: italic; }
 
 /* Form Elements and Buttons */
-input { 
-    width: 95%; 
-    padding: 4px; 
-    box-sizing: border-box; 
-}
-.action-btn { 
-    padding: 5px 10px; 
-    cursor: pointer; 
-    margin-right: 5px; 
-    border-radius: 4px;
-    border: 1px solid #ccc;
-}
-#addRowBtn { 
-    padding: 10px 15px; 
-    background-color: #007bff; 
-    color: white; 
-    border: none; 
-    border-radius: 4px; 
-    cursor: pointer; 
-}
-.delete-btn { 
-    background-color: #dc3545; 
-    color: white; 
-    border: 1px solid #dc3545; 
-    border-radius: 5px;
-}
-.filter-form { 
-    margin-bottom: 1em; 
-    display: flex; 
-    align-items: center; 
-}
-.filter-form label { 
-    margin-right: 10px; 
-    font-weight: bold; 
-}
-.filter-form select { 
-    padding: 8px; 
-    border-radius: 4px; 
-    border: 1px solid #ccc; 
-}
-.grade-lock-btn {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 10px;
-    white-space: nowrap;
-}
-.lock-on {
-    background-color: #28a745;
-    color: white;
-    border-color: #28a745;
-}
-.lock-off {
-    background-color: #ffc107;
-    color: black;
-    border-color: #ffc107;
-}
-
-/* Validation and Messaging */
-.input-error {
-    border: 2px solid #dc3545 !important;
-    background-color: #f8d7da;
-}
-.flash-messages { 
-    margin-bottom: 1em; 
-}
-.alert { 
-    padding: 15px; 
-    margin-bottom: 10px; 
-    border-radius: 4px; 
-}
-.alert-success { 
-    color: #155724; 
-    background-color: #d4edda; 
-}
-.alert-error { 
-    color: #721c24; 
-    background-color: #f8d7da; 
-}
-#toast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 12px 20px;
-    border-radius: 6px;
-    color: white;
-    font-size: 16px;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s, visibility 0.3s;
-}
-#toast.show {
-    opacity: 1;
-    visibility: visible;
-}
-#toast.success { background-color: #28a745; }
-#toast.error { background-color: #dc3545; }
-
-#validation-alert {
-    padding: 15px;
-    margin-bottom: 1em;
-    border: 1px solid #f5c6cb;
-    border-radius: 4px;
-    color: #721c24;
-    background-color: #f8d7da;
-    display: none;
-}
-#validation-alert ul {
-    margin: 0;
-    padding-left: 20px;
-}
-
-/* --- NEW: Styles for the custom confirmation dialog --- */
-#confirmation-alert {
-    padding: 15px;
-    margin-bottom: 1em;
-    border: 1px solid #ffc107; /* A warning yellow */
-    border-radius: 4px;
-    color: #856404;
-    background-color: #fff3cd;
-    display: none; /* Hidden by default */
-}
-#confirmation-alert p {
-    margin: 0 0 10px 0;
-}
-.confirmation-buttons button {
-    padding: 8px 15px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-right: 10px;
-}
-#confirm-yes {
+input, select { width: 95%; padding: 8px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; }
+.action-btn { padding: 5px 10px; cursor: pointer; margin-right: 5px; border-radius: 4px; border: 1px solid #ccc; background-color: #f0f0f0; }
+#addRowBtn, #addCategoryBtn, #deleteSelectedBtn { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+.delete-btn { background-color: #dc3545; color: white; border-color: #dc3545; }
+.filter-form { margin-bottom: 1em; display: flex; align-items: center; flex-wrap: wrap; gap: 15px;}
+.filter-form label { margin-right: 5px; font-weight: bold; }
+.filter-form > form > select { padding: 8px; }
+.grade-lock-btn { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+.lock-on { background-color: #28a745; color: white; border-color: #28a745; }
+.lock-off { background-color: #ffc107; color: black; border-color: #ffc107; }
+.subject-action-btn { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; white-space: nowrap; background-color: #007bff; color: white; border-color: #007bff; }
+.subject-action-btn:hover { background-color: #0056b3; border-color: #0056b3; }
+.delete-subject-btn { background-color: #dc3545; border-color: #dc3545; }
+.delete-subject-btn:hover { background-color: #c82333; border-color: #c82333; }
+#deleteSelectedBtn {
     background-color: #dc3545;
-    border-color: #dc3545;
-    color: white;
 }
-#confirm-no {
-    background-color: #6c757d;
-    border-color: #6c757d;
-    color: white;
+#deleteSelectedBtn:hover {
+    background-color: #c82333;
 }
 
-.logout-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: #ff6b6b;
-  color: white;
-  padding: 8px 14px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 500;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  transition: all 0.2s ease-in-out;
-}
+/* Logout Button */
+.logout-btn { position: absolute; top: 16px; right: 24px; background: #6c757d; color: white; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 500; }
+.logout-btn:hover { background: #5a6268; }
 
-.logout-btn:hover {
-  background: #ff5252;
-  transform: translateY(-2px);
-}
+/* Validation and On-Page Alerts */
+.input-error { border: 2px solid #dc3545 !important; background-color: #f8d7da; }
+#validation-alert { padding: 15px; margin-bottom: 1em; border-radius: 4px; display: none; border: 1px solid #f5c6cb; color: #721c24; background-color: #f8d7da; }
+#validation-alert ul { margin: 0; padding-left: 20px; }
 
-.toast-container {
+/* --- UNIFIED Toast Notification System --- */
+.toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.toast { background: rgba(51, 51, 51, 0.9); color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 1rem; opacity: 0; transition: opacity 0.4s ease, transform 0.4s ease; transform: translateY(-20px); }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: rgba(40, 167, 69, 0.9); }
+.toast.error { background: rgba(220, 53, 69, 0.9); }
+.toast.info { background: rgba(0, 123, 255, 0.9); }
+
+/* --- NEW: Custom Confirmation Modal --- */
+.modal-overlay {
     position: fixed;
-    top: 20px;              /* Distance from top */
-    left: 50%;              /* Center horizontally */
-    transform: translateX(-50%); /* Actually center */
-    z-index: 9999;
-    text-align: center;
-    pointer-events: none;   /* Allows clicks to pass through */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
 }
-
-.toast {
-    background: rgba(51, 51, 51, 0.7);
-    color: white;
-    padding: 12px 20px;
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.modal-content {
+    background-color: white;
+    padding: 2em;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    font-size: 1rem;
-    opacity: 1;                 /* important */
-    transition: opacity 0.5s ease, transform 0.5s ease; /* smooth fade + optional movement */
-    min-width: 200px;
-    pointer-events: auto;       /* allow clicking to dismiss */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    max-width: 450px;
+    min-width: 350px;
+    animation: slideIn 0.3s ease;
+}
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.modal-content p {
+    margin: 0 0 1.5em 0;
+    font-size: 1.1em;
+}
+.modal-content h3 {
+    margin-bottom: 1em;
+    color: #333;
+}
+.modal-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 0 10px;
+    font-weight: bold;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+}
+.modal-buttons button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+#modal-confirm-yes, #subject-modal-confirm, #delete-subject-confirm, #delete-subject-final-confirm {
+    background-color: #dc3545;
+    color: white;
+}
+#modal-confirm-yes:hover, #delete-subject-confirm:hover, #delete-subject-final-confirm:hover {
+    background-color: #c82333;
+}
+#subject-modal-confirm {
+    background-color: #007bff;
+}
+#subject-modal-confirm:hover {
+    background-color: #0056b3;
+}
+#modal-confirm-no, #subject-modal-cancel, #delete-subject-cancel, #delete-subject-final-cancel {
+    background-color: #6c757d;
+    color: white;
+}
+#modal-confirm-no:hover, #subject-modal-cancel:hover, #delete-subject-cancel:hover, #delete-subject-final-cancel:hover {
+    background-color: #5a6268;
 }
 
-.toast.success { background: rgba(40, 167, 69, 0.7); }
-.toast.error { background: rgba(220, 53, 69, 0.7); }
-.toast.info { background: rgba(0, 123, 255, 0.7); }
+/* Predictor Section - Matches Category Section Styling */
+.predictor-section {
+    background-color: white;
+    padding: 1.5em;
+    border-radius: 8px;
+    margin-top: 2em;
+    border: 1px solid #ddd;
+}
+.predictor-section h2 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5em;
+}
+.predictor-section .table-container {
+    margin-bottom: 0;
+}
+.predictor-section input::placeholder {
+    color: #999;
+    font-size: 0.9em;
+}
+#prediction-result {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+/* Hover effect for table rows */
+#study-table-body tr[data-id]:hover {
+    background-color: #f0f8ff; /* Light blue on hover */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+/* Selected row styling */
+#study-table-body tr[data-id].selected {
+    background-color: #e3f2fd; /* Slightly darker blue for selected */
+}
+
+/* Checkbox styling */
+.select-assignment {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+#selectAll {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+}
+
+/* Make the checkbox cell narrower */
+#study-table-body td:first-child,
+table thead th:first-child {
+    width: 40px;
+    text-align: center;
+    padding: 8px;
+}
+
+/* Smooth transitions for all table rows */
+#study-table-body tr {
+    transition: background-color 0.2s ease;
+}
+
+/* Don't apply hover to summary row */
+#study-table-body tr.summary-row:hover {
+    background-color: #f8f9fa;
+    cursor: default;
+}
+
+/* Maintain existing colors for action buttons on hover */
+#study-table-body tr[data-id]:hover .action-btn {
+    /* Buttons keep their original colors */
+}
+
+/* Optional: Highlight the entire row when checkbox is checked */
+#study-table-body tr[data-id]:has(.select-assignment:checked) {
+    background-color: #d1e7fd; /* Even more visible when checked */
+}
+
+#study-table-body tr[data-id]:has(.select-assignment:checked):hover {
+    background-color: #b3d9ff; /* Darker blue when hovering over checked row */
+}
