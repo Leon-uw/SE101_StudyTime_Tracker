@@ -366,8 +366,6 @@ def delete_log(log_id):
     recalculate_weights(subject, category)
     summary = calculate_summary(current_filter)
 
-    # Fetch fresh data from database instead of using in-memory dict
-    assignments_to_return = get_all_grades()
     if current_filter and current_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_filter]
 
@@ -394,6 +392,8 @@ def delete_multiple():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to delete assignments: {str(e)}'}), 500
 
+    # Fetch fresh data from database instead of using in-memory dict
+    assignments_to_return = get_all_grades()
     # Recalculate weights for affected subjects/categories
     for subject, category in subjects_to_recalc:
         recalculate_weights(subject, category)
