@@ -6,7 +6,7 @@
 - No merge conflicts encountered  
 - Good organization and coordination  
 
-## ⚙️ What Could Be Improved#
+## ⚙️ What Could Be Improved
 - Clarify **user stories** earlier in the sprint  
 - Address **role confusion** (e.g., Team A had some confusion with roles as all tasks were completed ahead of schedule)  
   - Going forward, each member will take an **extra role** or self-assign additional tasks if idle  
@@ -16,3 +16,20 @@
 
 ## 📈 Velocity
 - Ahead of schedule - completed everything required for the sprint.
+
+
+# Sprint 2 Retrospective
+
+## ✅ What Went Well
+- Everyone had clearly defined tasks and understood their responsibilities  
+- All documentation was fully completed  
+- Team exceeded the previous sprint’s velocity  
+
+## ⚙️ What Could Be Improved
+- Begin **merging** earlier in the sprint  
+  - Reduces complexity later as more changes accumulate  
+- Conduct **bug testing before merging**  
+  - Some issues were discovered by other team members after merge  
+
+## 📈 Velocity
+- Completed all assigned sprint tasks and implemented additional backlog features.
