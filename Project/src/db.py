@@ -1,6 +1,9 @@
 # src/db.py
 import os
 import mysql.connector
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Read from env so tests/CI can inject creds safely
 DB_HOST = 'riku.shoshin.uwaterloo.ca'
