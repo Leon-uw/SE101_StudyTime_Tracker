@@ -22,7 +22,8 @@ def get_all_grades():
                 'study_time': row['StudyTime'],
                 'assignment_name': row['AssignmentName'],
                 'grade': row['Grade'],
-                'weight': row['Weight']
+                'weight': row['Weight'],
+                'is_prediction': bool(row['IsPrediction']) if 'IsPrediction' in row else False
             }
             for row in results
         ]
@@ -86,16 +87,16 @@ def get_categories_as_dict():
 
     return result
 
-def add_grade(subject, category, study_time, assignment_name, grade, weight):
+def add_grade(subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
     """Add a new assignment to the database"""
     conn = _connect()
     try:
         curs = conn.cursor()
         query = f"""
-        INSERT INTO {TABLE_NAME} (Subject, Category, StudyTime, AssignmentName, Grade, Weight)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO {TABLE_NAME} (Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight))
+        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction))
         conn.commit()
         return curs.lastrowid  # Return the ID of the inserted record
     except mysql.connector.Error as e:
@@ -105,17 +106,17 @@ def add_grade(subject, category, study_time, assignment_name, grade, weight):
         curs.close()
         conn.close()
 
-def update_grade(grade_id, subject, category, study_time, assignment_name, grade, weight):
+def update_grade(grade_id, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
     """Update an existing grade"""
     conn = _connect()
     try:
         curs = conn.cursor()
         query = f"""
         UPDATE {TABLE_NAME}
-        SET Subject = %s, Category = %s, StudyTime = %s, AssignmentName = %s, Grade = %s, Weight = %s
+        SET Subject = %s, Category = %s, StudyTime = %s, AssignmentName = %s, Grade = %s, Weight = %s, IsPrediction = %s
         WHERE id = %s
         """
-        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, grade_id))
+        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, grade_id))
         conn.commit()
         return curs.rowcount
     except mysql.connector.Error as e:
@@ -435,6 +436,46 @@ def get_subject_by_name(name):
                 'created_at': result['created_at']
             }
         return None
+    finally:
+        curs.close()
+        conn.close()
+
+def rename_subject(old_name, new_name):
+    """Renames a subject across all tables.
+    
+    Args:
+        old_name: Current name of the subject
+        new_name: New name for the subject
+        
+    Returns:
+        True if successful
+        
+    Raises:
+        ValueError: If new_name already exists
+        mysql.connector.Error: If database error occurs
+    """
+    conn = _connect()
+    curs = conn.cursor()
+    try:
+        # Check if new name already exists
+        curs.execute(f"SELECT id FROM {SUBJECTS_TABLE} WHERE name = %s", (new_name,))
+        if curs.fetchone():
+            raise ValueError(f"Subject '{new_name}' already exists.")
+
+        # Update SUBJECTS_TABLE
+        curs.execute(f"UPDATE {SUBJECTS_TABLE} SET name = %s WHERE name = %s", (new_name, old_name))
+        
+        # Update GRADES_TABLE
+        curs.execute(f"UPDATE {TABLE_NAME} SET Subject = %s WHERE Subject = %s", (new_name, old_name))
+        
+        # Update CATEGORIES_TABLE
+        curs.execute(f"UPDATE {CATEGORIES_TABLE} SET Subject = %s WHERE Subject = %s", (new_name, old_name))
+        
+        conn.commit()
+        return True
+    except mysql.connector.Error as e:
+        conn.rollback()
+        raise e
     finally:
         curs.close()
         conn.close()

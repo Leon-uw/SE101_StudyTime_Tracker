@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,148 +8,255 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
-<body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}' data-subject-categories='{{ subject_categories_map_json|safe }}' data-weight-categories='{{ weight_categories_json|safe }}'>
 
-    <a href="{{ url_for('logout') }}" class="logout-btn">Log Out</a>
-    <div class="toast-container">{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for c, m in messages %}<div class="toast {{ c }} show">{{ m }}</div>{% endfor %}{% endif %}{% endwith %}</div>
+<body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}'
+    data-subject-categories='{{ subject_categories_map_json|safe }}'
+    data-weight-categories='{{ weight_categories_json|safe }}'>
 
-    <h1>Study Log Dashboard</h1>
-    <div id="validation-alert"></div>
-    
-    <div id="confirmation-alert">
-        <p id="confirmation-message"></p>
-        <div class="confirmation-buttons">
-            <button id="confirm-yes">Yes</button>
-            <button id="confirm-no">No</button>
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h3>Menu</h3>
+            <button id="close-sidebar-btn" class="close-btn">&times;</button>
         </div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('display_table') }}">Home</a></li>
+            <li class="has-submenu">
+                <a href="#" id="subjects-toggle">Subjects <span class="arrow">&#9662;</span></a>
+                <ul class="submenu" id="subjects-submenu">
+                    {% for subject in subjects %}
+                    <li><a href="{{ url_for('display_subject', subject_name=subject) }}">{{ subject }}</a></li>
+                    {% endfor %}
+                    <li><a href="#" id="add-subject-link" class="add-subject-link">+ Add Subject</a></li>
+                </ul>
+            </li>
+            <li><a href="{{ url_for('about') }}">About</a></li>
+            <li><a href="{{ url_for('stats') }}">Stats</a></li>
+            <li class="theme-toggle-item">
+                <span>Dark Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider"></span>
+                </label>
+            </li>
+            <li><a href="{{ url_for('logout') }}">Log Out</a></li>
+        </ul>
     </div>
-    
 
-    <div class="main-container">
-        <div class="left-panel">
-            <div class="filter-form">
-                <form id="filter-form" method="GET" action="/"><label for="subject-filter">Filter by Subject:</label><select name="subject" id="subject-filter" onchange="this.form.submit()"><option value="all">All Subjects</option>{% for subject in subjects %}<option value="{{ subject }}" {% if subject == selected_subject %}selected{% endif %}>{{ subject }}</option>{% endfor %}</select>
-                    {% if selected_subject and selected_subject != 'all' and subject_categories_map_py[selected_subject] %}<label for="category-filter">Category:</label><select name="category" id="category-filter" onchange="this.form.submit()"><option value="all">All Categories</option>{% for category in subject_categories_map_py[selected_subject] %}<option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>{% endfor %}</select>{% endif %}
-                </form>
-                {% if not selected_subject or selected_subject == 'all' %}
-                <button type="button" id="add-subject-btn" class="subject-action-btn">+ Add Subject</button>
-                {% elif selected_subject and selected_subject != 'all' %}
-                <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn" data-subject="{{ selected_subject }}">Delete Subject</button>
-                {% endif %}
-                <button type="button" id="grade-lock-btn" class="grade-lock-btn lock-on">Grade Lock: ON</button>
-            </div>
+    <!-- Overlay -->
+    <div id="overlay" class="overlay"></div>
 
-            <h2>Assignments</h2>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th><input type="checkbox" id="selectAll"></th><th>Subject</th><th>Category</th><th>Study Time</th><th>Assignment Name</th><th>Grade</th><th>Weight</th><th>Actions</th></tr></thead>
-                    <tbody id="study-table-body">
-                        {% if summary_data %}<tr class="summary-row"><td></td><td><strong>Summary for {{ selected_subject }}</strong></td><td>-</td><td>{{ "%.1f"|format(summary_data.total_hours) }}h (total)</td><td>-</td><td>{{ "%.1f"|format(summary_data.average_grade) }}% (avg)</td><td>{{ "%.2f"|format(summary_data.total_weight) }}% (graded)</td><td>-</td></tr>{% endif %}
-                        {% for row in data %}<tr data-id="{{ row.id }}"><td><input type="checkbox" class="select-assignment" data-id="{{ row.id }}"></td><td>{{ row.subject }}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> {{ row.category }}</span></td><td>{{ "%.1f"|format(row.study_time) }} hours</td><td>{{ row.assignment_name }}</td><td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td><td>{{ "%.2f"|format(row.weight) }}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td></tr>{% endfor %}
-                        </tbody>
-                </table>
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <!-- Top Navigation Bar -->
+        <header class="top-nav">
+            <div class="nav-left">
+                <button id="menu-btn" class="menu-btn">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </button>
             </div>
-            <button id="addRowBtn">Add New Assignment</button>
-            <button id="deleteSelectedBtn" style="display:none; margin-left: 10px;">
-                Delete Selected (<span id="selectedCount">0</span>)
-            </button>
-            <button id="deselectAllBtn" style="display:none; margin-left: 10px;">
-                Deselect All
-            </button>
+            <div class="nav-center">
+                <h1>{{ page_title }}
+                    {% if selected_subject and selected_subject != 'all' %}
+                    <button id="rename-subject-btn" class="icon-btn" title="Rename Subject"
+                        style="background: none; border: none; cursor: pointer; color: var(--text-color); margin-left: 10px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    {% endif %}
+                </h1>
+            </div>
+            <div class="nav-right">
+                <a href="{{ url_for('display_table') }}" class="logo-link">
+                    <div class="logo-placeholder">Logo</div>
+                </a>
+            </div>
+        </header>
+
+        <div class="content-container">
+            <div class="toast-container">{% with messages = get_flashed_messages(with_categories=true) %}{% if messages
+                %}{% for c, m in messages %}<div class="toast {{ c }} show">{{ m }}</div>{% endfor %}{% endif %}{%
+                endwith %}</div>
+
+            <div id="validation-alert"></div>
+
+
+
+
+            <div class="main-container">
+                <div class="full-width-panel">
+                    <div class="action-bar">
+                        <!-- Hidden form for compatibility with existing JS that might look for these inputs -->
+                        <form id="filter-form" style="display:none;">
+                            <input type="hidden" name="subject" id="subject-filter" value="{{ selected_subject }}">
+                            <input type="hidden" name="category" id="category-filter" value="{{ selected_category }}">
+                        </form>
+
+                        {% if selected_subject and selected_subject != 'all' %}
+                        {% if subject_categories_map_py[selected_subject] %}
+                        <div class="category-filter-container">
+                            <label for="category-filter-visible">Category:</label>
+                            <select id="category-filter-visible"
+                                onchange="window.location.href='?category=' + this.value">
+                                <option value="all">All Categories</option>
+                                {% for category in subject_categories_map_py[selected_subject] %}
+                                <option value="{{ category }}" {% if category==selected_category %}selected{% endif %}>
+                                    {{ category }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="category-filter-container">
+                            <label for="subject-filter-visible">Subject:</label>
+                            <select id="subject-filter-visible">
+                                <option value="all">All Subjects</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject }}" {% if subject==selected_subject %}selected{% endif %}>
+                                    {{ subject }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+
+                        <button type="button" id="grade-lock-btn" class="grade-lock-btn lock-on">Grade Lock: ON</button>
+                    </div>
+
+                    <h2>Assignments</h2>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>Subject</th>
+                                    <th>Category</th>
+                                    <th>Study Time</th>
+                                    <th>Assignment Name</th>
+                                    <th>Grade</th>
+                                    <th>Weight</th>
+                                    <th>Actions</th>
+                                </tr>
+                                {% if summary_data %}
+                                <tr class="summary-row">
+                                    <td></td>
+                                    <td><strong>Summary for {{ selected_subject }}</strong></td>
+                                    <td>-</td>
+                                    <td>{{ "%.1f"|format(summary_data.total_hours) }}h (total)</td>
+                                    <td>-</td>
+                                    <td>{{ "%.1f"|format(summary_data.average_grade) }}% (avg)</td>
+                                    <td>{{ "%.2f"|format(summary_data.total_weight) }}% (graded)</td>
+                                    <td>-</td>
+                                </tr>
+                                {% endif %}
+                            </thead>
+                            <tbody id="study-table-body">
+                                {% for row in data %}<tr data-id="{{ row.id }}"
+                                    class="{% if row.is_prediction %}prediction-row{% endif %}">
+                                    <td><input type="checkbox" class="select-assignment" data-id="{{ row.id }}"></td>
+                                    <td>{{ row.subject }}</td>
+                                    <td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path
+                                                    d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z">
+                                                </path>
+                                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                            </svg> {{ row.category }}</span></td>
+                                    {% if row.is_prediction %}
+                                    <td><input type="number" class="prediction-input hours-input" data-id="{{ row.id }}"
+                                            value="{{ row.study_time }}" step="0.1" style="width: 80px;"> hours</td>
+                                    <td>{{ row.assignment_name }}</td>
+                                    <td><input type="number" class="prediction-input grade-input" data-id="{{ row.id }}"
+                                            value="{{ row.grade }}" step="1" style="width: 80px;">%</td>
+                                    {% else %}
+                                    <td>{{ "%.1f"|format(row.study_time) }} hours</td>
+                                    <td>{{ row.assignment_name }}</td>
+                                    <td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td>
+                                    {% endif %}
+                                    <td>{{ "%.2f"|format(row.weight) }}%</td>
+                                    <td>
+                                        {% if row.is_prediction %}
+                                        <button class="action-btn predict-btn">Predict</button>
+                                        <button class="action-btn add-prediction-btn">Add</button>
+                                        <button class="action-btn delete-btn">Delete</button>
+                                        {% else %}
+                                        <button class="action-btn edit-btn">Edit</button>
+                                        <button class="action-btn delete-btn">Delete</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>{% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="button-row" style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
+                        <button id="addRowBtn" style="padding: 8px 16px; font-size: 0.9em;">Add Assignment</button>
+                        <button id="addPredictionBtn"
+                            style="padding: 8px 16px; font-size: 0.9em; background-color: var(--accent-color);">Add
+                            Prediction</button>
+                        <button id="deleteSelectedBtn" style="display:none; padding: 8px 16px; font-size: 0.9em;">
+                            Delete Selected (<span id="selectedCount">0</span>)
+                        </button>
+                        <button id="deselectAllBtn" style="display:none; padding: 8px 16px; font-size: 0.9em;">
+                            Deselect All
+                        </button>
+                    </div>
+
+                    {% if selected_subject and selected_subject != 'all' %}
+                    <div class="category-section" style="margin-top: 30px;">
+                        <h2>Category Definitions for {{ selected_subject }}</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Category Name</th>
+                                    <th>Total Weight (%)</th>
+                                    <th># Assessments</th>
+                                    <th>Calculated Weight</th>
+                                    <th>Default Name Pattern</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="category-table-body">
+                                {% for cat in weight_categories_py.get(selected_subject, []) %}
+                                <tr data-id="{{ cat.id }}" data-name="{{ cat.name }}">
+                                    <td>{{ cat.name }}</td>
+                                    <td>{{ cat.total_weight }}%</td>
+                                    <td class="num-assessments">{{ cat.num_assessments }}</td>
+                                    <td class="calculated-weight">{% if cat.num_assessments > 0 %}{{
+                                        "%.2f"|format(cat.total_weight / cat.num_assessments) }}%{% else %}N/A{% endif
+                                        %}
+                                    </td>
+                                    <td>{{ cat.default_name if cat.default_name else '-' }}</td>
+                                    <td><button class="action-btn edit-btn">Edit</button><button
+                                            class="action-btn delete-btn">Delete</button></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div id="total-weight-indicator"
+                            style="margin-top: 1em; padding: 10px; border-radius: 4px; font-weight: bold;">
+                            Total Weight: <span id="total-weight-value">0</span>% / 100%
+                        </div>
+                        <button id="addCategoryBtn" style="margin-top: 1em;">Add Category Definition</button>
+                    </div>
+                    {% endif %}
+                </div>
+
+            </div>
 
             {% if selected_subject and selected_subject != 'all' %}
-            <div class="category-section">
-                <h2>Category Definitions for {{ selected_subject }}</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Category Name</th>
-                            <th>Total Weight (%)</th>
-                            <th># Assessments</th>
-                            <th>Calculated Weight</th>
-                            <th>Default Name Pattern</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="category-table-body">
-                        {% for cat in weight_categories_py.get(selected_subject, []) %}
-                        <tr data-id="{{ cat.id }}" data-name="{{ cat.name }}">
-                            <td>{{ cat.name }}</td>
-                            <td>{{ cat.total_weight }}%</td>
-                            <td class="num-assessments">{{ cat.num_assessments }}</td>
-                            <td class="calculated-weight">{% if cat.num_assessments > 0 %}{{ "%.2f"|format(cat.total_weight / cat.num_assessments) }}%{% else %}N/A{% endif %}</td>
-                            <td>{{ cat.default_name if cat.default_name else '-' }}</td>
-                            <td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                <div id="total-weight-indicator" style="margin-top: 1em; padding: 10px; border-radius: 4px; font-weight: bold;">
-                    Total Weight: <span id="total-weight-value">0</span>% / 100%
-                </div>
-                <button id="addCategoryBtn" style="margin-top: 1em;">Add Category Definition</button>
+            <div class="delete-subject-bar"
+                style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-color); width: 100%; text-align: center;">
+                <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn"
+                    style="padding: 10px 20px; font-size: 1em;" data-subject="{{ selected_subject }}">Delete Subject {{
+                    selected_subject }}</button>
             </div>
             {% endif %}
         </div>
-        <div class="right-panel">
-            <h2>Hours Breakdown</h2>
-            <canvas id="hoursPieChart"></canvas>
-        </div>
-    </div>
-
-    <div class="predictor-section">
-        <h2>Grade / Hours Predictor</h2>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 20%;">Subject</th>
-                        <th>Category</th>
-                        <th>Weight (%)</th>
-                        <th>Hours</th>
-                        <th>Target Grade (%)</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="width: 20%;">
-                            {% if selected_subject and selected_subject != 'all' %}
-                            <select name="subject" id="predict-subject" disabled style="background-color: #eee;">
-                                <option value="{{ selected_subject }}" selected>{{ selected_subject }}</option>
-                            </select>
-                            {% else %}
-                            <select name="subject" id="predict-subject" autocomplete="off">
-                                <option value="" disabled selected>-- Select Subject --</option>
-                                {% for subject in subjects %}
-                                <option value="{{ subject }}">{{ subject }}</option>
-                                {% endfor %}
-                            </select>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <select name="category" id="predict-category">
-                                <option value="">-- Select Category --</option>
-                            </select>
-                        </td>
-                        <td>
-                            <input type="number" name="weight" id="weight" step="0.1" min="0" readonly style="background-color: #eee;" placeholder="Select category">
-                        </td>
-                        <td>
-                            <input type="number" name="hours" id="hours" step="0.1" min="0" placeholder="Enter hours or leave blank">
-                        </td>
-                        <td>
-                            <input type="number" name="target_grade" id="target_grade" step="0.1" min="0" placeholder="Enter grade or leave blank">
-                        </td>
-                        <td>
-                            <button type="button" id="predict-btn" class="action-btn">Predict</button>
-                            <button type="button" id="reset-predictor-btn" class="action-btn" style="background-color: #6c757d; border-color: #6c757d; color: white;">Reset</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <div id="prediction-result" style="margin-top:10px; padding: 10px; font-weight:bold; border-radius: 4px;"></div>
     </div>
 
 
@@ -165,7 +273,8 @@
     <div id="add-subject-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-top: 0;">Add New Subject</h3>
-            <input type="text" id="new-subject-input" placeholder="Enter subject name..." style="width: 100%; padding: 10px; margin-bottom: 1em; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+            <input type="text" id="new-subject-input" placeholder="Enter subject name..."
+                style="width: 100%; padding: 10px; margin-bottom: 1em; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
             <div class="modal-buttons">
                 <button id="subject-modal-confirm">Add Subject</button>
                 <button id="subject-modal-cancel">Cancel</button>
@@ -189,12 +298,30 @@
             <h3 style="margin-top: 0; color: #dc3545;">⚠️ FINAL WARNING</h3>
             <p id="delete-subject-final-message"></p>
             <div class="modal-buttons">
-                <button id="delete-subject-final-confirm" style="background-color: #dc3545; font-weight: bold;">Yes, Delete Forever</button>
+                <button id="delete-subject-final-confirm" style="background-color: #dc3545; font-weight: bold;">Yes,
+                    Delete Forever</button>
                 <button id="delete-subject-final-cancel" style="background-color: #6c757d;">No, Cancel</button>
             </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    <div id="rename-subject-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0;">Rename Subject</h3>
+            <input type="text" id="rename-subject-input" placeholder="Enter new subject name..."
+                style="width: 100%; padding: 10px; margin-bottom: 1em; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+            <div class="modal-buttons">
+                <button id="rename-subject-confirm"
+                    style="background-color: var(--primary-color); color: white;">Rename</button>
+                <button id="rename-subject-cancel"
+                    style="background-color: var(--text-secondary); color: white;">Cancel</button>
+            </div>
+        </div>
+    </div>
+    </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </body>
+
 </html>

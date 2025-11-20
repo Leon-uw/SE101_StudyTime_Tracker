@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - Study Log Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h3>Menu</h3>
+            <button id="close-sidebar-btn" class="close-btn">&times;</button>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('display_table') }}">Home</a></li>
+            <li class="has-submenu">
+                <a href="#" id="subjects-toggle">Subjects <span class="arrow">&#9662;</span></a>
+                <ul class="submenu" id="subjects-submenu">
+                    {% for subject in subjects %}
+                    <li><a href="{{ url_for('display_subject', subject_name=subject) }}">{{ subject }}</a></li>
+                    {% endfor %}
+                    <li><a href="#" id="add-subject-link" class="add-subject-link">+ Add Subject</a></li>
+                </ul>
+            </li>
+            <li><a href="{{ url_for('about') }}">About</a></li>
+            <li><a href="{{ url_for('stats') }}">Stats</a></li>
+            <li class="theme-toggle-item">
+                <span>Dark Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider"></span>
+                </label>
+            </li>
+            <li><a href="{{ url_for('logout') }}">Log Out</a></li>
+        </ul>
+    </div>
+
+    <!-- Overlay -->
+    <div id="overlay" class="overlay"></div>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <!-- Top Navigation Bar -->
+        <header class="top-nav">
+            <div class="nav-left">
+                <button id="menu-btn" class="menu-btn">
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                    <div class="bar"></div>
+                </button>
+            </div>
+            <div class="nav-center">
+                <h1>{{ page_title }}</h1>
+            </div>
+            <div class="nav-right">
+                <a href="{{ url_for('display_table') }}" class="logo-link">
+                    <div class="logo-placeholder">Logo</div>
+                </a>
+            </div>
+        </header>
+
+        <div class="content-container">
+            <div class="main-container">
+                <div class="left-panel" style="width: 100%;">
+                    <h2>About This Project</h2>
+                    <p>This is a study log dashboard designed to help students track their assignments, grades, and
+                        study time.</p>
+                    <p>It features a grade predictor based on historical data and allows for detailed tracking of
+                        performance across different subjects and categories.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-subject-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0;">Add New Subject</h3>
+            <input type="text" id="new-subject-input" placeholder="Enter subject name..."
+                style="width: 100%; padding: 10px; margin-bottom: 1em; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+            <div class="modal-buttons">
+                <button id="subject-modal-confirm">Add Subject</button>
+                <button id="subject-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+</body>
+
+</html>

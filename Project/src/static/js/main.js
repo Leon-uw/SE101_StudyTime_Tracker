@@ -1,16 +1,67 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    // --- Sidebar Logic ---
+    const menuBtn = document.getElementById('menu-btn');
+    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const subjectsToggle = document.getElementById('subjects-toggle');
+    const subjectsSubmenu = document.getElementById('subjects-submenu');
+
+    function toggleSidebar() {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    }
+
+    if (menuBtn) menuBtn.addEventListener('click', toggleSidebar);
+    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
+    if (overlay) overlay.addEventListener('click', toggleSidebar);
+
+    if (subjectsToggle) {
+        subjectsToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            subjectsToggle.parentElement.classList.toggle('active');
+        });
+    }
+
+    // --- Dark Mode Logic ---
+    const themeToggle = document.getElementById('theme-toggle');
+    const currentTheme = localStorage.getItem('theme');
+
+    if (currentTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        if (themeToggle) themeToggle.checked = true;
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('change', () => {
+            if (themeToggle.checked) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+    }
+
     // --- Element Selectors ---
     const assignmentTableBody = document.getElementById('study-table-body');
     const categoryTableBody = document.getElementById('category-table-body');
     const addRowBtn = document.getElementById('addRowBtn');
     const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const predictBtn = document.getElementById('predict-btn');
+    const resetPredictorBtn = document.getElementById('reset-predictor-btn');
     const gradeLockBtn = document.getElementById('grade-lock-btn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    const selectAllCheckbox = document.getElementById('selectAll');
     const validationAlert = document.getElementById('validation-alert');
     const confirmationModal = document.getElementById('confirmation-modal');
     const modalMsg = document.getElementById('modal-message');
     const confirmYesBtn = document.getElementById('modal-confirm-yes');
     const confirmNoBtn = document.getElementById('modal-confirm-no');
     const subjectFilterDropdown = document.getElementById('subject-filter');
+    const subjectFilterVisible = document.getElementById('subject-filter-visible');
 
     // --- State Variables ---
     let isGradeLockOn = true;
@@ -21,6 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const weightCategoriesMap = JSON.parse(document.body.dataset.weightCategories || '{}');
     let weightPreviewState = new Map();
     let predictorWeightPreviewState = new Map();
+    let allAssignmentsData = []; // Store all assignments for client-side filtering
 
     // --- Helper Functions ---
     function showToast(message, type = 'success') {
@@ -73,15 +125,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateRow(row) {
         const errorMessages = [];
-        // Do not clear global alerts here, as multiple rows might have errors.
+        // Clear previous error styling first
+        row.querySelectorAll('input, select').forEach(input => {
+            input.classList.remove('input-error');
+        });
+
+        // Validate all required fields
         const inputsToValidate = row.querySelectorAll('input[required], select[required]');
         inputsToValidate.forEach(input => {
-            input.classList.remove('input-error');
-            if (!input.checkValidity()) {
+            if (!input.checkValidity() || (input.value && input.value.trim && input.value.trim() === '')) {
                 let message = '';
                 const fieldName = input.name.replace('_', ' ');
                 const formattedName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
-                if (input.validity.valueMissing) {
+                if (input.validity.valueMissing || (input.value && input.value.trim && input.value.trim() === '')) {
                     message = `${formattedName} is a required field.`;
                 } else if (input.validity.rangeUnderflow) {
                     message = `${formattedName} must be at least ${input.min}.`;
@@ -136,18 +192,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!subject || !category) return;
         const categoryData = (weightCategoriesMap[subject] || []).find(c => c.name === category);
         if (!categoryData) return;
-        
+
         // Get existing rows in this subject/category
         const existingRows = Array.from(assignmentTableBody.querySelectorAll('tr[data-id]')).filter(row => {
             // Skip the row being edited to avoid counting it twice
             if (isEditing && row === assignmentRow) return false;
-            
+
             const cells = row.querySelectorAll('td');
             // Check if it's in view mode (not being edited)
             // cells[0] is checkbox, cells[1] is subject, cells[2] is category
             if (cells.length > 1 && cells[2].querySelector('.category-tag')) {
                 return cells[1].textContent.trim() === subject &&
-                       cells[2].querySelector('.category-tag').lastChild.textContent.trim() === category;
+                    cells[2].querySelector('.category-tag').lastChild.textContent.trim() === category;
             }
             // Check if it's in edit mode
             const subjectSelect = row.querySelector('select[name="subject"]');
@@ -157,11 +213,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return false;
         });
-        
+
         const newTotalAssessments = existingRows.length + 1;
         const newCalculatedWeight = newTotalAssessments > 0 ? (categoryData.total_weight / newTotalAssessments) : 0;
-        assignmentRow.querySelector('input[name="weight"]').value = newCalculatedWeight.toFixed(2);
-        
+
+
         existingRows.forEach(row => {
             const weightCell = row.querySelectorAll('td')[6]; // Weight is now at index 6
             weightPreviewState.set(row, weightCell.innerHTML);
@@ -206,8 +262,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const cells = row.querySelectorAll('td');
             // cells[0] is checkbox, cells[1] is subject, cells[2] is category
             return cells.length > 1 &&
-                   cells[1].textContent.trim() === subject &&
-                   cells[2].querySelector('.category-tag')?.lastChild.textContent.trim() === category;
+                cells[1].textContent.trim() === subject &&
+                cells[2].querySelector('.category-tag')?.lastChild.textContent.trim() === category;
         });
 
         const newTotalAssessments = existingRows.length + 1;
@@ -228,16 +284,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function renderAssignmentTable(assignments, summaryData, subject) {
         assignmentTableBody.innerHTML = '';
-        if (summaryData) {
-            const summaryRow = document.createElement('tr');
-            summaryRow.className = 'summary-row';
-            summaryRow.innerHTML = `<td></td><td><strong>Summary for ${subject}</strong></td><td>-</td><td>${summaryData.total_hours.toFixed(1)}h (total)</td><td>-</td><td>${summaryData.average_grade.toFixed(1)}% (avg)</td><td>${summaryData.total_weight.toFixed(2)}% (graded)</td><td>-</td>`;
-            assignmentTableBody.appendChild(summaryRow);
+
+        // Update summary row in thead
+        const table = assignmentTableBody.closest('table');
+        const thead = table ? table.querySelector('thead') : null;
+        if (thead) {
+            // Remove existing summary row if any
+            const existingSummary = thead.querySelector('.summary-row');
+            if (existingSummary) {
+                existingSummary.remove();
+            }
+
+            // Add new summary row if we have summary data
+            if (summaryData) {
+                const summaryRow = document.createElement('tr');
+                summaryRow.className = 'summary-row';
+                summaryRow.innerHTML = `
+                    <td></td>
+                    <td><strong>Summary for ${subject}</strong></td>
+                    <td>-</td>
+                    <td>${summaryData.total_hours.toFixed(1)}h (total)</td>
+                    <td>-</td>
+                    <td>${summaryData.average_grade.toFixed(1)}% (avg)</td>
+                    <td>${summaryData.total_weight.toFixed(2)}% (graded)</td>
+                    <td>-</td>
+                `;
+                thead.appendChild(summaryRow);
+            }
         }
+
         assignments.forEach(log => {
             const row = document.createElement('tr');
             row.dataset.id = log.id;
-            row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+
+            // Add prediction class if this is a prediction
+            if (log.is_prediction) {
+                row.classList.add('prediction-row');
+                row.dataset.isPrediction = 'true';
+            }
+
+            // Build the row HTML based on whether it's a prediction
+            if (log.is_prediction) {
+                row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td><input type="number" class="prediction-input hours-input" data-id="${log.id}" value="${log.study_time || 0}" step="0.1" style="width: 80px;"> hours</td><td>${log.assignment_name}</td><td><input type="number" class="prediction-input grade-input" data-id="${log.id}" value="${log.grade || ''}" step="1" style="width: 80px;">%</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`;
+            } else {
+                row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+            }
+
             assignmentTableBody.appendChild(row);
         });
     }
@@ -313,6 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
         row.querySelectorAll('input, select').forEach(el => formData.append(el.name, el.value));
         const currentSubjectFilter = subjectFilterDropdown.value;
         formData.append('current_filter', currentSubjectFilter);
+        formData.append('is_prediction', row.dataset.isPrediction === 'true' ? 'true' : 'false');
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -366,11 +459,11 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmNoBtn.addEventListener('click', hideConfirmation);
     }
     if (confirmYesBtn) {
-        confirmYesBtn.addEventListener('click', async function() {
+        confirmYesBtn.addEventListener('click', async function () {
             if (itemToDelete.row) {
                 // Clear any validation alerts when deleting
                 showValidationAlert([]);
-                
+
                 const {
                     row,
                     type
@@ -400,12 +493,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (response.ok) {
                         if (isAssignment) {
                             renderAssignmentTable(result.updated_assignments, result.summary, currentFilter);
-                            
+
                             // Extract category name - handle both edit mode and view mode
                             let categoryName;
                             // cells[0] is checkbox, cells[1] is subject, cells[2] is category
                             const categoryCell = row.querySelectorAll('td')[2];
-                            
+
                             // Check if row is in edit mode (has select dropdown)
                             const categorySelect = categoryCell.querySelector('select[name="category"]');
                             if (categorySelect) {
@@ -417,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     categoryName = categoryTag.lastChild.textContent.trim();
                                 }
                             }
-                            
+
                             if (categoryName) {
                                 updateCategoryTableRow(currentFilter, categoryName);
                             }
@@ -436,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (gradeLockBtn) {
-        gradeLockBtn.addEventListener('click', function() {
+        gradeLockBtn.addEventListener('click', function () {
             isGradeLockOn = !isGradeLockOn;
             this.textContent = isGradeLockOn ? 'Grade Lock: ON' : 'Grade Lock: OFF';
             this.classList.toggle('lock-on', isGradeLockOn);
@@ -455,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (addCategoryBtn) {
-        addCategoryBtn.addEventListener('click', function() {
+        addCategoryBtn.addEventListener('click', function () {
             const newRow = document.createElement('tr');
             newRow.innerHTML = `<td><input type="text" name="name" required></td><td><input type="number" name="total_weight" min="0" max="100" required></td><td class="num-assessments">0</td><td class="calculated-weight">N/A</td><td><input type="text" name="default_name" placeholder="e.g., Quiz #"></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
             categoryTableBody.appendChild(newRow);
@@ -464,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (categoryTableBody) {
-        categoryTableBody.addEventListener('click', async function(event) {
+        categoryTableBody.addEventListener('click', async function (event) {
             const button = event.target.closest('.action-btn');
             if (!button) return;
             const row = button.closest('tr');
@@ -484,7 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // --- NEW: Add keydown listener for the category table ---
-        categoryTableBody.addEventListener('keydown', async function(event) {
+        categoryTableBody.addEventListener('keydown', async function (event) {
             if (event.key === 'Enter' && event.target.matches('input')) {
                 event.preventDefault();
                 const row = event.target.closest('tr');
@@ -495,98 +588,236 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (addRowBtn) {
-        addRowBtn.addEventListener('click', function() {
-            revertWeightPreview();
-            revertPredictorWeightPreview();
-            const newRow = document.createElement('tr');
-            const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
+    function addNewRow(isPrediction = false) {
+        revertWeightPreview();
+        revertPredictorWeightPreview();
+        const newRow = document.createElement('tr');
+        if (isPrediction) {
+            newRow.classList.add('prediction-row');
+            newRow.dataset.isPrediction = 'true';
+        }
+        const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
 
-            // Get the current subject filter
-            const currentSubjectFilter = subjectFilterDropdown.value;
-            const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
+        // Get the current subject filter (from hidden input or default to 'all')
+        const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
+        const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
 
-            // Get all subjects from the filter dropdown
-            const allSubjects = Array.from(subjectFilterDropdown.options)
-                .map(opt => opt.value)
-                .filter(val => val !== 'all');
+        // Get all subjects from weightCategoriesMap (since the old dropdown no longer exists)
+        const allSubjects = Object.keys(weightCategoriesMap);
 
-            // Create subject select dropdown
-            const subjectSelect = document.createElement('select');
-            subjectSelect.name = 'subject';
-            subjectSelect.required = true;
-            subjectSelect.setAttribute('autocomplete', 'off');
+        // Create subject select dropdown
+        const subjectSelect = document.createElement('select');
+        subjectSelect.name = 'subject';
+        subjectSelect.required = true;
+        subjectSelect.setAttribute('autocomplete', 'off');
 
-            if (isSubjectFiltered) {
-                // If filtering by subject, lock it to that subject
+        if (isSubjectFiltered) {
+            // If filtering by subject, lock it to that subject
+            const option = document.createElement('option');
+            option.value = currentSubjectFilter;
+            option.textContent = currentSubjectFilter;
+            option.selected = true;
+            subjectSelect.appendChild(option);
+            subjectSelect.disabled = true;
+            subjectSelect.style.backgroundColor = '#eee';
+        } else {
+            // If viewing all subjects, show dropdown with all options
+            // Add default option
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.disabled = true;
+            defaultOpt.selected = true;
+            defaultOpt.textContent = '-- Select Subject --';
+            subjectSelect.appendChild(defaultOpt);
+
+            // Add all subjects
+            allSubjects.forEach(subject => {
                 const option = document.createElement('option');
-                option.value = currentSubjectFilter;
-                option.textContent = currentSubjectFilter;
-                option.selected = true;
+                option.value = subject;
+                option.textContent = subject;
                 subjectSelect.appendChild(option);
-                subjectSelect.disabled = true;
-                subjectSelect.style.backgroundColor = '#eee';
-            } else {
-                // If viewing all subjects, show dropdown with all options
-                // Add default option
-                const defaultOpt = document.createElement('option');
-                defaultOpt.value = '';
-                defaultOpt.disabled = true;
-                defaultOpt.selected = true;
-                defaultOpt.textContent = '-- Select Subject --';
-                subjectSelect.appendChild(defaultOpt);
+            });
+        }
 
-                // Add all subjects
-                allSubjects.forEach(subject => {
+        const subjectTd = document.createElement('td');
+        subjectTd.appendChild(subjectSelect);
+
+        // Category dropdown (initially empty or populated if subject is locked)
+        const categorySelect = document.createElement('select');
+        categorySelect.name = 'category';
+        categorySelect.required = true;
+        categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
+
+        if (isSubjectFiltered) {
+            const categories = (weightCategoriesMap[currentSubjectFilter] || []).map(c => c.name);
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categorySelect.appendChild(option);
+            });
+        }
+
+        subjectSelect.addEventListener('change', function () {
+            const selectedSubject = this.value;
+            categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
+            if (selectedSubject && weightCategoriesMap[selectedSubject]) {
+                weightCategoriesMap[selectedSubject].forEach(catObj => {
                     const option = document.createElement('option');
-                    option.value = subject;
-                    option.textContent = subject;
-                    subjectSelect.appendChild(option);
+                    option.value = catObj.name;
+                    option.textContent = catObj.name;
+                    categorySelect.appendChild(option);
                 });
             }
+        });
 
-            const subjectTd = document.createElement('td');
-            subjectTd.appendChild(subjectSelect);
+        // Add event listener to category select to update assignment name placeholder and weight
+        categorySelect.addEventListener('change', function () {
+            const selectedSubject = subjectSelect.value;
+            const selectedCategory = this.value;
+            const assignmentInput = newRow.querySelector('input[name="assignment_name"]');
 
-            const categorySelect = document.createElement('select');
-            categorySelect.name = 'category';
-            categorySelect.required = true;
-            
-            if (isSubjectFiltered) {
-                // If subject is filtered, populate categories immediately
-                categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
-                if (weightCategoriesMap[currentSubjectFilter]) {
-                    weightCategoriesMap[currentSubjectFilter].forEach(catObj => {
-                        const option = new Option(catObj.name, catObj.name);
-                        categorySelect.add(option);
+            if (selectedSubject && selectedCategory) {
+                // Find the category definition to get the default name pattern
+                const categories = weightCategoriesMap[selectedSubject] || [];
+                const categoryDef = categories.find(c => c.name === selectedCategory);
+
+                if (categoryDef) {
+                    // Count existing assignments for this category
+                    let count = 1;
+                    const existingRows = assignmentTableBody.querySelectorAll('tr[data-id]');
+                    existingRows.forEach(row => {
+                        const subjCell = row.querySelector('td:nth-child(2)');
+                        const catCell = row.querySelector('td:nth-child(3)');
+                        if (subjCell && catCell &&
+                            subjCell.textContent.trim() === selectedSubject &&
+                            catCell.textContent.trim().includes(selectedCategory)) {
+                            count++;
+                        }
                     });
-                }
-            } else {
-                categorySelect.innerHTML = `<option value="" disabled selected>Select subject first</option>`;
-            }
-            
-            const categoryTd = document.createElement('td');
-            categoryTd.appendChild(categorySelect);
 
-            newRow.innerHTML = `<td></td>${subjectTd.outerHTML}${categoryTd.outerHTML}<td><input type="number" name="study_time" step="0.1" min="0" required></td><td><input type="text" name="assignment_name" required></td><td><input type="number" name="grade" ${gradeAttrs} placeholder="Optional"></td><td><input type="number" name="weight" required readonly style="background-color: #eee;"></td><td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>`;
-            assignmentTableBody.appendChild(newRow);
-            const subjectInput = newRow.querySelector('select[name="subject"]');
+                    // Update assignment name if default pattern exists
+                    if (assignmentInput && categoryDef.default_name) {
+                        // Simple replacement of # with count
+                        if (categoryDef.default_name.includes('#')) {
+                            assignmentInput.value = categoryDef.default_name.replace('#', count);
+                        } else {
+                            assignmentInput.value = categoryDef.default_name + ' ' + count;
+                        }
+                    }
+
+                    // Calculate and update the weight display
+                    // For a new assignment/prediction, the weight will be total_weight / (existing + 1)
+                    const newTotalAssessments = count;
+                    const calculatedWeight = newTotalAssessments > 0 ? (categoryDef.total_weight / newTotalAssessments).toFixed(2) : '0.00';
+
+                    // Find the weight cell (7th td, index 6)
+                    const weightCell = newRow.querySelector('td:nth-child(7)');
+                    if (weightCell) {
+                        weightCell.textContent = calculatedWeight + '%';
+                    }
+                }
+            }
+        });
+
+        const categoryTd = document.createElement('td');
+        categoryTd.appendChild(categorySelect);
+
+        newRow.appendChild(document.createElement('td')); // Checkbox
+        newRow.appendChild(subjectTd);
+        newRow.appendChild(categoryTd);
+
+        // Inputs
+        if (isPrediction) {
+            newRow.innerHTML += `
+                <td><input type="number" name="study_time" class="prediction-input hours-input" step="0.1" min="0" placeholder="Hours" style="width: 70px;"> hours</td>
+                <td><input type="text" name="assignment_name" placeholder="Assignment Name" style="width: 150px;"></td>
+                <td><input type="number" name="grade" class="prediction-input grade-input" step="1" ${gradeAttrs} placeholder="Grade" style="width: 60px;">%</td>
+                <td>0.00%</td>
+                <td><button class="action-btn delete-btn">Delete</button></td>
+            `;
+        } else {
+            newRow.innerHTML += `
+                <td><input type="number" name="study_time" step="0.1" min="0" required style="width: 70px;"> hours</td>
+                <td><input type="text" name="assignment_name" required style="width: 150px;"></td>
+                <td><input type="number" name="grade" step="1" ${gradeAttrs} style="width: 60px;">%</td>
+                <td>0.00%</td>
+                <td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>
+            `;
+        }
+
+        // Re-append subject and category cells because innerHTML += wipes them out
+        const cells = newRow.querySelectorAll('td');
+        cells[1].innerHTML = '';
+        cells[1].appendChild(subjectSelect);
+        cells[2].innerHTML = '';
+        cells[2].appendChild(categorySelect);
+
+        assignmentTableBody.appendChild(newRow);
+
+        // If subject is filtered, trigger change event to populate categories and potentially default name
+        if (isSubjectFiltered) {
+            subjectSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    if (addRowBtn) {
+        addRowBtn.addEventListener('click', () => addNewRow(false));
+    }
+
+    const addPredictionBtn = document.getElementById('addPredictionBtn');
+    if (addPredictionBtn) {
+        addPredictionBtn.addEventListener('click', async () => {
+            // Check if subject filter is set
+            const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
+            const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
 
             if (!isSubjectFiltered) {
-                // Fix: Explicitly set the value back to empty string to show "-- Select Subject --"
-                subjectInput.value = '';
+                showToast('Please select a specific subject to add a prediction', 'error');
+                return;
             }
 
-            if (subjectInput.value) {
-                subjectInput.dispatchEvent(new Event('change', {
-                    bubbles: true
-                }));
+            // Get category data for the filtered subject
+            const categories = weightCategoriesMap[currentSubjectFilter] || [];
+            if (categories.length === 0) {
+                showToast('Please add at least one category definition before adding predictions', 'error');
+                return;
+            }
+
+            // Auto-save a new prediction with default values
+            try {
+                const formData = new FormData();
+                formData.append('subject', currentSubjectFilter);
+                formData.append('category', categories[0].name); // Use first category as default
+                formData.append('study_time', 0);
+                formData.append('assignment_name', 'Prediction');
+                formData.append('grade', '');
+                formData.append('weight', 0);
+                formData.append('is_prediction', 'true');
+                formData.append('current_filter', currentSubjectFilter);
+
+                const response = await fetch('/add', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast(result.message, 'success');
+                    renderAssignmentTable(result.updated_assignments, result.summary, currentSubjectFilter);
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to add prediction:', error);
+                showToast('Network error occurred', 'error');
             }
         });
     }
 
     if (assignmentTableBody) {
-        assignmentTableBody.addEventListener('click', async function(event) {
+        assignmentTableBody.addEventListener('click', async function (event) {
             const button = event.target.closest('.action-btn');
             if (!button) return;
             const row = button.closest('tr');
@@ -604,14 +835,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
                 const gradeAttributes = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
 
-                // Check if we're in a subject filter
-                const currentSubjectFilter = subjectFilterDropdown.value;
+                const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
                 const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
 
-                // Get all subjects from the filter dropdown
-                const allSubjects = Array.from(subjectFilterDropdown.options)
-                    .map(opt => opt.value)
-                    .filter(val => val !== 'all');
+                // Get all subjects from weightCategoriesMap
+                const allSubjects = Object.keys(weightCategoriesMap);
 
                 // Create subject select dropdown
                 const subjectSelect = document.createElement('select');
@@ -665,7 +893,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showConfirmation("Are you sure you want to delete this assignment?", row, 'assignment');
             }
         });
-        assignmentTableBody.addEventListener('change', function(event) {
+        assignmentTableBody.addEventListener('change', function (event) {
             if (event.target.name === 'subject') {
                 const subjectValue = event.target.value;
                 const row = event.target.closest('tr');
@@ -699,7 +927,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        assignmentTableBody.addEventListener('change', function(event) {
+        assignmentTableBody.addEventListener('change', function (event) {
             const target = event.target;
             if (target.name === 'category') {
                 const row = target.closest('tr');
@@ -750,7 +978,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        assignmentTableBody.addEventListener('keydown', async function(event) {
+        assignmentTableBody.addEventListener('keydown', async function (event) {
             if (event.key === 'Enter' && event.target.matches('input, select')) {
                 event.preventDefault();
                 showValidationAlert([]); // Clear old errors before trying to save all
@@ -762,37 +990,246 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const ctx = document.getElementById('hoursPieChart');
-    if (ctx) {
-        try {
-            const chartLabels = JSON.parse(document.body.dataset.chartLabels);
-            const chartValues = JSON.parse(document.body.dataset.chartValues);
-            if (chartLabels && chartLabels.length > 0) {
-                new Chart(ctx.getContext('2d'), {
-                    type: 'pie',
-                    data: {
-                        labels: chartLabels,
-                        datasets: [{
-                            label: 'Hours Studied',
-                            data: chartValues,
-                            backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40'],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                position: 'top'
-                            }
+    // --- Prediction Feature Event Listeners ---
+    if (assignmentTableBody) {
+        // Handle Enter key in prediction rows to convert to assignment
+        assignmentTableBody.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+
+            const target = event.target;
+            if (!target.classList.contains('prediction-input')) return;
+
+            const row = target.closest('tr');
+            if (!row || !row.classList.contains('prediction-row')) return;
+
+            event.preventDefault();
+
+            // Trigger click on the "Predict" button instead of "Add"
+            const predictButton = row.querySelector('.predict-btn');
+            if (predictButton) {
+                predictButton.click();
+            }
+        });
+
+        // Auto-clear predicted values when user manually edits input fields
+        assignmentTableBody.addEventListener('input', function (event) {
+            const target = event.target;
+            if (!target.classList.contains('prediction-input')) return;
+
+            const row = target.closest('tr');
+            if (!row || !row.classList.contains('prediction-row')) return;
+
+            const hoursInput = row.querySelector('.hours-input');
+            const gradeInput = row.querySelector('.grade-input');
+
+            // If user edits hours field, clear predicted grade
+            if (target.classList.contains('hours-input')) {
+                if (gradeInput && gradeInput.classList.contains('predicted-value')) {
+                    gradeInput.value = '';
+                    gradeInput.classList.remove('predicted-value');
+                }
+            }
+            // If user edits grade field, clear predicted hours
+            else if (target.classList.contains('grade-input')) {
+                if (hoursInput && hoursInput.classList.contains('predicted-value')) {
+                    hoursInput.value = '';
+                    hoursInput.classList.remove('predicted-value');
+                }
+            }
+        });
+
+        // Handle Predict button click
+        assignmentTableBody.addEventListener('click', async function (event) {
+            if (!event.target.classList.contains('predict-btn')) return;
+
+            const row = event.target.closest('tr');
+            if (!row || !row.classList.contains('prediction-row')) return;
+
+            const hoursInput = row.querySelector('.hours-input');
+            const gradeInput = row.querySelector('.grade-input');
+            const subjectCell = row.querySelector('td:nth-child(2)');
+            const categoryCell = row.querySelector('td:nth-child(3)');
+
+            if (!hoursInput || !gradeInput || !subjectCell || !categoryCell) return;
+
+            const hours = parseFloat(hoursInput.value) || 0;
+            const grade = parseFloat(gradeInput.value) || 0;
+            const subject = subjectCell.textContent.trim();
+            const categoryText = categoryCell.textContent.trim();
+
+            // Extract category name from the category tag
+            const categoryMatch = categoryText.match(/\s*(.+)$/);
+            const category = categoryMatch ? categoryMatch[1].trim() : categoryText;
+
+            // Determine what to predict based on what fields are filled
+            let shouldPredict = false;
+            let predictGrade = false;
+            let predictHours = false;
+
+            const hoursIsPredicted = hoursInput.classList.contains('predicted-value');
+            const gradeIsPredicted = gradeInput.classList.contains('predicted-value');
+
+            if (hours > 0) {
+                // User has hours, so predict grade
+                shouldPredict = true;
+                predictGrade = true;
+                // Clear the predicted grade if it exists
+                if (gradeIsPredicted) {
+                    gradeInput.value = '';
+                    gradeInput.classList.remove('predicted-value');
+                }
+            } else if (grade > 0) {
+                // User has grade, so predict hours
+                shouldPredict = true;
+                predictHours = true;
+                // Clear the predicted hours if it exists
+                if (hoursIsPredicted) {
+                    hoursInput.value = '';
+                    hoursInput.classList.remove('predicted-value');
+                }
+            }
+
+            if (shouldPredict) {
+                try {
+                    const formData = new FormData();
+                    formData.append('subject', subject);
+                    formData.append('category', category);
+                    formData.append('grade_lock', isGradeLockOn ? 'true' : 'false');
+
+                    if (predictGrade && hours > 0) {
+                        formData.append('hours', hours);
+                    } else if (predictHours && grade > 0) {
+                        formData.append('target_grade', grade);
+                    }
+
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        if (predictGrade && result.predicted_grade !== undefined) {
+                            gradeInput.value = Math.round(result.predicted_grade);
+                            gradeInput.classList.add('predicted-value');
+                        } else if (predictHours && result.required_hours !== undefined) {
+                            hoursInput.value = result.required_hours.toFixed(1);
+                            hoursInput.classList.add('predicted-value');
+                        }
+
+                        // Auto-save after successful prediction
+                        const assignmentId = row.dataset.id;
+                        if (assignmentId) {
+                            const finalHours = parseFloat(hoursInput.value) || 0;
+                            const finalGrade = parseFloat(gradeInput.value) || 0;
+
+                            const saveData = new FormData();
+                            saveData.append('subject', subject);
+                            saveData.append('category', category);
+                            saveData.append('study_time', finalHours);
+                            saveData.append('assignment_name', row.querySelector('td:nth-child(5)').textContent.trim());
+                            saveData.append('grade', finalGrade || '');
+                            saveData.append('weight', row.querySelector('td:nth-child(7)').textContent.replace('%', '').trim());
+                            saveData.append('is_prediction', 'true');
+
+                            await fetch(`/update/${assignmentId}`, {
+                                method: 'POST',
+                                body: saveData
+                            });
                         }
                     }
-                });
+                } catch (error) {
+                    console.error('Error during prediction:', error);
+                }
+            } else {
+                showToast('Please enter either hours or grade', 'error');
             }
-        } catch (e) {
-            console.error("Failed to parse chart data:", e);
-        }
+        });
+
+        // Handle "Add" button click to convert prediction to assignment
+        assignmentTableBody.addEventListener('click', async function (event) {
+            const button = event.target;
+            if (!button.classList.contains('add-prediction-btn')) return;
+
+            const row = button.closest('tr');
+            if (!row) return;
+
+            const hoursInput = row.querySelector('.hours-input');
+            const gradeInput = row.querySelector('.grade-input');
+            const assignmentNameCell = row.querySelector('td:nth-child(5)');
+
+            if (!hoursInput || parseFloat(hoursInput.value) <= 0) {
+                showToast('Please enter study time before converting to assignment', 'error');
+                return;
+            }
+
+            const assignmentId = row.dataset.id;
+            if (!assignmentId) {
+                showToast('Please save the prediction first', 'error');
+                return;
+            }
+
+            try {
+                // First, update the prediction with current values
+                const subjectCell = row.querySelector('td:nth-child(2)');
+                const categoryCell = row.querySelector('td:nth-child(3)');
+                const weightCell = row.querySelector('td:nth-child(7)');
+
+                const subject = subjectCell.textContent.trim();
+                const categoryText = categoryCell.textContent.trim();
+                const categoryMatch = categoryText.match(/\s*(.+)$/);
+                const category = categoryMatch ? categoryMatch[1].trim() : categoryText;
+                const assignmentName = assignmentNameCell.textContent.trim() || 'Prediction';
+                const weight = parseFloat(weightCell.textContent) || 0;
+
+                const updateFormData = new FormData();
+                updateFormData.append('subject', subject);
+                updateFormData.append('category', category);
+                updateFormData.append('study_time', hoursInput.value);
+                updateFormData.append('assignment_name', assignmentName);
+                updateFormData.append('grade', gradeInput.value || '');
+                updateFormData.append('weight', weight);
+                updateFormData.append('is_prediction', 'true');
+                updateFormData.append('current_filter', subjectFilterDropdown ? subjectFilterDropdown.value : 'all');
+
+                const updateResponse = await fetch(`/update/${assignmentId}`, {
+                    method: 'POST',
+                    body: updateFormData
+                });
+
+                if (!updateResponse.ok) {
+                    const errorResult = await updateResponse.json();
+                    showToast(errorResult.message || 'Failed to update prediction values', 'error');
+                    return;
+                }
+
+                // Now convert the prediction to an assignment
+                const formData = new FormData();
+                formData.append('assignment_id', assignmentId);
+                formData.append('current_filter', subjectFilterDropdown ? subjectFilterDropdown.value : 'all');
+
+                const response = await fetch('/convert_prediction', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('Prediction converted to assignment!', 'success');
+                    renderAssignmentTable(result.updated_assignments, result.summary, subjectFilterDropdown ? subjectFilterDropdown.value : 'all');
+                } else {
+                    showToast(result.message || 'Failed to convert prediction', 'error');
+                }
+            } catch (error) {
+                console.error('Conversion failed:', error);
+                showToast('Network error occurred', 'error');
+            }
+        });
     }
+
+    // Pie Chart Removed
 
     // Get the predictor form elements
     const predictSubject = document.getElementById('predict-subject');
@@ -855,7 +1292,7 @@ document.addEventListener('DOMContentLoaded', function() {
         predictSubject.addEventListener('change', updatePredictorCategories);
 
         // Update weight preview when category changes
-        predictCategory.addEventListener('change', function() {
+        predictCategory.addEventListener('change', function () {
             const subject = predictSubject.value;
             const category = predictCategory.value;
 
@@ -888,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         predictorInputs.forEach(input => {
             if (input) {
-                input.addEventListener('keydown', function(e) {
+                input.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         const predictBtn = document.getElementById('predict-btn');
@@ -903,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear predicted value when user edits target grade
         const targetGradeInput = document.getElementById('target_grade');
         if (targetGradeInput) {
-            targetGradeInput.addEventListener('input', function() {
+            targetGradeInput.addEventListener('input', function () {
                 // Remove green styling from target grade (user is switching to predict hours mode)
                 this.style.color = '';
                 this.style.fontWeight = '';
@@ -930,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear predicted value when user edits hours
         const hoursInput = document.getElementById('hours');
         if (hoursInput) {
-            hoursInput.addEventListener('input', function() {
+            hoursInput.addEventListener('input', function () {
                 // Remove blue styling from hours (user is switching to predict grade mode)
                 this.style.color = '';
                 this.style.fontWeight = '';
@@ -956,7 +1393,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Handle the predictor button click
-    const predictBtn = document.getElementById('predict-btn');
     if (predictBtn) {
         predictBtn.addEventListener('click', async () => {
             const resultDiv = document.getElementById('prediction-result');
@@ -1061,9 +1497,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Reset Predictor Button Handler ---
-    const resetPredictorBtn = document.getElementById('reset-predictor-btn');
     if (resetPredictorBtn) {
-        resetPredictorBtn.addEventListener('click', function() {
+        resetPredictorBtn.addEventListener('click', function () {
             // Clear all predictor fields including subject
             clearPredictorFields(false);
             // Reset subject to first option
@@ -1075,38 +1510,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Add Subject Button Handler ---
-    const addSubjectBtn = document.getElementById('add-subject-btn');
+    const addSubjectBtn = document.getElementById('add-subject-link');
     const addSubjectModal = document.getElementById('add-subject-modal');
     const newSubjectInput = document.getElementById('new-subject-input');
     const subjectModalConfirm = document.getElementById('subject-modal-confirm');
     const subjectModalCancel = document.getElementById('subject-modal-cancel');
 
     if (addSubjectBtn && addSubjectModal) {
-        addSubjectBtn.addEventListener('click', function() {
+        addSubjectBtn.addEventListener('click', function () {
             addSubjectModal.style.display = 'flex';
             newSubjectInput.value = '';
             newSubjectInput.focus();
         });
 
-        subjectModalCancel.addEventListener('click', function() {
+        subjectModalCancel.addEventListener('click', function () {
             addSubjectModal.style.display = 'none';
         });
 
         // Allow Enter key to submit
-        newSubjectInput.addEventListener('keypress', function(e) {
+        newSubjectInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 subjectModalConfirm.click();
             }
         });
 
         // Allow Escape key to cancel
-        addSubjectModal.addEventListener('keydown', function(e) {
+        addSubjectModal.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 addSubjectModal.style.display = 'none';
             }
         });
 
-        subjectModalConfirm.addEventListener('click', function() {
+        subjectModalConfirm.addEventListener('click', function () {
             const subjectName = newSubjectInput.value.trim();
 
             if (!subjectName) {
@@ -1118,21 +1553,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
             fetch('/add_subject', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: new URLSearchParams({subject_name: subjectName})
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ subject_name: subjectName })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Navigate to the new subject's filter page
-                    window.location.href = '/?subject=' + encodeURIComponent(data.subject);
-                } else {
-                    showToast(data.message, 'error');
-                }
-            })
-            .catch(error => {
-                showToast('Error adding subject: ' + error.message, 'error');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Navigate to the new subject's filter page
+                        window.location.href = '/?subject=' + encodeURIComponent(data.subject);
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Error adding subject: ' + error.message, 'error');
+                });
         });
     }
 
@@ -1151,58 +1586,58 @@ document.addEventListener('DOMContentLoaded', function() {
     if (deleteSubjectBtn && deleteSubjectModal && deleteSubjectFinalModal) {
         let subjectToDelete = '';
 
-        deleteSubjectBtn.addEventListener('click', function() {
+        deleteSubjectBtn.addEventListener('click', function () {
             subjectToDelete = this.dataset.subject;
             deleteSubjectMessage.textContent = `Are you sure you want to delete the subject "${subjectToDelete}"?\n\nThis will delete ALL assignments and categories for this subject.`;
             deleteSubjectModal.style.display = 'flex';
         });
 
-        deleteSubjectCancel.addEventListener('click', function() {
+        deleteSubjectCancel.addEventListener('click', function () {
             deleteSubjectModal.style.display = 'none';
         });
 
-        deleteSubjectConfirm.addEventListener('click', function() {
+        deleteSubjectConfirm.addEventListener('click', function () {
             deleteSubjectModal.style.display = 'none';
             deleteSubjectFinalMessage.textContent = `This action cannot be undone!\n\nDelete "${subjectToDelete}" and all its data permanently?`;
             deleteSubjectFinalModal.style.display = 'flex';
         });
 
-        deleteSubjectFinalCancel.addEventListener('click', function() {
+        deleteSubjectFinalCancel.addEventListener('click', function () {
             deleteSubjectFinalModal.style.display = 'none';
         });
 
-        deleteSubjectFinalConfirm.addEventListener('click', function() {
+        deleteSubjectFinalConfirm.addEventListener('click', function () {
             deleteSubjectFinalModal.style.display = 'none';
 
             // Proceed with deletion
             fetch('/delete_subject', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: new URLSearchParams({subject_name: subjectToDelete})
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ subject_name: subjectToDelete })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showToast(data.message, 'success');
-                    // Navigate back to "All Subjects" view
-                    window.location.href = '/';
-                } else {
-                    showToast(data.message, 'error');
-                }
-            })
-            .catch(error => {
-                showToast('Error deleting subject: ' + error.message, 'error');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showToast(data.message, 'success');
+                        // Navigate back to "All Subjects" view
+                        window.location.href = '/';
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Error deleting subject: ' + error.message, 'error');
+                });
         });
 
         // Allow Escape key to cancel on both modals
-        deleteSubjectModal.addEventListener('keydown', function(e) {
+        deleteSubjectModal.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 deleteSubjectModal.style.display = 'none';
             }
         });
 
-        deleteSubjectFinalModal.addEventListener('keydown', function(e) {
+        deleteSubjectFinalModal.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 deleteSubjectFinalModal.style.display = 'none';
             }
@@ -1210,14 +1645,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Multi-Select Delete Functionality ---
-    const selectAllCheckbox = document.getElementById('selectAll');
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
     const selectedCountSpan = document.getElementById('selectedCount');
 
     function updateDeleteButton() {
         const selected = document.querySelectorAll('.select-assignment:checked');
         const deselectBtn = document.getElementById('deselectAllBtn');
-        
+
         if (selected.length > 0) {
             deleteSelectedBtn.style.display = 'inline-block';
             selectedCountSpan.textContent = selected.length;
@@ -1226,19 +1659,18 @@ document.addEventListener('DOMContentLoaded', function() {
             deleteSelectedBtn.style.display = 'none';
             if (deselectBtn) deselectBtn.style.display = 'none';
         }
-        
+
         // Update "select all" checkbox state
         const allCheckboxes = document.querySelectorAll('.select-assignment');
-        const allChecked = allCheckboxes.length > 0 && 
-                        Array.from(allCheckboxes).every(cb => cb.checked);
+        const allChecked = allCheckboxes.length > 0 &&
+            Array.from(allCheckboxes).every(cb => cb.checked);
         if (selectAllCheckbox) {
             selectAllCheckbox.checked = allChecked;
         }
     }
-    
-    const deselectAllBtn = document.getElementById('deselectAllBtn');
+
     if (deselectAllBtn) {
-        deselectAllBtn.addEventListener('click', function() {
+        deselectAllBtn.addEventListener('click', function () {
             const checkboxes = document.querySelectorAll('.select-assignment');
             checkboxes.forEach(cb => cb.checked = false);
             if (selectAllCheckbox) selectAllCheckbox.checked = false;
@@ -1248,7 +1680,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Click anywhere on row to toggle checkbox (except buttons and inputs)
     if (assignmentTableBody) {
-        assignmentTableBody.addEventListener('click', function(e) {
+        assignmentTableBody.addEventListener('click', function (e) {
             // Don't toggle if clicking on buttons, inputs, selects, or the checkbox itself
             if (e.target.matches('button, input, select, .action-btn')) {
                 return;
@@ -1285,7 +1717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Stop propagation on checkbox clicks to prevent double-toggling
-        assignmentTableBody.addEventListener('click', function(e) {
+        assignmentTableBody.addEventListener('click', function (e) {
             if (e.target.classList.contains('select-assignment')) {
                 e.stopPropagation();
             }
@@ -1293,7 +1725,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
+        selectAllCheckbox.addEventListener('change', function () {
             const checkboxes = document.querySelectorAll('.select-assignment');
             checkboxes.forEach(cb => cb.checked = this.checked);
             updateDeleteButton();
@@ -1301,7 +1733,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (assignmentTableBody) {
-        assignmentTableBody.addEventListener('change', function(e) {
+        assignmentTableBody.addEventListener('change', function (e) {
             if (e.target.classList.contains('select-assignment')) {
                 updateDeleteButton();
             }
@@ -1309,7 +1741,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (deleteSelectedBtn) {
-        deleteSelectedBtn.addEventListener('click', function() {
+        deleteSelectedBtn.addEventListener('click', function () {
             const selected = document.querySelectorAll('.select-assignment:checked');
             const ids = Array.from(selected).map(cb => parseInt(cb.dataset.id));
 
@@ -1332,7 +1764,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newModalConfirmNo = modalConfirmNo.cloneNode(true);
                 modalConfirmNo.parentNode.replaceChild(newModalConfirmNo, modalConfirmNo);
 
-                newModalConfirmYes.addEventListener('click', function() {
+                newModalConfirmYes.addEventListener('click', function () {
                     confirmModal.style.display = 'none';
                     const currentFilter = subjectFilterDropdown ? subjectFilterDropdown.value : '';
 
@@ -1344,24 +1776,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: JSON.stringify({ ids: ids })
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            renderAssignmentTable(data.updated_assignments, data.summary, currentFilter);
-                            if (selectAllCheckbox) selectAllCheckbox.checked = false;
-                            updateDeleteButton();
-                            showToast(data.message, 'success');
-                        } else {
-                            showToast(data.message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('Failed to delete assignments', 'error');
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                renderAssignmentTable(data.updated_assignments, data.summary, currentFilter);
+                                if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                                updateDeleteButton();
+                                showToast(data.message, 'success');
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showToast('Failed to delete assignments', 'error');
+                        });
                 });
 
-                newModalConfirmNo.addEventListener('click', function() {
+                newModalConfirmNo.addEventListener('click', function () {
                     confirmModal.style.display = 'none';
                 });
             }
@@ -1373,10 +1805,111 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update total weight indicator when category weights are edited
     if (categoryTableBody) {
-        categoryTableBody.addEventListener('input', function(event) {
+        categoryTableBody.addEventListener('input', function (event) {
             if (event.target.matches('input[name="total_weight"]')) {
                 updateTotalWeightIndicator();
             }
+        });
+    }
+
+    // Handle subject filter dropdown on home page
+    if (subjectFilterVisible) {
+        subjectFilterVisible.addEventListener('change', function () {
+            const selectedSubject = this.value;
+            // Update the hidden input
+            if (subjectFilterDropdown) {
+                subjectFilterDropdown.value = selectedSubject;
+            }
+
+            // Filter table rows client-side without page reload
+            const rows = assignmentTableBody.querySelectorAll('tr[data-id]');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const subjectCell = row.querySelector('td:nth-child(2)');
+                if (!subjectCell) return;
+
+                const rowSubject = subjectCell.textContent.trim();
+
+                if (selectedSubject === 'all' || rowSubject === selectedSubject) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Update or hide summary container
+            const summaryContainer = document.getElementById('summary-container');
+            if (summaryContainer) {
+                if (selectedSubject === 'all' || visibleCount === 0) {
+                    summaryContainer.style.display = 'none';
+                } else {
+                    summaryContainer.style.display = '';
+                }
+            }
+        });
+    }
+
+    // --- Rename Subject Logic ---
+    const renameSubjectBtn = document.getElementById('rename-subject-btn');
+    const renameSubjectModal = document.getElementById('rename-subject-modal');
+    const renameSubjectInput = document.getElementById('rename-subject-input');
+    const renameSubjectConfirm = document.getElementById('rename-subject-confirm');
+    const renameSubjectCancel = document.getElementById('rename-subject-cancel');
+
+    if (renameSubjectBtn && renameSubjectModal) {
+        renameSubjectBtn.addEventListener('click', function () {
+            const currentSubject = document.querySelector('.nav-center h1').childNodes[0].textContent.trim();
+            renameSubjectInput.value = currentSubject;
+            renameSubjectModal.style.display = 'flex';
+            renameSubjectInput.focus();
+        });
+
+        renameSubjectCancel.addEventListener('click', function () {
+            renameSubjectModal.style.display = 'none';
+        });
+
+        renameSubjectInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                renameSubjectConfirm.click();
+            }
+        });
+
+        renameSubjectConfirm.addEventListener('click', function () {
+            const newName = renameSubjectInput.value.trim();
+            const currentSubject = document.querySelector('.nav-center h1').childNodes[0].textContent.trim();
+
+            if (!newName) {
+                showToast('Subject name cannot be empty', 'error');
+                return;
+            }
+
+            if (newName === currentSubject) {
+                renameSubjectModal.style.display = 'none';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('old_name', currentSubject);
+            formData.append('new_name', newName);
+
+            fetch('/rename_subject', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.location.href = `/subject/${encodeURIComponent(data.new_name)}`;
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('An error occurred while renaming the subject', 'error');
+                });
         });
     }
 

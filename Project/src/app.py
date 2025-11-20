@@ -13,6 +13,7 @@ from crud import (get_all_grades, get_all_categories, get_categories_as_dict, ad
                   delete_grade, delete_grades_bulk, recalculate_and_update_weights, add_category,
                   update_category, delete_category, get_total_weight_for_subject,
                   get_all_subjects, add_subject as crud_add_subject, delete_subject as crud_delete_subject,
+                  rename_subject as crud_rename_subject,
                   get_subject_by_name)
 
 app = Flask(__name__)
@@ -195,18 +196,41 @@ def find_similar_grade(data, target_grade):
     
     return None
 
+@app.context_processor
+def inject_subjects():
+    """Inject subjects into all templates for the sidebar."""
+    all_subjects = get_all_subjects()
+    unique_subjects = sorted([s['name'] for s in all_subjects])
+    return dict(subjects=unique_subjects)
+
 @app.route('/')
 @login_required
 def display_table():
-    """Main page - now reading from database (Phase 2)."""
-    filter_subject = request.args.get('subject')
+    """Main page - All Subjects view or filtered by subject."""
+    subject_filter = request.args.get('subject', 'all')
+    return render_subject_view(subject_filter)
+
+@app.route('/subject/<subject_name>')
+@login_required
+def display_subject(subject_name):
+    """Subject-specific view."""
+    # Verify subject exists
+    all_subjects = get_all_subjects()
+    unique_subjects = [s['name'] for s in all_subjects]
+    if subject_name not in unique_subjects:
+         return redirect(url_for('display_table'))
+    
+    return render_subject_view(subject_name)
+
+def render_subject_view(filter_subject):
+    """Helper to render the main view with a specific subject filter."""
     filter_category = request.args.get('category')
 
     # Fetch data from database
     study_data_db = get_all_grades()
     weight_categories_db = get_categories_as_dict()
 
-    # Get subjects from subjects table
+    # Get subjects from subjects table (already injected, but needed for logic)
     all_subjects = get_all_subjects()
     unique_subjects = sorted([s['name'] for s in all_subjects])
 
@@ -241,11 +265,13 @@ def display_table():
         total_hours = sum(log['study_time'] for log in study_data_db if log['subject'] == s)
         if total_hours > 0:  # Only include subjects with study time
             chart_data[s] = total_hours
+            
+    page_title = "All Subjects" if filter_subject == 'all' else filter_subject
 
     return render_template(
         'index.html',
         data=data_to_display,
-        subjects=unique_subjects,
+        # subjects=unique_subjects, # Injected via context processor
         selected_subject=filter_subject,
         selected_category=filter_category,
         summary_data=summary_data,
@@ -254,19 +280,69 @@ def display_table():
         subject_categories_map_py=subject_categories_map,
         subject_categories_map_json=json.dumps(subject_categories_map),
         weight_categories_py=temp_weight_categories,
-        weight_categories_json=json.dumps(weight_categories_db)
+        weight_categories_json=json.dumps(weight_categories_db),
+        page_title=page_title
     )
 
+@app.route('/about')
+@login_required
+def about():
+    return render_template('about.html', page_title="About")
+
+@app.route('/stats')
+@login_required
+def stats():
+    return render_template('stats.html', page_title="Statistics")
+
 def process_form_data(form):
-    required_fields = ['category', 'assignment_name', 'study_time']
-    if not all([form.get(key) for key in required_fields]): return None, "Category, Assignment, and Time are required."
+    print(f"DEBUG: process_form_data form={form}")
+    is_prediction = form.get('is_prediction') == 'true'
+    
+    # Relax validation for predictions
+    if not is_prediction:
+        required_fields = ['category', 'assignment_name', 'study_time']
+        if not all([form.get(key) for key in required_fields]): return None, "Category, Assignment, and Time are required."
+    else:
+        # For predictions, only category is required
+        if not form.get('category'):
+             return None, "Category is required for prediction."
+
     subject = form.get('subject') or form.get('current_filter')
     if not subject or subject == 'all': return None, "A valid subject is required."
+    
     try:
         grade_str = form.get('grade')
-        data = { "subject": subject, "category": form.get('category'), "study_time": float(form.get('study_time')), "assignment_name": form.get('assignment_name'), "grade": int(grade_str) if grade_str and grade_str.strip() else None, "weight": 0 }
+        study_time_str = form.get('study_time')
+        assignment_name = form.get('assignment_name', '').strip()
+
+        # Parse study_time with better error handling
+        try:
+            study_time = float(study_time_str) if study_time_str and study_time_str.strip() else 0.0
+        except (ValueError, TypeError) as e:
+            return None, f"Invalid study time value: '{study_time_str}'"
+
+        # Parse grade with better error handling
+        try:
+            grade = float(grade_str) if grade_str and grade_str.strip() else None
+        except (ValueError, TypeError) as e:
+            return None, f"Invalid grade value: '{grade_str}'"
+
+        # For predictions, default to 'Prediction' if assignment_name is empty
+        if is_prediction and not assignment_name:
+            assignment_name = 'Prediction'
+
+        data = {
+            "subject": subject,
+            "category": form.get('category'),
+            "study_time": study_time,
+            "assignment_name": assignment_name,
+            "grade": grade,
+            "weight": 0,
+            "is_prediction": is_prediction
+        }
         return data, None
-    except (ValueError, TypeError): return None, "Invalid data. Time and grade must be valid numbers."
+    except Exception as e:
+        return None, f"Error processing form data: {str(e)}"
 
 @app.route('/add', methods=['POST'])
 @login_required
@@ -282,7 +358,8 @@ def add_log():
             study_time=log_data['study_time'],
             assignment_name=log_data['assignment_name'],
             grade=log_data['grade'],
-            weight=0  # Weight will be recalculated
+            weight=0,  # Weight will be recalculated
+            is_prediction=log_data['is_prediction']
         )
         log_data['id'] = db_id  # Use database-generated ID
     except Exception as e:
@@ -297,7 +374,8 @@ def add_log():
     if current_subject_filter and current_subject_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_subject_filter]
 
-    return jsonify({'status': 'success', 'message': 'Assignment added!', 'log': log_data, 'summary': summary, 'updated_assignments': assignments_to_return})
+    message = 'Prediction added!' if log_data['is_prediction'] else 'Assignment added!'
+    return jsonify({'status': 'success', 'message': message, 'log': log_data, 'summary': summary, 'updated_assignments': assignments_to_return})
 
 @app.route('/update/<int:log_id>', methods=['POST'])
 @login_required
@@ -325,7 +403,8 @@ def update_log(log_id):
             study_time=updated_data['study_time'],
             assignment_name=updated_data['assignment_name'],
             grade=updated_data['grade'],
-            weight=0  # Weight will be recalculated
+            weight=0,  # Weight will be recalculated
+            is_prediction=updated_data['is_prediction']
         )
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to update assignment: {str(e)}'}), 500
@@ -356,6 +435,7 @@ def delete_log(log_id):
         return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
 
     subject, category = log_to_delete['subject'], log_to_delete['category']
+    is_prediction = log_to_delete.get('is_prediction', False)
 
     # Delete from database
     try:
@@ -371,7 +451,65 @@ def delete_log(log_id):
     if current_filter and current_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_filter]
 
-    return jsonify({'status': 'success', 'message': 'Assignment deleted!', 'summary': summary, 'updated_assignments': assignments_to_return})
+    message = 'Prediction deleted!' if is_prediction else 'Assignment deleted!'
+    return jsonify({'status': 'success', 'message': message, 'summary': summary, 'updated_assignments': assignments_to_return})
+
+@app.route('/convert_prediction', methods=['POST'])
+@login_required
+def convert_prediction():
+    """Convert a prediction to a regular assignment."""
+    assignment_id = request.form.get('assignment_id')
+    current_filter = request.form.get('current_filter')
+    
+    if not assignment_id:
+        return jsonify({'status': 'error', 'message': 'Assignment ID is required.'}), 400
+    
+    try:
+        assignment_id = int(assignment_id)
+    except ValueError:
+        return jsonify({'status': 'error', 'message': 'Invalid assignment ID.'}), 400
+    
+    # Get the assignment from database
+    all_assignments = get_all_grades()
+    assignment = next((a for a in all_assignments if a['id'] == assignment_id), None)
+    
+    if not assignment:
+        return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
+    
+    if not assignment.get('is_prediction'):
+        return jsonify({'status': 'error', 'message': 'This is not a prediction.'}), 400
+    
+    # Check if study time is provided
+    if not assignment.get('study_time') or assignment['study_time'] <= 0:
+        return jsonify({'status': 'error', 'message': 'Study time must be provided before converting.'}), 400
+    
+    # Convert to assignment by setting is_prediction to False and clearing the predicted grade
+    try:
+        update_grade(
+            grade_id=assignment_id,
+            subject=assignment['subject'],
+            category=assignment['category'],
+            study_time=assignment['study_time'],
+            assignment_name=assignment['assignment_name'],
+            grade=None,  # Clear the grade - it was predicted
+            weight=assignment['weight'],
+            is_prediction=False
+        )
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to convert prediction: {str(e)}'}), 500
+    
+    # Fetch fresh data from database
+    assignments_to_return = get_all_grades()
+    summary = calculate_summary(current_filter)
+    if current_filter and current_filter != 'all':
+        assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_filter]
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Prediction converted to assignment!',
+        'summary': summary,
+        'updated_assignments': assignments_to_return
+    })
 
 @app.route('/delete_multiple', methods=['POST'])
 @login_required
@@ -794,8 +932,28 @@ def delete_subject():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to delete subject: {str(e)}'}), 500
 
+@app.route('/rename_subject', methods=['POST'])
+@login_required
+def rename_subject_route():
+    old_name = request.form.get('old_name')
+    new_name = request.form.get('new_name')
+
+    if not old_name or not new_name:
+        return jsonify({'status': 'error', 'message': 'Both old and new subject names are required.'}), 400
+
+    new_name = new_name.strip()
+    if not new_name:
+        return jsonify({'status': 'error', 'message': 'New subject name cannot be empty.'}), 400
+
+    try:
+        crud_rename_subject(old_name, new_name)
+        return jsonify({'status': 'success', 'message': f'Subject renamed to {new_name}', 'new_name': new_name})
+    except ValueError as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Database error: {str(e)}'}), 500
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-    

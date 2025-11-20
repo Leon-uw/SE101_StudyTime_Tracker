@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     AssignmentName varchar(255) NOT NULL,
     Grade double NULL,
     Weight double NOT NULL,
+    IsPrediction BOOLEAN DEFAULT FALSE,
     INDEX idx_subject_category (Subject, Category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
