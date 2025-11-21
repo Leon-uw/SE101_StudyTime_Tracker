@@ -448,6 +448,9 @@ document.addEventListener('DOMContentLoaded', function () {
             this.classList.toggle('lock-on', isGradeLockOn);
             this.classList.toggle('lock-off', !isGradeLockOn);
 
+            // Remove forced styles if they were applied
+            this.style.backgroundColor = '';
+
             // Update all grade input fields max attribute
             const allGradeInputs = document.querySelectorAll('input[name="grade"]');
             allGradeInputs.forEach(input => {
@@ -1402,7 +1405,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 const subject = row.querySelector('td:nth-child(2)').textContent.trim();
-                const category = row.querySelector('td:nth-child(3)').textContent.trim(); // Might have icon text
+                const categoryTag = row.querySelector('td:nth-child(3) .category-tag');
+                const category = categoryTag ? categoryTag.lastChild.textContent.trim() : row.querySelector('td:nth-child(3)').textContent.trim();
 
                 const formData = new FormData();
                 formData.append('subject', subject);

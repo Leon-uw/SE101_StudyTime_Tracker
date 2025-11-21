@@ -5,12 +5,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from db import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE
 import mysql.connector
 
-def get_all_grades():
-    """Get all grade records from the database with lowercase field names."""
+def get_all_grades(username):
+    """Get all grade records for a specific user."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
-        curs.execute(f"SELECT * FROM {TABLE_NAME}")
+        curs.execute(f"SELECT * FROM {TABLE_NAME} WHERE username = %s", (username,))
         results = curs.fetchall()
 
         # Convert to lowercase keys for consistency with Sprint 2A dictionaries
@@ -31,23 +31,16 @@ def get_all_grades():
         curs.close()
         conn.close()
 
-def get_all_categories(subject=None):
-    """Get all category definitions from the database with lowercase field names.
-
-    Args:
-        subject: Optional subject filter. If provided, only return categories for that subject.
-
-    Returns:
-        List of category dictionaries with lowercase keys matching Sprint 2A format.
-    """
+def get_all_categories(username, subject=None):
+    """Get all category definitions for a user."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
 
         if subject:
-            curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} WHERE Subject = %s ORDER BY CategoryName", (subject,))
+            curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} WHERE username = %s AND Subject = %s ORDER BY CategoryName", (username, subject))
         else:
-            curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} ORDER BY Subject, CategoryName")
+            curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} WHERE username = %s ORDER BY Subject, CategoryName", (username,))
 
         results = curs.fetchall()
 
@@ -66,13 +59,9 @@ def get_all_categories(subject=None):
         curs.close()
         conn.close()
 
-def get_categories_as_dict():
-    """Get categories organized by subject, matching Sprint 2A weight_categories structure.
-
-    Returns:
-        Dictionary: {subject: [category_dicts]} matching Sprint 2A format
-    """
-    categories = get_all_categories()
+def get_categories_as_dict(username):
+    """Get categories organized by subject for a user."""
+    categories = get_all_categories(username)
 
     # Organize by subject
     result = {}
@@ -87,16 +76,16 @@ def get_categories_as_dict():
 
     return result
 
-def add_grade(subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
-    """Add a new assignment to the database"""
+def add_grade(username, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
+    """Add a new assignment to the database for a user"""
     conn = _connect()
     try:
         curs = conn.cursor()
         query = f"""
-        INSERT INTO {TABLE_NAME} (Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO {TABLE_NAME} (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
-        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction))
+        curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction))
         conn.commit()
         return curs.lastrowid  # Return the ID of the inserted record
     except mysql.connector.Error as e:
@@ -106,17 +95,18 @@ def add_grade(subject, category, study_time, assignment_name, grade, weight, is_
         curs.close()
         conn.close()
 
-def update_grade(grade_id, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
-    """Update an existing grade"""
+def update_grade(username, grade_id, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
+    """Update an existing grade for a user"""
     conn = _connect()
     try:
         curs = conn.cursor()
+        # Ensure we only update if it belongs to the user
         query = f"""
         UPDATE {TABLE_NAME}
         SET Subject = %s, Category = %s, StudyTime = %s, AssignmentName = %s, Grade = %s, Weight = %s, IsPrediction = %s
-        WHERE id = %s
+        WHERE id = %s AND username = %s
         """
-        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, grade_id))
+        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, grade_id, username))
         conn.commit()
         return curs.rowcount
     except mysql.connector.Error as e:
@@ -126,13 +116,13 @@ def update_grade(grade_id, subject, category, study_time, assignment_name, grade
         curs.close()
         conn.close()
 
-def delete_grade(grade_id):
-    """Delete a single grade"""
+def delete_grade(username, grade_id):
+    """Delete a single grade for a user"""
     conn = _connect()
     try:
         curs = conn.cursor()
-        query = f"DELETE FROM {TABLE_NAME} WHERE id = %s"
-        curs.execute(query, (grade_id,))
+        query = f"DELETE FROM {TABLE_NAME} WHERE id = %s AND username = %s"
+        curs.execute(query, (grade_id, username))
         conn.commit()
         return curs.rowcount
     except mysql.connector.Error as e:
@@ -142,8 +132,8 @@ def delete_grade(grade_id):
         curs.close()
         conn.close()
 
-def delete_grades_bulk(grade_ids):
-    """Delete multiple grades"""
+def delete_grades_bulk(username, grade_ids):
+    """Delete multiple grades for a user"""
     if not grade_ids:
         return 0
 
@@ -151,8 +141,11 @@ def delete_grades_bulk(grade_ids):
     try:
         curs = conn.cursor()
         placeholders = ','.join(['%s'] * len(grade_ids))
-        query = f"DELETE FROM {TABLE_NAME} WHERE id IN ({placeholders})"
-        curs.execute(query, tuple(grade_ids))
+        # Add username check
+        query = f"DELETE FROM {TABLE_NAME} WHERE id IN ({placeholders}) AND username = %s"
+        # Append username to the end of parameters
+        params = tuple(grade_ids) + (username,)
+        curs.execute(query, params)
         conn.commit()
         return curs.rowcount
     except mysql.connector.Error as e:
@@ -162,30 +155,16 @@ def delete_grades_bulk(grade_ids):
         curs.close()
         conn.close()
 
-def recalculate_and_update_weights(subject, category_name):
-    """Recalculate weights for all assignments in a category and update database.
-
-    This function:
-    1. Gets the category definition (total_weight) from the database
-    2. Counts assignments in the category
-    3. Calculates new weight per assignment (total_weight / num_assignments)
-    4. Updates all assignments in the category with the new weight
-
-    Args:
-        subject: Subject name
-        category_name: Category name
-
-    Returns:
-        Number of assignments updated, or 0 if category not found
-    """
+def recalculate_and_update_weights(username, subject, category_name):
+    """Recalculate weights for all assignments in a category for a user."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
 
         # Get category definition to get total_weight
         curs.execute(
-            f"SELECT TotalWeight FROM {CATEGORIES_TABLE} WHERE Subject = %s AND CategoryName = %s",
-            (subject, category_name)
+            f"SELECT TotalWeight FROM {CATEGORIES_TABLE} WHERE username = %s AND Subject = %s AND CategoryName = %s",
+            (username, subject, category_name)
         )
         category = curs.fetchone()
 
@@ -196,8 +175,8 @@ def recalculate_and_update_weights(subject, category_name):
 
         # Count assignments in this category
         curs.execute(
-            f"SELECT COUNT(*) as count FROM {TABLE_NAME} WHERE Subject = %s AND Category = %s",
-            (subject, category_name)
+            f"SELECT COUNT(*) as count FROM {TABLE_NAME} WHERE username = %s AND Subject = %s AND Category = %s",
+            (username, subject, category_name)
         )
         count_result = curs.fetchone()
         num_assignments = count_result['count']
@@ -212,9 +191,9 @@ def recalculate_and_update_weights(subject, category_name):
         update_query = f"""
             UPDATE {TABLE_NAME}
             SET Weight = %s
-            WHERE Subject = %s AND Category = %s
+            WHERE username = %s AND Subject = %s AND Category = %s
         """
-        curs.execute(update_query, (new_weight, subject, category_name))
+        curs.execute(update_query, (new_weight, username, subject, category_name))
         conn.commit()
 
         return curs.rowcount
@@ -225,16 +204,16 @@ def recalculate_and_update_weights(subject, category_name):
         curs.close()
         conn.close()
 
-def add_category(subject, category_name, total_weight, default_name=''):
-    """Add a new category definition to the database"""
+def add_category(username, subject, category_name, total_weight, default_name=''):
+    """Add a new category definition to the database for a user"""
     conn = _connect()
     try:
         curs = conn.cursor()
         query = f"""
-        INSERT INTO {CATEGORIES_TABLE} (Subject, CategoryName, TotalWeight, DefaultName)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO {CATEGORIES_TABLE} (username, Subject, CategoryName, TotalWeight, DefaultName)
+        VALUES (%s, %s, %s, %s, %s)
         """
-        curs.execute(query, (subject, category_name, total_weight, default_name))
+        curs.execute(query, (username, subject, category_name, total_weight, default_name))
         conn.commit()
         return curs.lastrowid
     except mysql.connector.Error as e:
@@ -244,17 +223,17 @@ def add_category(subject, category_name, total_weight, default_name=''):
         curs.close()
         conn.close()
 
-def update_category(category_id, subject, category_name, total_weight, default_name=''):
-    """Update an existing category definition"""
+def update_category(username, category_id, subject, category_name, total_weight, default_name=''):
+    """Update an existing category definition for a user"""
     conn = _connect()
     try:
         curs = conn.cursor()
         query = f"""
         UPDATE {CATEGORIES_TABLE}
         SET Subject = %s, CategoryName = %s, TotalWeight = %s, DefaultName = %s
-        WHERE id = %s
+        WHERE id = %s AND username = %s
         """
-        curs.execute(query, (subject, category_name, total_weight, default_name, category_id))
+        curs.execute(query, (subject, category_name, total_weight, default_name, category_id, username))
         conn.commit()
         return curs.rowcount
     except mysql.connector.Error as e:
@@ -264,13 +243,13 @@ def update_category(category_id, subject, category_name, total_weight, default_n
         curs.close()
         conn.close()
 
-def delete_category(category_id):
-    """Delete a category definition"""
+def delete_category(username, category_id):
+    """Delete a category definition for a user"""
     conn = _connect()
     try:
         curs = conn.cursor()
-        query = f"DELETE FROM {CATEGORIES_TABLE} WHERE id = %s"
-        curs.execute(query, (category_id,))
+        query = f"DELETE FROM {CATEGORIES_TABLE} WHERE id = %s AND username = %s"
+        curs.execute(query, (category_id, username))
         conn.commit()
         return curs.rowcount
     except mysql.connector.Error as e:
@@ -280,16 +259,8 @@ def delete_category(category_id):
         curs.close()
         conn.close()
 
-def get_total_weight_for_subject(subject, exclude_category_id=None):
-    """Calculate total weight of all categories for a subject, optionally excluding one category.
-
-    Args:
-        subject: Subject name
-        exclude_category_id: Optional category ID to exclude from total (for update validation)
-
-    Returns:
-        Total weight as float
-    """
+def get_total_weight_for_subject(username, subject, exclude_category_id=None):
+    """Calculate total weight of all categories for a subject for a user."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
@@ -298,16 +269,16 @@ def get_total_weight_for_subject(subject, exclude_category_id=None):
             query = f"""
                 SELECT SUM(TotalWeight) as total
                 FROM {CATEGORIES_TABLE}
-                WHERE Subject = %s AND id != %s
+                WHERE username = %s AND Subject = %s AND id != %s
             """
-            curs.execute(query, (subject, exclude_category_id))
+            curs.execute(query, (username, subject, exclude_category_id))
         else:
             query = f"""
                 SELECT SUM(TotalWeight) as total
                 FROM {CATEGORIES_TABLE}
-                WHERE Subject = %s
+                WHERE username = %s AND Subject = %s
             """
-            curs.execute(query, (subject,))
+            curs.execute(query, (username, subject))
 
         result = curs.fetchone()
         return result['total'] or 0
@@ -319,16 +290,12 @@ def get_total_weight_for_subject(subject, exclude_category_id=None):
 # PHASE 7: Subject CRUD Operations
 # ============================================================================
 
-def get_all_subjects():
-    """Get all subjects from the database.
-
-    Returns:
-        List of subject dictionaries with 'id', 'name', and 'created_at' keys
-    """
+def get_all_subjects(username):
+    """Get all subjects for a user."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
-        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} ORDER BY name")
+        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s ORDER BY name", (username,))
         results = curs.fetchall()
 
         return [
@@ -343,26 +310,16 @@ def get_all_subjects():
         curs.close()
         conn.close()
 
-def add_subject(name):
-    """Add a new subject to the database.
-
-    Args:
-        name: Subject name (must be unique)
-
-    Returns:
-        ID of the inserted subject
-
-    Raises:
-        mysql.connector.IntegrityError: If subject name already exists
-    """
+def add_subject(username, name):
+    """Add a new subject for a user."""
     conn = _connect()
     try:
         curs = conn.cursor()
         query = f"""
-        INSERT INTO {SUBJECTS_TABLE} (name)
-        VALUES (%s)
+        INSERT INTO {SUBJECTS_TABLE} (username, name)
+        VALUES (%s, %s)
         """
-        curs.execute(query, (name,))
+        curs.execute(query, (username, name))
         conn.commit()
         return curs.lastrowid
     except mysql.connector.Error as e:
@@ -372,23 +329,14 @@ def add_subject(name):
         curs.close()
         conn.close()
 
-def delete_subject(subject_id):
-    """Delete a subject from the database.
-
-    This will also delete all assignments and categories for this subject (cascade).
-
-    Args:
-        subject_id: ID of the subject to delete
-
-    Returns:
-        Number of subjects deleted (0 or 1)
-    """
+def delete_subject(username, subject_id):
+    """Delete a subject for a user."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
 
-        # First get the subject name
-        curs.execute(f"SELECT name FROM {SUBJECTS_TABLE} WHERE id = %s", (subject_id,))
+        # First get the subject name, ensuring it belongs to the user
+        curs.execute(f"SELECT name FROM {SUBJECTS_TABLE} WHERE id = %s AND username = %s", (subject_id, username))
         subject = curs.fetchone()
 
         if not subject:
@@ -397,13 +345,13 @@ def delete_subject(subject_id):
         subject_name = subject['name']
 
         # Delete all assignments for this subject
-        curs.execute(f"DELETE FROM {TABLE_NAME} WHERE Subject = %s", (subject_name,))
+        curs.execute(f"DELETE FROM {TABLE_NAME} WHERE username = %s AND Subject = %s", (username, subject_name))
 
         # Delete all categories for this subject
-        curs.execute(f"DELETE FROM {CATEGORIES_TABLE} WHERE Subject = %s", (subject_name,))
+        curs.execute(f"DELETE FROM {CATEGORIES_TABLE} WHERE username = %s AND Subject = %s", (username, subject_name))
 
         # Delete the subject itself
-        curs.execute(f"DELETE FROM {SUBJECTS_TABLE} WHERE id = %s", (subject_id,))
+        curs.execute(f"DELETE FROM {SUBJECTS_TABLE} WHERE id = %s AND username = %s", (subject_id, username))
 
         conn.commit()
         return curs.rowcount
@@ -414,19 +362,12 @@ def delete_subject(subject_id):
         curs.close()
         conn.close()
 
-def get_subject_by_name(name):
-    """Get a subject by name.
-
-    Args:
-        name: Subject name to search for
-
-    Returns:
-        Subject dictionary with 'id', 'name', and 'created_at' keys, or None if not found
-    """
+def get_subject_by_name(username, name):
+    """Get a subject by name for a user."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
-        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE name = %s", (name,))
+        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND name = %s", (username, name))
         result = curs.fetchone()
 
         if result:
@@ -440,36 +381,24 @@ def get_subject_by_name(name):
         curs.close()
         conn.close()
 
-def rename_subject(old_name, new_name):
-    """Renames a subject across all tables.
-    
-    Args:
-        old_name: Current name of the subject
-        new_name: New name for the subject
-        
-    Returns:
-        True if successful
-        
-    Raises:
-        ValueError: If new_name already exists
-        mysql.connector.Error: If database error occurs
-    """
+def rename_subject(username, old_name, new_name):
+    """Renames a subject across all tables for a user."""
     conn = _connect()
     curs = conn.cursor()
     try:
-        # Check if new name already exists
-        curs.execute(f"SELECT id FROM {SUBJECTS_TABLE} WHERE name = %s", (new_name,))
+        # Check if new name already exists for this user
+        curs.execute(f"SELECT id FROM {SUBJECTS_TABLE} WHERE username = %s AND name = %s", (username, new_name))
         if curs.fetchone():
             raise ValueError(f"Subject '{new_name}' already exists.")
 
         # Update SUBJECTS_TABLE
-        curs.execute(f"UPDATE {SUBJECTS_TABLE} SET name = %s WHERE name = %s", (new_name, old_name))
+        curs.execute(f"UPDATE {SUBJECTS_TABLE} SET name = %s WHERE username = %s AND name = %s", (new_name, username, old_name))
         
         # Update GRADES_TABLE
-        curs.execute(f"UPDATE {TABLE_NAME} SET Subject = %s WHERE Subject = %s", (new_name, old_name))
+        curs.execute(f"UPDATE {TABLE_NAME} SET Subject = %s WHERE username = %s AND Subject = %s", (new_name, username, old_name))
         
         # Update CATEGORIES_TABLE
-        curs.execute(f"UPDATE {CATEGORIES_TABLE} SET Subject = %s WHERE Subject = %s", (new_name, old_name))
+        curs.execute(f"UPDATE {CATEGORIES_TABLE} SET Subject = %s WHERE username = %s AND Subject = %s", (new_name, username, old_name))
         
         conn.commit()
         return True

@@ -32,19 +32,19 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def recalculate_weights(subject, category_name):
+def recalculate_weights(username, subject, category_name):
     """Recalculate weights for a category in the database."""
     try:
-        recalculate_and_update_weights(subject, category_name)
+        recalculate_and_update_weights(username, subject, category_name)
     except Exception as e:
         print(f"Warning: Failed to recalculate weights in database: {e}")
 
-def calculate_summary(subject, include_predictions=False):
+def calculate_summary(username, subject, include_predictions=False):
     """Calculate summary statistics for a subject (now using database)."""
     if not subject or subject == 'all':
         return None
     
-    study_data = get_all_grades()
+    study_data = get_all_grades(username)
     # Filter by subject
     subject_items = [log for log in study_data if log['subject'] == subject]
     
@@ -209,7 +209,10 @@ def find_similar_grade(data, target_grade):
 @app.context_processor
 def inject_subjects():
     """Inject subjects into all templates for the sidebar."""
-    all_subjects = get_all_subjects()
+    if 'user' not in session:
+        return dict(subjects=[])
+    
+    all_subjects = get_all_subjects(session['user'])
     unique_subjects = sorted([s['name'] for s in all_subjects])
     return dict(subjects=unique_subjects)
 
@@ -225,7 +228,7 @@ def display_table():
 def display_subject(subject_name):
     """Subject-specific view."""
     # Verify subject exists
-    all_subjects = get_all_subjects()
+    all_subjects = get_all_subjects(session['user'])
     unique_subjects = [s['name'] for s in all_subjects]
     if subject_name not in unique_subjects:
          return redirect(url_for('display_table'))
@@ -235,13 +238,14 @@ def display_subject(subject_name):
 def render_subject_view(filter_subject):
     """Helper to render the main view with a specific subject filter."""
     filter_category = request.args.get('category')
+    username = session['user']
 
     # Fetch data from database
-    study_data_db = get_all_grades()
-    weight_categories_db = get_categories_as_dict()
+    study_data_db = get_all_grades(username)
+    weight_categories_db = get_categories_as_dict(username)
 
     # Get subjects from subjects table (already injected, but needed for logic)
-    all_subjects = get_all_subjects()
+    all_subjects = get_all_subjects(username)
     unique_subjects = sorted([s['name'] for s in all_subjects])
 
     # Filter data for display
@@ -252,7 +256,7 @@ def render_subject_view(filter_subject):
             data_to_display = [log for log in data_to_display if log['category'] == filter_category]
 
     # Calculate summary
-    summary_data = calculate_summary(filter_subject)
+    summary_data = calculate_summary(username, filter_subject)
 
     # Add num_assessments to categories (count from database)
     temp_weight_categories = json.loads(json.dumps(weight_categories_db))
@@ -359,10 +363,13 @@ def process_form_data(form):
 def add_log():
     log_data, error = process_form_data(request.form)
     if error: return jsonify({'status': 'error', 'message': error}), 400
+    
+    username = session['user']
 
     # Write to database
     try:
         db_id = add_grade(
+            username=username,
             subject=log_data['subject'],
             category=log_data['category'],
             study_time=log_data['study_time'],
@@ -375,11 +382,11 @@ def add_log():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to add assignment: {str(e)}'}), 500
 
-    recalculate_weights(log_data['subject'], log_data['category'])
-    summary = calculate_summary(request.form.get('current_filter'))
+    recalculate_weights(username, log_data['subject'], log_data['category'])
+    summary = calculate_summary(username, request.form.get('current_filter'))
 
     # Fetch fresh data from database
-    assignments_to_return = get_all_grades()
+    assignments_to_return = get_all_grades(username)
     current_subject_filter = request.form.get('current_filter')
     if current_subject_filter and current_subject_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_subject_filter]
@@ -390,8 +397,9 @@ def add_log():
 @app.route('/update/<int:log_id>', methods=['POST'])
 @login_required
 def update_log(log_id):
+    username = session['user']
     # PHASE 5 FIX: Check database instead of in-memory dict
-    all_assignments = get_all_grades()
+    all_assignments = get_all_grades(username)
     old_log = next((log for log in all_assignments if log['id'] == log_id), None)
 
     if not old_log:
@@ -407,6 +415,7 @@ def update_log(log_id):
     # Update database
     try:
         rows_affected = update_grade(
+            username=username,
             grade_id=log_id,
             subject=updated_data['subject'],
             category=updated_data['category'],
@@ -420,13 +429,13 @@ def update_log(log_id):
         return jsonify({'status': 'error', 'message': f'Failed to update assignment: {str(e)}'}), 500
 
     if old_subject != updated_data['subject'] or old_category != updated_data['category']:
-        recalculate_weights(old_subject, old_category)
-    recalculate_weights(updated_data['subject'], updated_data['category'])
+        recalculate_weights(username, old_subject, old_category)
+    recalculate_weights(username, updated_data['subject'], updated_data['category'])
 
     # Fetch fresh data from database instead of using in-memory dict
-    assignments_to_return = get_all_grades()
+    assignments_to_return = get_all_grades(username)
     current_subject_filter = request.form.get('current_filter')
-    summary = calculate_summary(current_subject_filter)
+    summary = calculate_summary(username, current_subject_filter)
     if current_subject_filter and current_subject_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_subject_filter]
 
@@ -436,9 +445,10 @@ def update_log(log_id):
 @login_required
 def delete_log(log_id):
     current_filter = request.args.get('current_filter')
+    username = session['user']
 
     # PHASE 5 FIX: Check database instead of in-memory dict
-    all_assignments = get_all_grades()
+    all_assignments = get_all_grades(username)
     log_to_delete = next((log for log in all_assignments if log['id'] == log_id), None)
 
     if not log_to_delete:
@@ -449,15 +459,15 @@ def delete_log(log_id):
 
     # Delete from database
     try:
-        delete_grade(log_id)
+        delete_grade(username, log_id)
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to delete assignment: {str(e)}'}), 500
 
-    recalculate_weights(subject, category)
-    summary = calculate_summary(current_filter)
+    recalculate_weights(username, subject, category)
+    summary = calculate_summary(username, current_filter)
 
     # Fetch fresh data from database
-    assignments_to_return = get_all_grades()
+    assignments_to_return = get_all_grades(username)
     if current_filter and current_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_filter]
 
@@ -470,6 +480,7 @@ def convert_prediction():
     """Convert a prediction to a regular assignment."""
     assignment_id = request.form.get('assignment_id')
     current_filter = request.form.get('current_filter')
+    username = session['user']
     
     if not assignment_id:
         return jsonify({'status': 'error', 'message': 'Assignment ID is required.'}), 400
@@ -480,7 +491,7 @@ def convert_prediction():
         return jsonify({'status': 'error', 'message': 'Invalid assignment ID.'}), 400
     
     # Get the assignment from database
-    all_assignments = get_all_grades()
+    all_assignments = get_all_grades(username)
     assignment = next((a for a in all_assignments if a['id'] == assignment_id), None)
     
     if not assignment:
@@ -496,6 +507,7 @@ def convert_prediction():
     # Convert to assignment by setting is_prediction to False and clearing the predicted grade
     try:
         update_grade(
+            username=username,
             grade_id=assignment_id,
             subject=assignment['subject'],
             category=assignment['category'],
@@ -509,8 +521,8 @@ def convert_prediction():
         return jsonify({'status': 'error', 'message': f'Failed to convert prediction: {str(e)}'}), 500
     
     # Fetch fresh data from database
-    assignments_to_return = get_all_grades()
-    summary = calculate_summary(current_filter)
+    assignments_to_return = get_all_grades(username)
+    summary = calculate_summary(username, current_filter)
     if current_filter and current_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_filter]
     
@@ -527,32 +539,33 @@ def delete_multiple():
     """Delete multiple assignments at once."""
     current_filter = request.args.get('current_filter')
     ids_to_delete = request.json.get('ids', [])
+    username = session['user']
 
     if not ids_to_delete:
         return jsonify({'status': 'error', 'message': 'No assignments selected.'}), 400
 
     # Get assignments that will be deleted to track subjects/categories for weight recalc
-    all_assignments = get_all_grades()
+    all_assignments = get_all_grades(username)
     assignments_to_delete = [a for a in all_assignments if a['id'] in ids_to_delete]
     subjects_to_recalc = set((a['subject'], a['category']) for a in assignments_to_delete)
 
     # Delete from database (bulk operation)
     try:
-        deleted_count = delete_grades_bulk(ids_to_delete)
+        deleted_count = delete_grades_bulk(username, ids_to_delete)
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to delete assignments: {str(e)}'}), 500
 
     # Fetch fresh data from database instead of using in-memory dict
-    assignments_to_return = get_all_grades()
+    assignments_to_return = get_all_grades(username)
     # Recalculate weights for affected subjects/categories
     for subject, category in subjects_to_recalc:
-        recalculate_weights(subject, category)
+        recalculate_weights(username, subject, category)
 
     # Calculate summary
-    summary = calculate_summary(current_filter)
+    summary = calculate_summary(username, current_filter)
 
     # Fetch updated assignments from database
-    assignments_to_return = get_all_grades()
+    assignments_to_return = get_all_grades(username)
     if current_filter and current_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_filter]
 
@@ -567,6 +580,7 @@ def delete_multiple():
 @login_required
 def add_category_route():
     subject = request.form.get('subject')
+    username = session['user']
     if not subject or subject == 'all':
         return jsonify({'status': 'error', 'message': 'A valid subject must be selected.'}), 400
 
@@ -579,12 +593,12 @@ def add_category_route():
             return jsonify({'status': 'error', 'message': 'Category Name and Total Weight are required.'}), 400
 
         # Check total weight from database
-        current_total_weight = get_total_weight_for_subject(subject)
+        current_total_weight = get_total_weight_for_subject(username, subject)
         if current_total_weight + new_weight > 100:
             return jsonify({'status': 'error', 'message': f'Adding {new_weight}% would exceed 100% for this subject.'}), 400
 
         # Add to database
-        new_id = add_category(subject, category_name, new_weight, default_name)
+        new_id = add_category(username, subject, category_name, new_weight, default_name)
         new_category = {"id": new_id, "name": category_name, "total_weight": new_weight, "default_name": default_name}
 
         return jsonify({'status': 'success', 'message': 'Category added!', 'category': new_category, 'subject': subject})
@@ -597,6 +611,7 @@ def add_category_route():
 @login_required
 def update_category_route(cat_id):
     subject = request.form.get('subject')
+    username = session['user']
     if not subject:
         return jsonify({'status': 'error', 'message': 'Subject not found.'}), 404
 
@@ -609,12 +624,12 @@ def update_category_route(cat_id):
             return jsonify({'status': 'error', 'message': 'Category Name and Total Weight are required.'}), 400
 
         # Check total weight from database (excluding current category)
-        current_total_weight = get_total_weight_for_subject(subject, exclude_category_id=cat_id)
+        current_total_weight = get_total_weight_for_subject(username, subject, exclude_category_id=cat_id)
         if current_total_weight + new_weight > 100:
             return jsonify({'status': 'error', 'message': f'Updating to {new_weight}% would exceed 100% for this subject.'}), 400
 
         # Update in database
-        rows_affected = update_category(cat_id, subject, category_name, new_weight, default_name)
+        rows_affected = update_category(username, cat_id, subject, category_name, new_weight, default_name)
 
         if rows_affected == 0:
             return jsonify({'status': 'error', 'message': 'Category not found.'}), 404
@@ -629,9 +644,10 @@ def update_category_route(cat_id):
 @app.route('/category/delete/<int:cat_id>', methods=['POST'])
 @login_required
 def delete_category_route(cat_id):
+    username = session['user']
     try:
         # Delete from database
-        rows_affected = delete_category(cat_id)
+        rows_affected = delete_category(username, cat_id)
 
         if rows_affected == 0:
             return jsonify({'status': 'error', 'message': 'Category not found.'}), 404
@@ -698,7 +714,8 @@ def predict():
 
     # --- 1. Filter Data Sets ---
     # Fetch from database
-    all_grades = get_all_grades()
+    username = session['user']
+    all_grades = get_all_grades(username)
     graded_data = [log for log in all_grades if log.get('grade') is not None]
 
     all_data = graded_data
@@ -710,16 +727,16 @@ def predict():
     n_category = len(category_data)
     
     # Check for minimum data required
-    if n_all < 2:
-        return jsonify({
-            'status': 'error',
-            'message': 'Not enough historical data. Need at least 2 graded assignments total.'
-        }), 400
+    # if n_all < 2:
+    #     return jsonify({
+    #         'status': 'error',
+    #         'message': 'Not enough historical data. Need at least 2 graded assignments total.'
+    #     }), 400
 
     # --- 2. Estimate k for each scope ---
     def get_k_and_data(data):
-        if len(data) < 2:
-            return 0, [], [], []
+        if len(data) < 1:
+            return 0.3, [], [], []
         hours = [log['study_time'] for log in data]
         grades = [log['grade'] for log in data]
         weights = [log['weight'] / 100 for log in data]
@@ -911,18 +928,19 @@ def predict():
 @login_required
 def add_subject():
     subject_name = request.form.get('subject_name', '').strip()
+    username = session['user']
 
     if not subject_name:
         return jsonify({'status': 'error', 'message': 'Subject name cannot be empty.'}), 400
 
     # Check if subject already exists
-    existing_subject = get_subject_by_name(subject_name)
+    existing_subject = get_subject_by_name(username, subject_name)
     if existing_subject:
         return jsonify({'status': 'error', 'message': 'Subject already exists.'}), 400
 
     # Add subject to database
     try:
-        subject_id = crud_add_subject(subject_name)
+        subject_id = crud_add_subject(username, subject_name)
         return jsonify({'status': 'success', 'subject': subject_name, 'id': subject_id})
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to add subject: {str(e)}'}), 500
@@ -931,17 +949,18 @@ def add_subject():
 @login_required
 def delete_subject():
     subject_name = request.form.get('subject_name', '').strip()
+    username = session['user']
 
     if not subject_name:
         return jsonify({'status': 'error', 'message': 'Subject name cannot be empty.'}), 400
 
     # Get subject by name, then delete by ID (cascade deletes assignments/categories)
     try:
-        subject = get_subject_by_name(subject_name)
+        subject = get_subject_by_name(username, subject_name)
         if not subject:
             return jsonify({'status': 'error', 'message': f'Subject "{subject_name}" not found.'}), 404
 
-        rows_deleted = crud_delete_subject(subject['id'])
+        rows_deleted = crud_delete_subject(username, subject['id'])
         if rows_deleted > 0:
             return jsonify({'status': 'success', 'message': f'Subject "{subject_name}" deleted successfully.'})
         else:
@@ -954,6 +973,7 @@ def delete_subject():
 def rename_subject_route():
     old_name = request.form.get('old_name')
     new_name = request.form.get('new_name')
+    username = session['user']
 
     if not old_name or not new_name:
         return jsonify({'status': 'error', 'message': 'Both old and new subject names are required.'}), 400
@@ -963,7 +983,7 @@ def rename_subject_route():
         return jsonify({'status': 'error', 'message': 'New subject name cannot be empty.'}), 400
 
     try:
-        crud_rename_subject(old_name, new_name)
+        crud_rename_subject(username, old_name, new_name)
         return jsonify({'status': 'success', 'message': f'Subject renamed to {new_name}', 'new_name': new_name})
     except ValueError as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
@@ -979,6 +999,7 @@ def predict_subject():
     subject = request.form.get('subject')
     target_grade_str = request.form.get('target_grade')
     study_time_str = request.form.get('study_time')
+    username = session['user']
     
     if not subject:
         return jsonify({'status': 'error', 'message': 'Subject is required.'}), 400
@@ -986,7 +1007,7 @@ def predict_subject():
     use_predictions = request.form.get('use_predictions') == 'true'
 
     # Use existing summary calculation for efficiency and consistency
-    summary = calculate_summary(subject, include_predictions=use_predictions)
+    summary = calculate_summary(username, subject, include_predictions=use_predictions)
     if not summary:
          return jsonify({'status': 'error', 'message': 'Subject data not found.'}), 404
 
@@ -1005,7 +1026,7 @@ def predict_subject():
         })
 
     # Fetch data for k estimation
-    all_grades = get_all_grades()
+    all_grades = get_all_grades(username)
     subject_data = [log for log in all_grades if log['subject'] == subject]
     
     # IMPORTANT: For k estimation, we ONLY want actual past performance, NOT predictions
