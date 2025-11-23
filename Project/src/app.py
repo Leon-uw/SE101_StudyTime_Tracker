@@ -3,6 +3,7 @@ import json
 import math
 import sys
 import os
+from collections import Counter, defaultdict
 from functools import wraps
 
 # Add current directory to path for imports
@@ -302,10 +303,254 @@ def render_subject_view(filter_subject):
 def about():
     return render_template('about.html', page_title="About")
 
+def calculate_stats():
+    """Aggregate study data into high-level statistics for the Stats page."""
+    study_data = get_all_grades()
+    stats = {
+        'has_data': bool(study_data),
+        'has_actuals': False,
+        'has_grades': False,
+        'overall': {
+            'gpa': None,
+            'total_hours': 0,
+            'grade_per_hour': None,
+            'assignment_count': 0
+        },
+        'predictions': {
+            'total': 0,
+            'top_subject': None
+        },
+        'top_hours_subjects': [],
+        'best_category': None,
+        'focus_subject': None,
+        'efficient_subjects': [],
+        'prediction_accuracy': {
+            'matched': 0,
+            'mean_abs_error': None,
+            'accuracy': None
+        },
+        'strong_scores': {
+            'count': 0,
+            'pct': None
+        },
+        'needs_work': {
+            'count': 0,
+            'pct': None
+        },
+        'hours_per_assignment': None,
+        'graded_scores': []
+    }
+
+    if not study_data:
+        return stats
+
+    actual_entries = [row for row in study_data if not row.get('is_prediction')]
+    prediction_entries = [row for row in study_data if row.get('is_prediction')]
+
+    stats['overall']['assignment_count'] = len(actual_entries)
+    stats['predictions']['total'] = len(prediction_entries)
+
+    # Prediction habits
+    prediction_counts = Counter(row['subject'] for row in prediction_entries if row.get('subject'))
+    if prediction_counts:
+        top_pred_subject, pred_count = prediction_counts.most_common(1)[0]
+        stats['predictions']['top_subject'] = {
+            'subject': top_pred_subject,
+            'count': pred_count
+        }
+
+    if not actual_entries:
+        return stats
+
+    stats['has_actuals'] = True
+
+    subject_hours = defaultdict(float)
+    subject_weighted_sum = defaultdict(float)
+    subject_weight_total = defaultdict(float)
+    subject_grades = defaultdict(list)
+    category_totals = defaultdict(lambda: {'weighted_sum': 0.0, 'weight_sum': 0.0, 'grades': []})
+
+    overall_weighted_sum = 0.0
+    overall_weight_total = 0.0
+    overall_grades = []
+
+    for entry in actual_entries:
+        subject = entry.get('subject')
+        if not subject:
+            continue
+
+        hours = float(entry.get('study_time') or 0)
+        subject_hours[subject] += hours
+
+        grade = entry.get('grade')
+        if grade is None:
+            continue
+
+        grade = float(grade)
+        weight = float(entry.get('weight') or 0)
+        subject_grades[subject].append(grade)
+
+        if weight > 0:
+            weighted_grade = grade * weight
+            subject_weighted_sum[subject] += weighted_grade
+            subject_weight_total[subject] += weight
+            overall_weighted_sum += weighted_grade
+            overall_weight_total += weight
+
+        overall_grades.append(grade)
+
+        category = entry.get('category') or 'Uncategorized'
+        category_stats = category_totals[(subject, category)]
+        category_stats['grades'].append(grade)
+        if weight > 0:
+            category_stats['weighted_sum'] += grade * weight
+            category_stats['weight_sum'] += weight
+
+    total_hours = sum(subject_hours.values())
+    stats['overall']['total_hours'] = total_hours
+
+    # Strong/weak result rates
+    graded_entries = [e for e in actual_entries if e.get('grade') is not None]
+    if graded_entries:
+        strong_count = sum(1 for e in graded_entries if float(e['grade']) >= 90)
+        needs_work_count = sum(1 for e in graded_entries if float(e['grade']) < 70)
+        total_graded = len(graded_entries)
+        stats['strong_scores'] = {
+            'count': strong_count,
+            'pct': (strong_count / total_graded) * 100 if total_graded else None
+        }
+        stats['needs_work'] = {
+            'count': needs_work_count,
+            'pct': (needs_work_count / total_graded) * 100 if total_graded else None
+        }
+        stats['graded_scores'] = [float(e['grade']) for e in graded_entries]
+
+    if stats['overall']['assignment_count'] > 0:
+        stats['hours_per_assignment'] = total_hours / stats['overall']['assignment_count']
+
+    if overall_weight_total > 0:
+        overall_avg = overall_weighted_sum / overall_weight_total
+    elif overall_grades:
+        overall_avg = sum(overall_grades) / len(overall_grades)
+    else:
+        overall_avg = None
+
+    stats['has_grades'] = overall_avg is not None
+    stats['overall']['gpa'] = overall_avg
+    if overall_avg is not None and total_hours > 0:
+        stats['overall']['grade_per_hour'] = overall_avg / total_hours
+
+    # Helper to calculate subject average
+    def subject_average(subject):
+        if subject_weight_total[subject] > 0:
+            return subject_weighted_sum[subject] / subject_weight_total[subject]
+        if subject_grades[subject]:
+            return sum(subject_grades[subject]) / len(subject_grades[subject])
+        return None
+
+    subjects_seen = set(subject_hours.keys()) | set(subject_grades.keys())
+    subject_averages = {subj: subject_average(subj) for subj in subjects_seen}
+
+    # Top studied subjects
+    stats['top_hours_subjects'] = [
+        {
+            'subject': subj,
+            'hours': subject_hours[subj],
+            'average_grade': subject_averages.get(subj)
+        }
+        for subj in sorted(subject_hours, key=subject_hours.get, reverse=True)
+        if subject_hours[subj] > 0
+    ][:3]
+
+    # Best performing category across all subjects
+    best_category = None
+    for (subject, category), values in category_totals.items():
+        if not values['grades']:
+            continue
+        if values['weight_sum'] > 0:
+            avg_grade = values['weighted_sum'] / values['weight_sum']
+        else:
+            avg_grade = sum(values['grades']) / len(values['grades'])
+
+        if best_category is None or avg_grade > best_category['average']:
+            best_category = {
+                'subject': subject,
+                'category': category,
+                'average': avg_grade,
+                'samples': len(values['grades'])
+            }
+    stats['best_category'] = best_category
+
+    # Subject that needs attention (lowest average grade)
+    focus_candidate = None
+    for subject, avg_grade in subject_averages.items():
+        if avg_grade is None:
+            continue
+        candidate = {
+            'subject': subject,
+            'average': avg_grade,
+            'hours': subject_hours.get(subject, 0),
+            'assignments': len(subject_grades[subject])
+        }
+        if focus_candidate is None or avg_grade < focus_candidate['average']:
+            focus_candidate = candidate
+    stats['focus_subject'] = focus_candidate
+
+    # Efficiency = average grade per study hour (normalized to avoid divide by zero)
+    efficient_subjects = []
+    for subject, avg_grade in subject_averages.items():
+        hours = subject_hours.get(subject, 0)
+        if avg_grade is None or hours <= 0:
+            continue
+        efficiency_score = avg_grade / max(hours, 1)
+        efficient_subjects.append({
+            'subject': subject,
+            'efficiency': efficiency_score,
+            'average_grade': avg_grade,
+            'hours': hours
+        })
+    stats['efficient_subjects'] = sorted(efficient_subjects, key=lambda x: x['efficiency'], reverse=True)[:3]
+
+    # Prediction accuracy: compare predictions to matching actuals by subject + assignment name
+    actual_grade_map = defaultdict(list)
+    for entry in graded_entries:
+        subject = entry.get('subject')
+        assignment = (entry.get('assignment_name') or '').strip().lower()
+        if subject and assignment:
+            actual_grade_map[(subject, assignment)].append(float(entry['grade']))
+
+    errors = []
+    for pred in prediction_entries:
+        subject = pred.get('subject')
+        assignment = (pred.get('assignment_name') or '').strip().lower()
+        if not subject or not assignment:
+            continue
+        if pred.get('grade') is None:
+            continue
+        key = (subject, assignment)
+        if key not in actual_grade_map:
+            continue
+        actual_avg = sum(actual_grade_map[key]) / len(actual_grade_map[key])
+        error = abs(float(pred['grade']) - actual_avg)
+        errors.append(error)
+
+    if errors:
+        mae = sum(errors) / len(errors)
+        # Accuracy as "how close on average" capped between 0 and 100
+        accuracy = max(0, min(100, 100 - mae))
+        stats['prediction_accuracy'] = {
+            'matched': len(errors),
+            'mean_abs_error': mae,
+            'accuracy': accuracy
+        }
+
+    return stats
+
 @app.route('/stats')
 @login_required
 def stats():
-    return render_template('stats.html', page_title="Statistics")
+    stats_data = calculate_stats()
+    return render_template('stats.html', page_title="Statistics", stats=stats_data)
 
 def process_form_data(form):
     print(f"DEBUG: process_form_data form={form}")

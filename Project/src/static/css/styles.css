@@ -706,6 +706,248 @@ td:last-child {
     background: var(--primary-color);
 }
 
+/* --- Stats Page --- */
+.stats-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.stats-lede {
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+}
+
+.stats-tag {
+    background: var(--primary-color);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+}
+
+.stats-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: -4px;
+    flex-wrap: wrap;
+}
+
+.toggle-group {
+    display: inline-flex;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface-color);
+    box-shadow: var(--shadow);
+}
+
+.toggle-btn {
+    border: none;
+    background: transparent;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s;
+}
+
+.toggle-btn.active {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.toggle-btn:not(:last-child) {
+    border-right: 1px solid var(--border-color);
+}
+
+.threshold-controls {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.threshold-controls.inline {
+    gap: 8px;
+    align-items: center;
+}
+
+.threshold-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.threshold-group input {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--surface-color);
+    color: var(--text-color);
+}
+
+.pill-btn {
+    border: none;
+    background: var(--primary-color);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    box-shadow: var(--shadow);
+}
+
+.pill-btn:hover {
+    background: var(--primary-hover);
+}
+
+.threshold-action-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.stats-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+}
+
+.stats-card {
+    background: var(--surface-color);
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.metric-card .metric-value {
+    font-size: 2rem;
+    margin: 6px 0;
+    font-weight: 700;
+}
+
+.stat-subtext {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.card-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.pill {
+    background: rgba(74, 144, 226, 0.12);
+    color: var(--primary-color);
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.pill.danger {
+    background: rgba(229, 62, 62, 0.1);
+    color: var(--danger-color);
+}
+
+.stat-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stat-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.015);
+}
+
+body.dark-mode .stat-list li {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-list-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-list-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.mini {
+    font-size: 0.85em;
+}
+
+.highlight {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.muted {
+    color: var(--text-secondary);
+    font-size: 0.95em;
+}
+
+.big-number {
+    font-size: 2rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+}
+
+.danger-text {
+    color: var(--danger-color);
+}
+
+.hint {
+    color: var(--text-secondary);
+    margin: 8px 0 0;
+}
+
+.empty-state {
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    background: var(--surface-color);
+    box-shadow: var(--shadow);
+}
+
 /* --- NEW: Custom Confirmation Modal --- */
 .modal-overlay {
     display: none;

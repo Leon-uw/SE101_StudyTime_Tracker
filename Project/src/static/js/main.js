@@ -657,6 +657,167 @@ document.addEventListener('DOMContentLoaded', function () {
         predictorWeightPreviewState.clear();
     }
 
+    // --- Stats view grade display toggle ---
+    const statToggleButtons = document.querySelectorAll('[data-stats-toggle]');
+
+    function percentToGpa(percent) {
+        if (percent === null || percent === undefined || isNaN(percent)) return null;
+        return Math.max(0, Math.min(4, (percent / 100) * 4));
+    }
+
+    function applyStatsMode(mode) {
+        statToggleButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.statsToggle === mode);
+        });
+
+        document.querySelectorAll('.stat-grade').forEach(el => {
+            const percent = parseFloat(el.dataset.gradePercent);
+            if (isNaN(percent)) return;
+            if (mode === 'gpa') {
+                const gpa = percentToGpa(percent);
+                if (gpa !== null) el.textContent = `${gpa.toFixed(2)}`;
+            } else {
+                el.textContent = `${percent.toFixed(1)}%`;
+            }
+        });
+
+        document.querySelectorAll('.stat-grade-per-hour').forEach(el => {
+            const percentPerHour = parseFloat(el.dataset.gradePerHour);
+            if (isNaN(percentPerHour)) return;
+            if (mode === 'gpa') {
+                const gpaPerHour = percentPerHour * 0.04; // convert %/h to GPA(4.0)/h
+                el.textContent = `${gpaPerHour.toFixed(2)}/h`;
+            } else {
+                el.textContent = `${percentPerHour.toFixed(2)}%/h`;
+            }
+        });
+
+        // Update copy labels that mention percent explicitly
+        document.querySelectorAll('[data-toggle-percent-label]').forEach(el => {
+            const percentLabel = el.dataset.togglePercentLabel;
+            const gpaLabel = el.dataset.toggleGpaLabel || percentLabel;
+            el.textContent = mode === 'gpa' ? gpaLabel : percentLabel;
+        });
+
+        localStorage.setItem('statsMode', mode);
+    }
+
+    if (statToggleButtons.length > 0) {
+        const savedMode = localStorage.getItem('statsMode') || 'percent';
+        applyStatsMode(savedMode);
+        statToggleButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.statsToggle;
+                applyStatsMode(mode);
+            });
+        });
+    }
+
+    // --- Threshold controls (High Scores / Needs Work) ---
+    const gradedScores = JSON.parse(document.body.dataset.gradedScores || '[]');
+    const highInput = document.getElementById('high-threshold');
+    const lowInput = document.getElementById('low-threshold');
+    const highPctDisplay = document.getElementById('high-score-pct-display');
+    const highDesc = document.getElementById('high-score-desc');
+    const needsPctDisplay = document.getElementById('needs-work-pct-display');
+    const needsDesc = document.getElementById('needs-work-desc');
+    const highHint = document.getElementById('high-threshold-hint');
+    const lowHint = document.getElementById('low-threshold-hint');
+    const highPill = document.getElementById('high-pill-text');
+    const lowPill = document.getElementById('low-pill-text');
+
+    function computeThresholdStats(highCut, lowCut) {
+        const total = gradedScores.length;
+        if (total === 0) {
+            return { strongPct: null, strongCount: 0, needsPct: null, needsCount: 0, total };
+        }
+        const strongCount = gradedScores.filter(g => g >= highCut).length;
+        const needsCount = gradedScores.filter(g => g < lowCut).length;
+        return {
+            strongPct: (strongCount / total) * 100,
+            strongCount,
+            needsPct: (needsCount / total) * 100,
+            needsCount,
+            total
+        };
+    }
+
+    function renderThresholds(mode) {
+        if (!highInput || !lowInput || !highPctDisplay || !needsPctDisplay) return;
+        const highCut = parseFloat(highInput.value) || 90;
+        const lowCut = parseFloat(lowInput.value) || 70;
+        const stats = computeThresholdStats(highCut, lowCut);
+
+        // Update hints with both % and GPA equivalents
+        const highGpa = percentToGpa(highCut);
+        const lowGpa = percentToGpa(lowCut);
+        if (highHint) highHint.textContent = `(${highCut.toFixed(0)}% / ${highGpa.toFixed(2)} GPA)`;
+        if (lowHint) lowHint.textContent = `(${lowCut.toFixed(0)}% / ${lowGpa.toFixed(2)} GPA)`;
+
+        if (stats.strongPct === null) {
+            highPctDisplay.textContent = 'N/A';
+            highDesc.textContent = 'Add more graded items to see this metric.';
+        } else {
+            const thresholdLabel = mode === 'gpa'
+                ? `${percentToGpa(highCut).toFixed(2)} GPA`
+                : `${highCut.toFixed(0)}%`;
+            highPctDisplay.textContent = `${stats.strongPct.toFixed(1)}%`;
+            highDesc.textContent = `${stats.strongCount} of ${stats.total} graded items cleared the high-score bar (≥ ${thresholdLabel}).`;
+            if (highPill) highPill.textContent = mode === 'gpa'
+                ? `${percentToGpa(highCut).toFixed(2)}+ GPA`
+                : `${highCut.toFixed(0)}%+ results`;
+        }
+
+        if (stats.needsPct === null) {
+            needsPctDisplay.textContent = 'N/A';
+            needsDesc.textContent = 'Add more graded items to see this metric.';
+        } else {
+            const thresholdLabel = mode === 'gpa'
+                ? `${percentToGpa(lowCut).toFixed(2)} GPA`
+                : `${lowCut.toFixed(0)}%`;
+            needsPctDisplay.textContent = `${stats.needsPct.toFixed(1)}%`;
+            needsDesc.textContent = `${stats.needsCount} of ${stats.total} graded items are under the target range (< ${thresholdLabel}).`;
+            if (lowPill) lowPill.textContent = mode === 'gpa'
+                ? `< ${percentToGpa(lowCut).toFixed(2)} GPA`
+                : `Below ${lowCut.toFixed(0)}%`;
+        }
+
+        localStorage.setItem('statsThresholds', JSON.stringify({ highCut, lowCut }));
+    }
+
+    if (gradedScores.length && highInput && lowInput) {
+        // Restore saved thresholds
+        try {
+            const saved = JSON.parse(localStorage.getItem('statsThresholds') || '{}');
+            if (saved.highCut !== undefined) highInput.value = saved.highCut;
+            if (saved.lowCut !== undefined) lowInput.value = saved.lowCut;
+        } catch (e) { /* ignore */ }
+
+        const currentMode = localStorage.getItem('statsMode') || 'percent';
+        renderThresholds(currentMode);
+
+        const handleThresholdChange = () => {
+            const mode = localStorage.getItem('statsMode') || 'percent';
+            renderThresholds(mode);
+        };
+
+        // Manual apply button to update thresholds
+        const applyThresholdsBtn = document.getElementById('apply-thresholds');
+        if (applyThresholdsBtn) {
+            applyThresholdsBtn.addEventListener('click', handleThresholdChange);
+        }
+
+        // Re-render thresholds when switching GPA/percent mode
+        if (statToggleButtons.length > 0) {
+            statToggleButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mode = btn.dataset.statsToggle;
+                    renderThresholds(mode);
+                });
+            });
+        }
+    }
+
     function applyPredictorWeightPreview(subject, category) {
         revertPredictorWeightPreview();
 
