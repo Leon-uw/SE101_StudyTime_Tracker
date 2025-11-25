@@ -18,8 +18,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (subjectsToggle) {
         subjectsToggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            subjectsToggle.parentElement.classList.toggle('active');
+            // Only prevent default if clicking directly on the toggle, not on child links
+            if (e.target === subjectsToggle || e.target.closest('#subjects-toggle')) {
+                e.preventDefault();
+                subjectsToggle.parentElement.classList.toggle('active');
+            }
+        });
+    }
+
+    // Ensure subject links in submenu work properly
+    if (subjectsSubmenu) {
+        subjectsSubmenu.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (link && link.href && !link.id.includes('add-subject')) {
+                // Allow default navigation for subject links
+                // Close sidebar after a short delay to allow navigation
+                setTimeout(() => {
+                    if (sidebar && sidebar.classList.contains('open')) {
+                        toggleSidebar();
+                    }
+                }, 100);
+            }
         });
     }
 
