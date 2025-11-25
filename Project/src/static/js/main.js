@@ -176,6 +176,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // Pass the current state of "Show Predictions"
             // If true, the backend should include predicted assignments in the current grade/weight calc
             formData.append('use_predictions', showPredictions);
+            // Inform server which subject filter is currently active (helps responses stay scoped)
+            formData.append('current_filter', subject);
 
             try {
                 const response = await fetch('/predict_subject', {
