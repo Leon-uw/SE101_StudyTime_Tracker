@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 
-<body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}'
+<body id="main-menu" data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}'
     data-subject-categories='{{ subject_categories_map_json|safe }}'
     data-weight-categories='{{ weight_categories_json|safe }}'>
 
@@ -142,7 +142,9 @@
                         <table>
                             <thead>
                                 <tr>
+                                    {% if selected_subject and selected_subject != 'all' %}
                                     <th><input type="checkbox" id="selectAll"></th>
+                                    {% endif %}
                                     <th>Subject</th>
                                     <th>Category</th>
                                     <th>Study Time</th>
@@ -167,7 +169,9 @@
                             <tbody id="study-table-body">
                                 {% for row in data %}<tr data-id="{{ row.id }}"
                                     class="{% if row.is_prediction %}prediction-row{% endif %}">
+                                    {% if selected_subject and selected_subject != 'all' %}
                                     <td><input type="checkbox" class="select-assignment" data-id="{{ row.id }}"></td>
+                                    {% endif %}
                                     <td>{{ row.subject }}</td>
                                     <td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
