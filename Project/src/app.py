@@ -589,7 +589,7 @@ def stats():                      # <-- was: def stats(username):
     # get the username from the logged-in user
     username = getattr(current_user, 'username', None)
     if not username:
-        username = session.get('username')
+        username = session.get('user')
         if not username:
             return redirect(url_for(login_manager.login_view))
 

@@ -3,6 +3,7 @@
 
 # Core Flask Framework
 flask>=2.3.0
+flask-login>=0.6.3
 
 # Database Connectors
 pymysql>=1.1.0
