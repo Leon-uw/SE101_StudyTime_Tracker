@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Log Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 
 <body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}'
@@ -90,6 +90,8 @@
 
             <div class="main-container">
                 <div class="full-width-panel">
+                    <h1 style="margin: 0 0 20px 0; font-size: 1.8em; color: var(--text-color); font-weight: 600;">Hello,
+                        {{ username }}!</h1>
                     <div class="action-bar">
                         <!-- Hidden form for compatibility with existing JS that might look for these inputs -->
                         <form id="filter-form" style="display:none;">
@@ -124,7 +126,15 @@
                         </div>
                         {% endif %}
 
-                        <button type="button" id="grade-lock-btn" class="grade-lock-btn lock-on">Grade Lock: ON</button>
+                        <div class="action-buttons">
+                            <button id="show-predictions-btn" class="grade-lock-btn lock-off"
+                                style="margin-right: 10px;">
+                                Show Predictions: OFF
+                            </button>
+                            <button id="grade-lock-btn" class="grade-lock-btn lock-off">
+                                Grade Lock: OFF
+                            </button>
+                        </div>
                     </div>
 
                     <h2>Assignments</h2>
@@ -169,10 +179,11 @@
                                             </svg> {{ row.category }}</span></td>
                                     {% if row.is_prediction %}
                                     <td><input type="number" class="prediction-input hours-input" data-id="{{ row.id }}"
-                                            value="{{ row.study_time }}" step="0.1" style="width: 80px;"> hours</td>
+                                            value="{{ row.study_time }}" step="0.1" min="0" style="width: 80px;"> hours
+                                    </td>
                                     <td>{{ row.assignment_name }}</td>
                                     <td><input type="number" class="prediction-input grade-input" data-id="{{ row.id }}"
-                                            value="{{ row.grade }}" step="1" style="width: 80px;">%</td>
+                                            value="{{ row.grade }}" step="1" min="0" style="width: 80px;">%</td>
                                     {% else %}
                                     <td>{{ "%.1f"|format(row.study_time) }} hours</td>
                                     <td>{{ row.assignment_name }}</td>
@@ -193,70 +204,128 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="button-row" style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
-                        <button id="addRowBtn" style="padding: 8px 16px; font-size: 0.9em;">Add Assignment</button>
-                        <button id="addPredictionBtn"
-                            style="padding: 8px 16px; font-size: 0.9em; background-color: var(--accent-color);">Add
-                            Prediction</button>
-                        <button id="deleteSelectedBtn" style="display:none; padding: 8px 16px; font-size: 0.9em;">
-                            Delete Selected (<span id="selectedCount">0</span>)
-                        </button>
-                        <button id="deselectAllBtn" style="display:none; padding: 8px 16px; font-size: 0.9em;">
-                            Deselect All
-                        </button>
-                    </div>
+                    <!-- Combined Control Bar -->
+                    <div class="control-bar"
+                        style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 20px; align-items: center; margin-top: 15px; padding: 15px; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow);">
 
-                    {% if selected_subject and selected_subject != 'all' %}
-                    <div class="category-section" style="margin-top: 30px;">
-                        <h2>Category Definitions for {{ selected_subject }}</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Category Name</th>
-                                    <th>Total Weight (%)</th>
-                                    <th># Assessments</th>
-                                    <th>Calculated Weight</th>
-                                    <th>Default Name Pattern</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="category-table-body">
-                                {% for cat in weight_categories_py.get(selected_subject, []) %}
-                                <tr data-id="{{ cat.id }}" data-name="{{ cat.name }}">
-                                    <td>{{ cat.name }}</td>
-                                    <td>{{ cat.total_weight }}%</td>
-                                    <td class="num-assessments">{{ cat.num_assessments }}</td>
-                                    <td class="calculated-weight">{% if cat.num_assessments > 0 %}{{
-                                        "%.2f"|format(cat.total_weight / cat.num_assessments) }}%{% else %}N/A{% endif
-                                        %}
-                                    </td>
-                                    <td>{{ cat.default_name if cat.default_name else '-' }}</td>
-                                    <td><button class="action-btn edit-btn">Edit</button><button
-                                            class="action-btn delete-btn">Delete</button></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        <div id="total-weight-indicator"
-                            style="margin-top: 1em; padding: 10px; border-radius: 4px; font-weight: bold;">
-                            Total Weight: <span id="total-weight-value">0</span>% / 100%
+                        <!-- Standard Buttons -->
+                        <div class="button-group" style="display: flex; gap: 8px;">
+                            {% if selected_subject and selected_subject != 'all' %}
+                            <button id="addRowBtn"
+                                style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">Add
+                                Assignment</button>
+                            <button id="addPredictionBtn"
+                                style="padding: 8px 12px; font-size: 0.85em; background-color: var(--accent-color); white-space: nowrap;">Add
+                                Prediction</button>
+                            {% endif %}
+                            <button id="deleteSelectedBtn"
+                                style="display:none; padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">Delete
+                                Selected (<span id="selectedCount">0</span>)</button>
+                            <button id="deselectAllBtn"
+                                style="display:none; padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">Deselect
+                                All</button>
                         </div>
-                        <button id="addCategoryBtn" style="margin-top: 1em;">Add Category Definition</button>
+
+                        <!-- Subject Grade Predictor (Conditional) -->
+                        <div id="subject-predictor-container"
+                            style="display: none; flex: 1; min-width: 300px; border-left: 2px solid var(--border-color); padding-left: 20px;">
+                            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                <h3 style="margin: 0; font-size: 1.1em; white-space: nowrap; color: var(--text-color);">
+                                    Subject Predictor:</h3>
+
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="position: relative;">
+                                        <input type="number" id="predict-overall-grade" placeholder="Target Grade"
+                                            step="0.1" min="0" style="width: 140px; padding: 8px; padding-right: 25px;">
+                                        <span
+                                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.8em;">%</span>
+                                    </div>
+                                    <span style="color: var(--text-secondary); font-weight: bold;">OR</span>
+                                    <div style="position: relative;">
+                                        <input type="number" id="predict-study-time" placeholder="Add. Time" step="0.1"
+                                            min="0" style="width: 140px; padding: 8px; padding-right: 45px;">
+                                        <span
+                                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.8em;">hours</span>
+                                    </div>
+                                </div>
+
+                                <button id="trigger-subject-predict-btn"
+                                    style="padding: 8px 12px; font-size: 0.85em; background-color: var(--primary-color); color: white; white-space: nowrap;">Predict</button>
+
+                                <div
+                                    style="display: flex; gap: 20px; align-items: center; margin-left: auto; font-size: 0.95em;">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 0.8em; color: var(--text-secondary);">Remaining Weight
+                                        </div>
+                                        <div id="predictor-remaining-weight"
+                                            style="font-weight: bold; font-size: 1.1em;">-</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 0.8em; color: var(--text-secondary);">Avg Needed</div>
+                                        <div id="predictor-avg-needed"
+                                            style="font-weight: bold; font-size: 1.1em; color: var(--primary-color);">-
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="predictor-message"
+                                style="margin-top: 5px; color: var(--text-secondary); font-style: italic; font-size: 0.9em;">
+                            </div>
+                        </div>
                     </div>
-                    {% endif %}
                 </div>
 
+                {% if selected_subject and selected_subject != 'all' %}
+                <div class="category-section" style="margin-top: 30px;">
+                    <h2>Category Definitions for {{ selected_subject }}</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Category Name</th>
+                                <th>Total Weight (%)</th>
+                                <th># Assessments</th>
+                                <th>Calculated Weight</th>
+                                <th>Default Name Pattern</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="category-table-body">
+                            {% for cat in weight_categories_py.get(selected_subject, []) %}
+                            <tr data-id="{{ cat.id }}" data-name="{{ cat.name }}">
+                                <td>{{ cat.name }}</td>
+                                <td>{{ cat.total_weight }}%</td>
+                                <td class="num-assessments">{{ cat.num_assessments }}</td>
+                                <td class="calculated-weight">{% if cat.num_assessments > 0 %}{{
+                                    "%.2f"|format(cat.total_weight / cat.num_assessments) }}%{% else %}N/A{% endif
+                                    %}
+                                </td>
+                                <td>{{ cat.default_name if cat.default_name else '-' }}</td>
+                                <td><button class="action-btn edit-btn">Edit</button><button
+                                        class="action-btn delete-btn">Delete</button></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <div id="total-weight-indicator"
+                        style="margin-top: 1em; padding: 10px; border-radius: 4px; font-weight: bold;">
+                        Total Weight: <span id="total-weight-value">0</span>% / 100%
+                    </div>
+                    <button id="addCategoryBtn" style="margin-top: 1em;">Add Category Definition</button>
+                </div>
+                {% endif %}
             </div>
 
-            {% if selected_subject and selected_subject != 'all' %}
-            <div class="delete-subject-bar"
-                style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-color); width: 100%; text-align: center;">
-                <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn"
-                    style="padding: 10px 20px; font-size: 1em;" data-subject="{{ selected_subject }}">Delete Subject {{
-                    selected_subject }}</button>
-            </div>
-            {% endif %}
         </div>
+
+        {% if selected_subject and selected_subject != 'all' %}
+        <div class="delete-subject-bar"
+            style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-color); width: 100%; text-align: center;">
+            <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn"
+                style="padding: 10px 20px; font-size: 1em;" data-subject="{{ selected_subject }}">Delete Subject {{
+                selected_subject }}</button>
+        </div>
+        {% endif %}
+    </div>
     </div>
 
 

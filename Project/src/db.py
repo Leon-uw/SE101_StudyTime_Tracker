@@ -18,6 +18,7 @@ SUBJECTS_TABLE = f"{DB_USER}_subjects"
 GRADES_DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    username varchar(255) NOT NULL,
     Subject varchar(255) NOT NULL,
     Category varchar(255) NOT NULL,
     StudyTime double NOT NULL,
@@ -25,7 +26,7 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     Grade double NULL,
     Weight double NOT NULL,
     IsPrediction BOOLEAN DEFAULT FALSE,
-    INDEX idx_subject_category (Subject, Category)
+    INDEX idx_user_subject_category (username, Subject, Category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
@@ -33,11 +34,12 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
 CATEGORIES_DDL = f"""
 CREATE TABLE IF NOT EXISTS {CATEGORIES_TABLE} (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    username varchar(255) NOT NULL,
     Subject varchar(255) NOT NULL,
     CategoryName varchar(255) NOT NULL,
     TotalWeight double NOT NULL,
     DefaultName varchar(255),
-    UNIQUE KEY unique_subject_category (Subject, CategoryName)
+    UNIQUE KEY unique_user_subject_category (username, Subject, CategoryName)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
@@ -45,9 +47,23 @@ CREATE TABLE IF NOT EXISTS {CATEGORIES_TABLE} (
 SUBJECTS_DDL = f"""
 CREATE TABLE IF NOT EXISTS {SUBJECTS_TABLE} (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name varchar(255) NOT NULL UNIQUE,
+    username varchar(255) NOT NULL,
+    name varchar(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_name (name)
+    UNIQUE KEY unique_user_subject (username, name),
+    INDEX idx_user_name (username, name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
+USERS_TABLE = f"{DB_USER}_users"
+
+# Users table DDL
+USERS_DDL = f"""
+CREATE TABLE IF NOT EXISTS {USERS_TABLE} (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username varchar(255) NOT NULL UNIQUE,
+    password_hash varchar(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
@@ -74,6 +90,7 @@ def init_db():
         cur.execute(GRADES_DDL)
         cur.execute(CATEGORIES_DDL)
         cur.execute(SUBJECTS_DDL)
+        cur.execute(USERS_DDL)
         conn.commit()
     finally:
         cur.close()
@@ -99,11 +116,11 @@ def seed_initial_data():
         # PHASE 7: Insert subjects first
         subjects = ["Mathematics", "History", "Science"]
         subject_query = f"""
-            INSERT INTO {SUBJECTS_TABLE} (name)
-            VALUES (%s)
+            INSERT INTO {SUBJECTS_TABLE} (username, name)
+            VALUES (%s, %s)
         """
         for subject in subjects:
-            cur.execute(subject_query, (subject,))
+            cur.execute(subject_query, ('admin', subject))
 
         # Insert sample categories (from Sprint 2A weight_categories)
         categories = [
@@ -116,12 +133,12 @@ def seed_initial_data():
 
         category_query = f"""
             INSERT INTO {CATEGORIES_TABLE}
-            (Subject, CategoryName, TotalWeight, DefaultName)
-            VALUES (%s, %s, %s, %s)
+            (username, Subject, CategoryName, TotalWeight, DefaultName)
+            VALUES (%s, %s, %s, %s, %s)
         """
 
         for subject, name, weight, default in categories:
-            cur.execute(category_query, (subject, name, weight, default))
+            cur.execute(category_query, ('admin', subject, name, weight, default))
 
         # Insert sample assignments (from Sprint 2A study_data)
         assignments = [
@@ -135,12 +152,12 @@ def seed_initial_data():
 
         assignment_query = f"""
             INSERT INTO {TABLE_NAME}
-            (Subject, Category, StudyTime, AssignmentName, Grade, Weight)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
 
         for subject, category, time, name, grade, weight in assignments:
-            cur.execute(assignment_query, (subject, category, time, name, grade, weight))
+            cur.execute(assignment_query, ('admin', subject, category, time, name, grade, weight))
 
         conn.commit()
         print(f"✓ Seeded {len(categories)} categories and {len(assignments)} sample assignments")

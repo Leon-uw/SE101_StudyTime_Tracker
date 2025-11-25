@@ -63,8 +63,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const subjectFilterDropdown = document.getElementById('subject-filter');
     const subjectFilterVisible = document.getElementById('subject-filter-visible');
 
+    // --- Subject Predictor Elements ---
+    const subjectPredictorContainer = document.getElementById('subject-predictor-container');
+    const predictOverallGradeInput = document.getElementById('predict-overall-grade');
+    const predictStudyTimeInput = document.getElementById('predict-study-time');
+    const predictorRemainingWeight = document.getElementById('predictor-remaining-weight');
+    const predictorAvgNeeded = document.getElementById('predictor-avg-needed');
+    const predictorMessage = document.getElementById('predictor-message');
+
+    const triggerSubjectPredictBtn = document.getElementById('trigger-subject-predict-btn');
+
     // --- State Variables ---
-    let isGradeLockOn = true;
+    // Load from localStorage, default Grade Lock to true, Show Predictions to false
+    let isGradeLockOn = localStorage.getItem('isGradeLockOn') !== null ? localStorage.getItem('isGradeLockOn') === 'true' : true;
+    let showPredictions = localStorage.getItem('showPredictions') === 'true';
+
     let itemToDelete = {
         row: null,
         type: null
@@ -73,6 +86,164 @@ document.addEventListener('DOMContentLoaded', function () {
     let weightPreviewState = new Map();
     let predictorWeightPreviewState = new Map();
     let allAssignmentsData = []; // Store all assignments for client-side filtering
+
+    // ... (Helper Functions: debounce) ...
+
+
+
+    function updateSubjectPrediction(subject) {
+        const container = document.getElementById('subject-predictor-container');
+        if (!container) return;
+
+        const subjectFilterDropdown = document.getElementById('subject-filter');
+        // Also check visible filter if hidden one is empty/default
+        const subjectFilterVisible = document.getElementById('subject-filter-visible');
+
+        let currentFilter = subjectFilterDropdown ? subjectFilterDropdown.value : '';
+        if ((!currentFilter || currentFilter === 'all') && subjectFilterVisible) {
+            currentFilter = subjectFilterVisible.value;
+        }
+
+        let targetSubject = subject || currentFilter;
+
+        if (targetSubject && targetSubject !== 'all') {
+            container.style.display = 'flex'; // Or block, depending on layout
+            // Clear previous results
+            if (predictorMessage) predictorMessage.textContent = '';
+            if (predictorRemainingWeight) predictorRemainingWeight.textContent = '-';
+            if (predictorAvgNeeded) predictorAvgNeeded.textContent = '-';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    if (triggerSubjectPredictBtn) {
+        triggerSubjectPredictBtn.addEventListener('click', async function () {
+            const subjectFilterDropdown = document.getElementById('subject-filter');
+            const subjectFilterVisible = document.getElementById('subject-filter-visible');
+
+            let subject = subjectFilterDropdown ? subjectFilterDropdown.value : '';
+            if ((!subject || subject === 'all') && subjectFilterVisible) {
+                subject = subjectFilterVisible.value;
+            }
+
+            if (!subject || subject === 'all') {
+                showToast('Please select a subject first.', 'error');
+                return;
+            }
+
+            const overallGrade = predictOverallGradeInput.value;
+            const studyTime = predictStudyTimeInput.value;
+
+            if (!overallGrade && !studyTime) {
+                showToast('Please enter a target grade or study time.', 'error');
+                return;
+            }
+
+            if ((overallGrade && parseFloat(overallGrade) < 0) || (studyTime && parseFloat(studyTime) < 0)) {
+                showToast('Values cannot be negative.', 'error');
+                return;
+            }
+
+            // Clear the OTHER input to ensure mutually exclusive prediction
+            // If user entered overall grade, we predict study time (so clear study time input if it had a value? No, usually we want to fill it)
+            // Actually, the user request says: "make it so when you predict a subject it shows the predicted grade or percent in the other input field and not separately"
+
+            const formData = new FormData();
+            formData.append('subject', subject);
+            if (overallGrade) formData.append('target_grade', overallGrade);
+            if (studyTime) formData.append('study_time', studyTime);
+
+            // Pass the current state of "Show Predictions"
+            // If true, the backend should include predicted assignments in the current grade/weight calc
+            formData.append('use_predictions', showPredictions);
+
+            try {
+                const response = await fetch('/predict_subject', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    // Clear previous error messages
+                    if (predictorMessage) {
+                        predictorMessage.textContent = '';
+                        predictorMessage.className = 'prediction-message';
+                    }
+
+                    if (result.remaining_weight !== undefined && predictorRemainingWeight) {
+                        predictorRemainingWeight.textContent = result.remaining_weight + '%';
+                    }
+
+                    // Populate the complementary field
+                    if (result.predicted_additional_time !== undefined && result.predicted_additional_time !== null) {
+                        predictStudyTimeInput.value = result.predicted_additional_time;
+                        // Optional: Highlight it?
+                    } else if (result.predicted_overall_grade !== undefined && result.predicted_overall_grade !== null) {
+                        predictOverallGradeInput.value = result.predicted_overall_grade;
+                    }
+
+                    // Also show avg needed if available
+                    if (predictorAvgNeeded) {
+                        if (result.average_grade_needed !== undefined) {
+                            predictorAvgNeeded.textContent = result.average_grade_needed + '%';
+                        }
+                    }
+
+                    if (result.message) {
+                        // Show non-critical messages (like "Target unreachable")
+                        if (predictorMessage) {
+                            predictorMessage.textContent = result.message;
+                            predictorMessage.className = 'prediction-message ' + (result.message.includes('unreachable') ? 'error' : 'success');
+                        }
+                    }
+
+                } else {
+                    showToast(result.message, 'error');
+                    if (predictorMessage) {
+                        predictorMessage.textContent = result.message;
+                        predictorMessage.className = 'prediction-message error';
+                    }
+                }
+            } catch (error) {
+                console.error('Prediction failed:', error);
+                showToast('Network error occurred.', 'error');
+            }
+        });
+    }
+
+    // Enter key support for Subject Predictor
+    if (predictOverallGradeInput) {
+        predictOverallGradeInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                // Clear the other input if it has a value to avoid confusion? 
+                // Or just let the button handler deal with it (it prioritizes target_grade if both present usually, or we should ensure only one is sent)
+                // For better UX, if I press enter here, I probably want to predict based on THIS value.
+                if (predictStudyTimeInput) predictStudyTimeInput.value = '';
+                triggerSubjectPredictBtn.click();
+            }
+        });
+    }
+    if (predictStudyTimeInput) {
+        predictStudyTimeInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (predictOverallGradeInput) predictOverallGradeInput.value = '';
+                triggerSubjectPredictBtn.click();
+            }
+        });
+    }
+
+    // Initialize predictor visibility on load
+    const initialSubject = subjectFilterDropdown ? subjectFilterDropdown.value : '';
+    const initialVisibleSubject = subjectFilterVisible ? subjectFilterVisible.value : '';
+    if (initialSubject && initialSubject !== 'all') {
+        updateSubjectPrediction(initialSubject);
+    } else if (initialVisibleSubject && initialVisibleSubject !== 'all') {
+        updateSubjectPrediction(initialVisibleSubject);
+    }
 
     // --- Helper Functions ---
     function showToast(message, type = 'success') {
@@ -94,6 +265,236 @@ document.addEventListener('DOMContentLoaded', function () {
             toast.addEventListener('transitionend', () => toast.remove());
         }, 3000);
     }
+
+    function showConfirmation(message, row, type) {
+        itemToDelete = {
+            row,
+            type
+        };
+        modalMsg.textContent = message;
+        confirmationModal.style.display = 'flex';
+    }
+
+    function hideConfirmation() {
+        itemToDelete = {
+            row: null,
+            type: null
+        };
+        confirmationModal.style.display = 'none';
+    }
+
+    function showValidationAlert(messages) {
+        if (!validationAlert) return;
+        if (messages && messages.length > 0) {
+            validationAlert.innerHTML = `<ul>${messages.map(msg => `<li>${msg}</li>`).join('')}</ul>`;
+            validationAlert.style.display = 'block';
+        } else {
+            validationAlert.innerHTML = '';
+            validationAlert.style.display = 'none';
+        }
+    }
+
+    function validateRow(row) {
+        const errorMessages = [];
+        // Do not clear global alerts here, as multiple rows might have errors.
+        const inputsToValidate = row.querySelectorAll('input[required], select[required]');
+        inputsToValidate.forEach(input => {
+            input.classList.remove('input-error');
+            if (!input.checkValidity()) {
+                let message = '';
+                const fieldName = input.name.replace('_', ' ');
+                const formattedName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+                if (input.validity.valueMissing) {
+                    message = `${formattedName} is a required field.`;
+                } else if (input.validity.rangeUnderflow) {
+                    message = `${formattedName} must be at least ${input.min}.`;
+                } else if (input.validity.rangeOverflow) {
+                    message = `${formattedName} must be no more than ${input.max}.`;
+                } else {
+                    message = `Please enter a valid value for ${formattedName}.`;
+                }
+                errorMessages.push(message);
+                input.classList.add('input-error');
+            }
+        });
+
+        // Additional validation for grade lock
+        const gradeInput = row.querySelector('input[name="grade"]');
+        if (gradeInput && gradeInput.value && isGradeLockOn) {
+            const gradeValue = parseFloat(gradeInput.value);
+            if (gradeValue > 100) {
+                errorMessages.push('Grade cannot exceed 100% when Grade Lock is ON.');
+                gradeInput.classList.add('input-error');
+            }
+        }
+
+        if (errorMessages.length > 0) {
+            showValidationAlert(errorMessages);
+            return false;
+        }
+        return true;
+    }
+
+    function recalculateSummaryFromDOM() {
+        const rows = Array.from(assignmentTableBody.querySelectorAll('tr[data-id]')); // Only data rows
+        let totalTime = 0;
+        let totalWeightedGrade = 0;
+        let totalWeight = 0;
+
+        rows.forEach(row => {
+            // Skip if row is hidden (e.g. filtered out)
+            if (row.style.display === 'none') return;
+
+            // Check if it's a prediction row
+            const isPrediction = row.classList.contains('prediction-row');
+            if (isPrediction && !showPredictions) return; // Skip if predictions are hidden
+
+            // Get values from inputs or text content
+            let time = 0;
+            let grade = null;
+            let weight = 0;
+
+            if (isPrediction) {
+                const timeInput = row.querySelector('.hours-input');
+                const gradeInput = row.querySelector('.grade-input');
+                // Weight is in the 7th column (index 6)
+                const weightCell = row.querySelectorAll('td')[6];
+
+                if (timeInput) {
+                    time = parseFloat(timeInput.value) || 0;
+                }
+                if (gradeInput && gradeInput.value !== '') {
+                    grade = parseFloat(gradeInput.value);
+                }
+                if (weightCell) {
+                    weight = parseFloat(weightCell.textContent) || 0;
+                }
+            } else {
+                // Regular row
+                // Time: 4th col (index 3) "X hours"
+                const timeCell = row.querySelectorAll('td')[3];
+                if (timeCell) {
+                    time = parseFloat(timeCell.textContent) || 0;
+                }
+
+                // Grade: 6th col (index 5) "X%" or "-"
+                const gradeCell = row.querySelectorAll('td')[5];
+                if (gradeCell) {
+                    const gradeText = gradeCell.textContent.trim();
+                    if (gradeText !== '-' && gradeText !== '') {
+                        grade = parseFloat(gradeText);
+                    }
+                }
+
+                // Weight: 7th col (index 6) "X%"
+                const weightCell = row.querySelectorAll('td')[6];
+                if (weightCell) {
+                    weight = parseFloat(weightCell.textContent) || 0;
+                }
+            }
+
+            totalTime += time;
+            if (grade !== null) {
+                totalWeightedGrade += grade * weight;
+                totalWeight += weight;
+            }
+        });
+
+        const avgGrade = totalWeight > 0 ? (totalWeightedGrade / totalWeight).toFixed(1) : '0.0';
+
+        // Update the summary row in the DOM
+        const summaryRow = document.querySelector('.summary-row');
+        if (summaryRow && summaryRow.children.length >= 7) {
+            // 4th col: Total Time
+            if (summaryRow.children[3]) summaryRow.children[3].textContent = totalTime.toFixed(1) + 'h (total)';
+            // 6th col: Avg Grade
+            if (summaryRow.children[5]) summaryRow.children[5].textContent = avgGrade + '% (avg)';
+            // 7th col: Total Weight
+            if (summaryRow.children[6]) summaryRow.children[6].textContent = totalWeight.toFixed(2) + '% (graded)';
+
+            // Toggle active class for styling
+            const summaryCells = [summaryRow.children[3], summaryRow.children[5], summaryRow.children[6]];
+            summaryCells.forEach(cell => {
+                if (cell) {
+                    if (showPredictions) {
+                        cell.classList.add('show-predictions-active');
+                    } else {
+                        cell.classList.remove('show-predictions-active');
+                    }
+                }
+            });
+        }
+    }
+
+    // ... (applyWeightPreview, revertWeightPreview, etc.) ...
+
+    // ... (renderAssignmentTable function - needs to call updateSummaryRow at the end) ...
+
+    // ... (updateCategoryTableRow, updateTotalWeightIndicator, handleAssignmentSave, handleCategorySave) ...
+
+    // ... (Confirmation Modal Listeners) ...
+
+    if (gradeLockBtn) {
+        // Initialize button state
+        gradeLockBtn.textContent = isGradeLockOn ? 'Grade Lock: ON' : 'Grade Lock: OFF';
+        gradeLockBtn.classList.toggle('lock-on', isGradeLockOn);
+        gradeLockBtn.classList.toggle('lock-off', !isGradeLockOn);
+
+        gradeLockBtn.addEventListener('click', function () {
+            isGradeLockOn = !isGradeLockOn;
+            localStorage.setItem('isGradeLockOn', isGradeLockOn); // Save state
+
+            this.textContent = isGradeLockOn ? 'Grade Lock: ON' : 'Grade Lock: OFF';
+            this.classList.toggle('lock-on', isGradeLockOn);
+            this.classList.toggle('lock-off', !isGradeLockOn);
+
+            // Remove forced styles if they were applied
+            this.style.backgroundColor = '';
+
+            // Update all grade input fields max attribute
+            const allGradeInputs = document.querySelectorAll('input[name="grade"]');
+            allGradeInputs.forEach(input => {
+                if (isGradeLockOn) {
+                    input.setAttribute('max', '100');
+                } else {
+                    input.removeAttribute('max');
+                }
+            });
+        });
+    }
+
+    // ... (addCategoryBtn, categoryTableBody listeners) ...
+
+    // ... (addNewRow function) ...
+
+    const showPredictionsBtn = document.getElementById('show-predictions-btn');
+
+    // Toggle Show Predictions
+    if (showPredictionsBtn) {
+        // Initialize button state
+        showPredictionsBtn.textContent = showPredictions ? 'Show Predictions: ON' : 'Show Predictions: OFF';
+        showPredictionsBtn.classList.toggle('lock-on', showPredictions);
+        showPredictionsBtn.classList.toggle('lock-off', !showPredictions);
+
+        showPredictionsBtn.addEventListener('click', () => {
+            showPredictions = !showPredictions;
+            localStorage.setItem('showPredictions', showPredictions); // Save state
+
+            showPredictionsBtn.textContent = showPredictions ? 'Show Predictions: ON' : 'Show Predictions: OFF';
+            showPredictionsBtn.classList.toggle('lock-on', showPredictions);
+            showPredictionsBtn.classList.toggle('lock-off', !showPredictions);
+
+            // Refresh UI
+            // We need to re-render to ensure "Remaining Weight" in predictor is correct
+            // AND to update the summary row
+            const currentSubject = subjectFilterDropdown.value;
+            // Re-fetch or just re-render? 
+            // Ideally we just call recalculateSummaryFromDOM and updateSubjectPrediction
+            recalculateSummaryFromDOM();
+            updateSubjectPrediction(null);
+        });
+    }
+
 
     function showConfirmation(message, row, type) {
         itemToDelete = {
@@ -168,17 +569,32 @@ document.addEventListener('DOMContentLoaded', function () {
         return true;
     }
 
-    function updateSummaryRow(summaryData, subjectName) {
+    function renderSummaryRow(summaryData, subjectName) {
         let summaryRow = assignmentTableBody.querySelector('.summary-row');
+        // If not found in body, check thead (where it should be)
+        if (!summaryRow) {
+            const table = assignmentTableBody.closest('table');
+            const thead = table ? table.querySelector('thead') : null;
+            if (thead) {
+                summaryRow = thead.querySelector('.summary-row');
+            }
+        }
+
         if (summaryData) {
-            const summaryHtml = `<td><strong>Summary for ${subjectName}</strong></td><td>-</td><td>${summaryData.total_hours.toFixed(1)}h (total)</td><td>-</td><td>${summaryData.average_grade.toFixed(1)}% (avg)</td><td>${summaryData.total_weight.toFixed(2)}% (graded)</td><td>-</td>`;
+            const summaryHtml = `<td></td><td><strong>Summary for ${subjectName}</strong></td><td>-</td><td>${summaryData.total_hours.toFixed(1)}h (total)</td><td>-</td><td>${summaryData.average_grade.toFixed(1)}% (avg)</td><td>${summaryData.total_weight.toFixed(2)}% (graded)</td><td>-</td>`;
+
             if (summaryRow) {
                 summaryRow.innerHTML = summaryHtml;
             } else {
-                summaryRow = document.createElement('tr');
-                summaryRow.className = 'summary-row';
-                summaryRow.innerHTML = summaryHtml;
-                assignmentTableBody.prepend(summaryRow);
+                // Create in thead if possible
+                const table = assignmentTableBody.closest('table');
+                const thead = table ? table.querySelector('thead') : null;
+                if (thead) {
+                    summaryRow = document.createElement('tr');
+                    summaryRow.className = 'summary-row';
+                    summaryRow.innerHTML = summaryHtml;
+                    thead.appendChild(summaryRow);
+                }
             }
         } else if (summaryRow) {
             summaryRow.remove();
@@ -239,6 +655,167 @@ document.addEventListener('DOMContentLoaded', function () {
             if (weightCell) weightCell.innerHTML = originalHtml;
         });
         predictorWeightPreviewState.clear();
+    }
+
+    // --- Stats view grade display toggle ---
+    const statToggleButtons = document.querySelectorAll('[data-stats-toggle]');
+
+    function percentToGpa(percent) {
+        if (percent === null || percent === undefined || isNaN(percent)) return null;
+        return Math.max(0, Math.min(4, (percent / 100) * 4));
+    }
+
+    function applyStatsMode(mode) {
+        statToggleButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.statsToggle === mode);
+        });
+
+        document.querySelectorAll('.stat-grade').forEach(el => {
+            const percent = parseFloat(el.dataset.gradePercent);
+            if (isNaN(percent)) return;
+            if (mode === 'gpa') {
+                const gpa = percentToGpa(percent);
+                if (gpa !== null) el.textContent = `${gpa.toFixed(2)}`;
+            } else {
+                el.textContent = `${percent.toFixed(1)}%`;
+            }
+        });
+
+        document.querySelectorAll('.stat-grade-per-hour').forEach(el => {
+            const percentPerHour = parseFloat(el.dataset.gradePerHour);
+            if (isNaN(percentPerHour)) return;
+            if (mode === 'gpa') {
+                const gpaPerHour = percentPerHour * 0.04; // convert %/h to GPA(4.0)/h
+                el.textContent = `${gpaPerHour.toFixed(2)}/h`;
+            } else {
+                el.textContent = `${percentPerHour.toFixed(2)}%/h`;
+            }
+        });
+
+        // Update copy labels that mention percent explicitly
+        document.querySelectorAll('[data-toggle-percent-label]').forEach(el => {
+            const percentLabel = el.dataset.togglePercentLabel;
+            const gpaLabel = el.dataset.toggleGpaLabel || percentLabel;
+            el.textContent = mode === 'gpa' ? gpaLabel : percentLabel;
+        });
+
+        localStorage.setItem('statsMode', mode);
+    }
+
+    if (statToggleButtons.length > 0) {
+        const savedMode = localStorage.getItem('statsMode') || 'percent';
+        applyStatsMode(savedMode);
+        statToggleButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.statsToggle;
+                applyStatsMode(mode);
+            });
+        });
+    }
+
+    // --- Threshold controls (High Scores / Needs Work) ---
+    const gradedScores = JSON.parse(document.body.dataset.gradedScores || '[]');
+    const highInput = document.getElementById('high-threshold');
+    const lowInput = document.getElementById('low-threshold');
+    const highPctDisplay = document.getElementById('high-score-pct-display');
+    const highDesc = document.getElementById('high-score-desc');
+    const needsPctDisplay = document.getElementById('needs-work-pct-display');
+    const needsDesc = document.getElementById('needs-work-desc');
+    const highHint = document.getElementById('high-threshold-hint');
+    const lowHint = document.getElementById('low-threshold-hint');
+    const highPill = document.getElementById('high-pill-text');
+    const lowPill = document.getElementById('low-pill-text');
+
+    function computeThresholdStats(highCut, lowCut) {
+        const total = gradedScores.length;
+        if (total === 0) {
+            return { strongPct: null, strongCount: 0, needsPct: null, needsCount: 0, total };
+        }
+        const strongCount = gradedScores.filter(g => g >= highCut).length;
+        const needsCount = gradedScores.filter(g => g < lowCut).length;
+        return {
+            strongPct: (strongCount / total) * 100,
+            strongCount,
+            needsPct: (needsCount / total) * 100,
+            needsCount,
+            total
+        };
+    }
+
+    function renderThresholds(mode) {
+        if (!highInput || !lowInput || !highPctDisplay || !needsPctDisplay) return;
+        const highCut = parseFloat(highInput.value) || 90;
+        const lowCut = parseFloat(lowInput.value) || 70;
+        const stats = computeThresholdStats(highCut, lowCut);
+
+        // Update hints with both % and GPA equivalents
+        const highGpa = percentToGpa(highCut);
+        const lowGpa = percentToGpa(lowCut);
+        if (highHint) highHint.textContent = `(${highCut.toFixed(0)}% / ${highGpa.toFixed(2)} GPA)`;
+        if (lowHint) lowHint.textContent = `(${lowCut.toFixed(0)}% / ${lowGpa.toFixed(2)} GPA)`;
+
+        if (stats.strongPct === null) {
+            highPctDisplay.textContent = 'N/A';
+            highDesc.textContent = 'Add more graded items to see this metric.';
+        } else {
+            const thresholdLabel = mode === 'gpa'
+                ? `${percentToGpa(highCut).toFixed(2)} GPA`
+                : `${highCut.toFixed(0)}%`;
+            highPctDisplay.textContent = `${stats.strongPct.toFixed(1)}%`;
+            highDesc.textContent = `${stats.strongCount} of ${stats.total} graded items cleared the high-score bar (≥ ${thresholdLabel}).`;
+            if (highPill) highPill.textContent = mode === 'gpa'
+                ? `${percentToGpa(highCut).toFixed(2)}+ GPA`
+                : `${highCut.toFixed(0)}%+ results`;
+        }
+
+        if (stats.needsPct === null) {
+            needsPctDisplay.textContent = 'N/A';
+            needsDesc.textContent = 'Add more graded items to see this metric.';
+        } else {
+            const thresholdLabel = mode === 'gpa'
+                ? `${percentToGpa(lowCut).toFixed(2)} GPA`
+                : `${lowCut.toFixed(0)}%`;
+            needsPctDisplay.textContent = `${stats.needsPct.toFixed(1)}%`;
+            needsDesc.textContent = `${stats.needsCount} of ${stats.total} graded items are under the target range (< ${thresholdLabel}).`;
+            if (lowPill) lowPill.textContent = mode === 'gpa'
+                ? `< ${percentToGpa(lowCut).toFixed(2)} GPA`
+                : `Below ${lowCut.toFixed(0)}%`;
+        }
+
+        localStorage.setItem('statsThresholds', JSON.stringify({ highCut, lowCut }));
+    }
+
+    if (gradedScores.length && highInput && lowInput) {
+        // Restore saved thresholds
+        try {
+            const saved = JSON.parse(localStorage.getItem('statsThresholds') || '{}');
+            if (saved.highCut !== undefined) highInput.value = saved.highCut;
+            if (saved.lowCut !== undefined) lowInput.value = saved.lowCut;
+        } catch (e) { /* ignore */ }
+
+        const currentMode = localStorage.getItem('statsMode') || 'percent';
+        renderThresholds(currentMode);
+
+        const handleThresholdChange = () => {
+            const mode = localStorage.getItem('statsMode') || 'percent';
+            renderThresholds(mode);
+        };
+
+        // Manual apply button to update thresholds
+        const applyThresholdsBtn = document.getElementById('apply-thresholds');
+        if (applyThresholdsBtn) {
+            applyThresholdsBtn.addEventListener('click', handleThresholdChange);
+        }
+
+        // Re-render thresholds when switching GPA/percent mode
+        if (statToggleButtons.length > 0) {
+            statToggleButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mode = btn.dataset.statsToggle;
+                    renderThresholds(mode);
+                });
+            });
+        }
     }
 
     function applyPredictorWeightPreview(subject, category) {
@@ -332,6 +909,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             assignmentTableBody.appendChild(row);
         });
+
+        // Update summary row based on current state (including predictions toggle)
+        recalculateSummaryFromDOM();
     }
 
     function updateCategoryTableRow(subject, categoryName) {
@@ -393,7 +973,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function handleAssignmentSave(row) {
+    async function handleAssignmentSave(row, suppressToast = false, forceAssignment = false) {
         // --- FIX: Do not revert the preview if validation fails ---
         if (!validateRow(row)) return;
         revertWeightPreview(); // Only revert on successful validation
@@ -402,10 +982,69 @@ document.addEventListener('DOMContentLoaded', function () {
         const isNew = !logId;
         const url = isNew ? '/add' : `/update/${logId}`;
         const formData = new FormData();
-        row.querySelectorAll('input, select').forEach(el => formData.append(el.name, el.value));
+
+        // Gather data from inputs
+        row.querySelectorAll('input, select').forEach(el => {
+            if (el.name) formData.append(el.name, el.value);
+        });
+
+        // For prediction rows (and potentially others), subject and category might be text, not inputs
+        // We need to ensure they are present in formData
+        if (!formData.has('subject')) {
+            const subjectCell = row.querySelector('td:nth-child(2)');
+            if (subjectCell) formData.append('subject', subjectCell.textContent.trim());
+        }
+        if (!formData.has('category')) {
+            const categoryCell = row.querySelector('td:nth-child(3)');
+            if (categoryCell) {
+                // Category cell might contain an icon/span, get text content carefully
+                // The span has class "category-tag"
+                const categorySpan = categoryCell.querySelector('.category-tag');
+                if (categorySpan) {
+                    formData.append('category', categorySpan.textContent.trim());
+                } else {
+                    formData.append('category', categoryCell.textContent.trim());
+                }
+            }
+        }
+
+        // Ensure assignment_name is present (it's text in prediction rows)
+        if (!formData.has('assignment_name')) {
+            const nameCell = row.querySelector('td:nth-child(5)');
+            if (nameCell) formData.append('assignment_name', nameCell.textContent.trim());
+        }
+
+        // Ensure study_time and grade are present if they are inputs (they should be caught by querySelectorAll above)
+        // But we need to map class names to form names if they don't have name attributes
+        // In renderAssignmentTable:
+        // <input type="number" class="prediction-input hours-input" ... > -> needs name="study_time"
+        // <input type="number" class="prediction-input grade-input" ... > -> needs name="grade"
+
+        // Let's fix the inputs in renderAssignmentTable to have name attributes, 
+        // OR handle it here. Adding name attributes in renderAssignmentTable is cleaner but requires re-rendering.
+        // Let's handle it here for robustness.
+
+        const hoursInput = row.querySelector('.hours-input');
+        if (hoursInput && !formData.has('study_time')) {
+            formData.append('study_time', hoursInput.value);
+        }
+
+        const gradeInput = row.querySelector('.grade-input');
+        if (gradeInput && !formData.has('grade')) {
+            formData.append('grade', gradeInput.value);
+        }
+
         const currentSubjectFilter = subjectFilterDropdown.value;
         formData.append('current_filter', currentSubjectFilter);
-        formData.append('is_prediction', row.dataset.isPrediction === 'true' ? 'true' : 'false');
+
+        // Determine is_prediction status
+        // If forceAssignment is true, we are converting to assignment, so is_prediction = false
+        // Otherwise, use the row's dataset
+        let isPrediction = row.dataset.isPrediction === 'true';
+        if (forceAssignment) {
+            isPrediction = false;
+        }
+        formData.append('is_prediction', isPrediction ? 'true' : 'false');
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -416,11 +1055,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 showToast(result.message, 'error');
                 return;
             }
-            showToast(result.message, 'success');
+            if (!suppressToast) {
+                showToast(result.message, 'success');
+            }
             renderAssignmentTable(result.updated_assignments, result.summary, currentSubjectFilter);
             if (isNew) {
                 updateCategoryTableRow(result.log.subject, result.log.category);
             }
+            // --- NEW: Update subject prediction (remaining weight) ---
+            updateSubjectPrediction(null);
         } catch (error) {
             console.error('Save failed:', error);
             showToast('A network error occurred.', 'error');
@@ -891,6 +1534,92 @@ document.addEventListener('DOMContentLoaded', function () {
                 await handleAssignmentSave(row);
             } else if (button.classList.contains('delete-btn')) {
                 showConfirmation("Are you sure you want to delete this assignment?", row, 'assignment');
+            } else if (button.classList.contains('add-prediction-btn')) {
+                // Convert prediction to assignment
+                // suppressToast=false, forceAssignment=true
+                await handleAssignmentSave(row, false, true);
+            } else if (button.classList.contains('predict-btn')) {
+                // Handle individual assignment prediction
+                const hoursInput = row.querySelector('.hours-input');
+                const gradeInput = row.querySelector('.grade-input');
+                const weightCell = row.querySelectorAll('td')[6]; // Weight is at index 6
+
+                const hours = hoursInput ? hoursInput.value : '';
+                const grade = gradeInput ? gradeInput.value : '';
+                const weight = weightCell ? parseFloat(weightCell.textContent) : 0;
+
+                // Validate: need either hours OR grade (target), but not both populated for prediction?
+                // Actually, usually we have one and want to predict the other.
+
+                if (hours && grade) {
+                    showToast('Please clear one field to predict it based on the other.', 'error');
+                    return;
+                }
+                if (!hours && !grade) {
+                    showToast('Please enter either Hours or Target Grade.', 'error');
+                    return;
+                }
+
+                if ((hours && parseFloat(hours) < 0) || (grade && parseFloat(grade) < 0)) {
+                    showToast('Values cannot be negative.', 'error');
+                    return;
+                }
+
+                const subject = row.querySelector('td:nth-child(2)').textContent.trim();
+                const categoryTag = row.querySelector('td:nth-child(3) .category-tag');
+                const category = categoryTag ? categoryTag.lastChild.textContent.trim() : row.querySelector('td:nth-child(3)').textContent.trim();
+
+                const formData = new FormData();
+                formData.append('subject', subject);
+                // formData.append('category', category); // Not strictly needed for k-estimation but good for context if needed
+                formData.append('weight', weight);
+                formData.append('grade_lock', isGradeLockOn ? 'true' : 'false');
+
+                if (hours) formData.append('hours', hours);
+                if (grade) formData.append('target_grade', grade);
+
+                try {
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        if (data.mode === 'grade_from_hours') {
+                            if (gradeInput) {
+                                gradeInput.value = data.predicted_grade;
+                                gradeInput.classList.add('predicted-value'); // Add some styling class if desired
+                            }
+                        } else if (data.mode === 'hours_from_grade') {
+                            if (hoursInput) {
+                                hoursInput.value = data.required_hours;
+                                hoursInput.classList.add('predicted-value');
+                            }
+                        }
+                        showToast('Prediction calculated!', 'success');
+
+                        // Save the prediction to the database immediately
+                        // suppressToast=true, forceAssignment=false (keep as prediction)
+                        await handleAssignmentSave(row, true, false);
+
+                    } else {
+                        showToast(data.message || 'Prediction failed', 'error');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    showToast('Error connecting to server', 'error');
+                }
+            }
+        });
+
+        // Enter key support for individual prediction inputs
+        assignmentTableBody.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && e.target.classList.contains('prediction-input')) {
+                e.preventDefault();
+                const row = e.target.closest('tr');
+                const predictBtn = row.querySelector('.predict-btn');
+                if (predictBtn) predictBtn.click();
             }
         });
         assignmentTableBody.addEventListener('change', function (event) {
@@ -1038,114 +1767,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Handle Predict button click
-        assignmentTableBody.addEventListener('click', async function (event) {
-            if (!event.target.classList.contains('predict-btn')) return;
-
-            const row = event.target.closest('tr');
-            if (!row || !row.classList.contains('prediction-row')) return;
-
-            const hoursInput = row.querySelector('.hours-input');
-            const gradeInput = row.querySelector('.grade-input');
-            const subjectCell = row.querySelector('td:nth-child(2)');
-            const categoryCell = row.querySelector('td:nth-child(3)');
-
-            if (!hoursInput || !gradeInput || !subjectCell || !categoryCell) return;
-
-            const hours = parseFloat(hoursInput.value) || 0;
-            const grade = parseFloat(gradeInput.value) || 0;
-            const subject = subjectCell.textContent.trim();
-            const categoryText = categoryCell.textContent.trim();
-
-            // Extract category name from the category tag
-            const categoryMatch = categoryText.match(/\s*(.+)$/);
-            const category = categoryMatch ? categoryMatch[1].trim() : categoryText;
-
-            // Determine what to predict based on what fields are filled
-            let shouldPredict = false;
-            let predictGrade = false;
-            let predictHours = false;
-
-            const hoursIsPredicted = hoursInput.classList.contains('predicted-value');
-            const gradeIsPredicted = gradeInput.classList.contains('predicted-value');
-
-            if (hours > 0) {
-                // User has hours, so predict grade
-                shouldPredict = true;
-                predictGrade = true;
-                // Clear the predicted grade if it exists
-                if (gradeIsPredicted) {
-                    gradeInput.value = '';
-                    gradeInput.classList.remove('predicted-value');
-                }
-            } else if (grade > 0) {
-                // User has grade, so predict hours
-                shouldPredict = true;
-                predictHours = true;
-                // Clear the predicted hours if it exists
-                if (hoursIsPredicted) {
-                    hoursInput.value = '';
-                    hoursInput.classList.remove('predicted-value');
-                }
-            }
-
-            if (shouldPredict) {
-                try {
-                    const formData = new FormData();
-                    formData.append('subject', subject);
-                    formData.append('category', category);
-                    formData.append('grade_lock', isGradeLockOn ? 'true' : 'false');
-
-                    if (predictGrade && hours > 0) {
-                        formData.append('hours', hours);
-                    } else if (predictHours && grade > 0) {
-                        formData.append('target_grade', grade);
-                    }
-
-                    const response = await fetch('/predict', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        if (predictGrade && result.predicted_grade !== undefined) {
-                            gradeInput.value = Math.round(result.predicted_grade);
-                            gradeInput.classList.add('predicted-value');
-                        } else if (predictHours && result.required_hours !== undefined) {
-                            hoursInput.value = result.required_hours.toFixed(1);
-                            hoursInput.classList.add('predicted-value');
-                        }
-
-                        // Auto-save after successful prediction
-                        const assignmentId = row.dataset.id;
-                        if (assignmentId) {
-                            const finalHours = parseFloat(hoursInput.value) || 0;
-                            const finalGrade = parseFloat(gradeInput.value) || 0;
-
-                            const saveData = new FormData();
-                            saveData.append('subject', subject);
-                            saveData.append('category', category);
-                            saveData.append('study_time', finalHours);
-                            saveData.append('assignment_name', row.querySelector('td:nth-child(5)').textContent.trim());
-                            saveData.append('grade', finalGrade || '');
-                            saveData.append('weight', row.querySelector('td:nth-child(7)').textContent.replace('%', '').trim());
-                            saveData.append('is_prediction', 'true');
-
-                            await fetch(`/update/${assignmentId}`, {
-                                method: 'POST',
-                                body: saveData
-                            });
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error during prediction:', error);
-                }
-            } else {
-                showToast('Please enter either hours or grade', 'error');
-            }
-        });
 
         // Handle "Add" button click to convert prediction to assignment
         assignmentTableBody.addEventListener('click', async function (event) {

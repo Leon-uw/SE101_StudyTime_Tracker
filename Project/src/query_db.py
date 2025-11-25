@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
-from db import _connect, TABLE_NAME, CATEGORIES_TABLE
+from db import _connect, TABLE_NAME, CATEGORIES_TABLE, USERS_TABLE
 from crud import get_all_grades
 
 def show_all_data():
@@ -17,6 +17,23 @@ def show_all_data():
     print("=" * 60)
     print("DATABASE CONTENTS")
     print("=" * 60)
+
+    # Show users
+    print("\n👥 USERS:")
+    print("-" * 60)
+    conn = _connect()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(f"SELECT id, username, created_at FROM {USERS_TABLE} ORDER BY id")
+        users = cur.fetchall()
+
+        for user in users:
+            print(f"  [{user['id']}] {user['username']:20} | Created: {user['created_at']}")
+
+        print(f"\nTotal: {len(users)} users")
+    finally:
+        cur.close()
+        conn.close()
 
     # Show categories
     print("\n📁 CATEGORIES:")
@@ -56,8 +73,9 @@ def show_all_data():
     # Test CRUD function
     print("\n\n🔧 TESTING CRUD FUNCTION:")
     print("-" * 60)
-    grades = get_all_grades()
-    print(f"  get_all_grades() returned {len(grades)} rows")
+    # Default to 'admin' for testing
+    grades = get_all_grades('admin')
+    print(f"  get_all_grades('admin') returned {len(grades)} rows")
     if grades:
         print(f"  Sample row keys: {list(grades[0].keys())}")
 
