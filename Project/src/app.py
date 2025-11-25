@@ -5,6 +5,9 @@ import sys
 import os
 from collections import Counter, defaultdict
 from functools import wraps
+from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
+from db import _connect, SUBJECTS_TABLE, USERS_TABLE  # add USERS_TABLE
+
 
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,6 +23,39 @@ from crud import (get_all_grades, get_all_categories, get_categories_as_dict, ad
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key'
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin):
+    def __init__(self, user_id: int, username: str):
+        self.id = str(user_id)
+        self.username = username
+
+# -------------------------------
+# (4) user loader
+# -------------------------------
+@login_manager.user_loader
+def load_user(user_id: str):
+    conn = _connect()
+    cur = conn.cursor()
+    try:
+        cur.execute(f"SELECT id, username FROM {USERS_TABLE} WHERE id = %s", (int(user_id),))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return User(user_id=row[0], username=row[1])
+    finally:
+        try:
+            cur.close()
+        except:
+            pass
+        try:
+            conn.close()
+        except:
+            pass
+
 
 # Database-only architecture - all data comes from database (no in-memory dicts)
 
@@ -304,9 +340,9 @@ def render_subject_view(filter_subject):
 def about():
     return render_template('about.html', page_title="About")
 
-def calculate_stats():
+def calculate_stats(username):
     """Aggregate study data into high-level statistics for the Stats page."""
-    study_data = get_all_grades()
+    study_data = get_all_grades(username)
     stats = {
         'has_data': bool(study_data),
         'has_actuals': False,
@@ -549,9 +585,31 @@ def calculate_stats():
 
 @app.route('/stats')
 @login_required
-def stats():
-    stats_data = calculate_stats()
-    return render_template('stats.html', page_title="Statistics", stats=stats_data)
+def stats():                      # <-- was: def stats(username):
+    # get the username from the logged-in user
+    username = getattr(current_user, 'username', None)
+    if not username:
+        username = session.get('username')
+        if not username:
+            return redirect(url_for(login_manager.login_view))
+
+    stats_data = calculate_stats(username)   # pass username into the function
+
+    # sidebar subjects for this user
+    conn = _connect(); cur = conn.cursor()
+    try:
+        cur.execute(f"SELECT name FROM {SUBJECTS_TABLE} WHERE username = %s ORDER BY name", (username,))
+        subjects = [r[0] for r in cur.fetchall()]
+    finally:
+        try: cur.close()
+        except: pass
+        try: conn.close()
+        except: pass
+
+    return render_template('stats.html',
+                           page_title="Statistics",
+                           stats=stats_data,
+                           subjects=subjects)
 
 def process_form_data(form):
     print(f"DEBUG: process_form_data form={form}")
