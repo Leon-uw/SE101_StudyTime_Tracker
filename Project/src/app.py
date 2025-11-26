@@ -581,6 +581,20 @@ def calculate_stats(username):
             'accuracy': accuracy
         }
 
+        # --- add raw rows so charts can filter by subject ---
+    # All graded items as {subject, score}
+    stats["all_grades"] = [
+        {"subject": e.get("subject"), "score": float(e["grade"])}
+        for e in actual_entries
+        if e.get("grade") is not None
+    ]
+
+    # All study logs (actuals) as {subject, hours}
+    stats["all_study_logs"] = [
+        {"subject": e.get("subject"), "hours": float(e.get("study_time") or 0)}
+        for e in actual_entries
+    ]
+
     return stats
 
 @app.route('/stats')
