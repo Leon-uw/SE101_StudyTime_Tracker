@@ -128,7 +128,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (targetSubject && targetSubject !== 'all') {
             container.style.display = 'flex'; // Or block, depending on layout
             // Clear previous results
-            if (predictorMessage) predictorMessage.textContent = '';
             if (predictorRemainingWeight) predictorRemainingWeight.textContent = '-';
             if (predictorAvgNeeded) predictorAvgNeeded.textContent = '-';
         } else {
@@ -186,10 +185,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (result.status === 'success') {
                     // Clear previous error messages
-                    if (predictorMessage) {
-                        predictorMessage.textContent = '';
-                        predictorMessage.className = 'prediction-message';
-                    }
+                    // Clear previous results
+                    // (Toast messages disappear automatically, so no need to clear a static element)
 
                     if (result.remaining_weight !== undefined && predictorRemainingWeight) {
                         predictorRemainingWeight.textContent = result.remaining_weight + '%';
@@ -212,18 +209,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     if (result.message) {
                         // Show non-critical messages (like "Target unreachable")
-                        if (predictorMessage) {
-                            predictorMessage.textContent = result.message;
-                            predictorMessage.className = 'prediction-message ' + (result.message.includes('unreachable') ? 'error' : 'success');
-                        }
+                        const type = result.message.includes('unreachable') ? 'error' : 'success';
+                        showToast(result.message, type);
                     }
 
                 } else {
                     showToast(result.message, 'error');
-                    if (predictorMessage) {
-                        predictorMessage.textContent = result.message;
-                        predictorMessage.className = 'prediction-message error';
-                    }
                 }
             } catch (error) {
                 console.error('Prediction failed:', error);
@@ -274,15 +265,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.textContent = message;
+        // Allow HTML content for lists
+        toast.innerHTML = message;
         container.appendChild(toast);
-        setTimeout(() => {
+
+        // Trigger reflow
+        void toast.offsetWidth;
+
+        requestAnimationFrame(() => {
             toast.classList.add('show');
-        }, 10);
+        });
+
         setTimeout(() => {
             toast.classList.remove('show');
             toast.addEventListener('transitionend', () => toast.remove());
-        }, 3000);
+        }, 4000); // Increased duration slightly for readability
     }
 
     function showConfirmation(message, row, type) {
@@ -303,13 +300,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function showValidationAlert(messages) {
-        if (!validationAlert) return;
         if (messages && messages.length > 0) {
-            validationAlert.innerHTML = `<ul>${messages.map(msg => `<li>${msg}</li>`).join('')}</ul>`;
-            validationAlert.style.display = 'block';
-        } else {
-            validationAlert.innerHTML = '';
-            validationAlert.style.display = 'none';
+            const messageHtml = `<ul style="margin: 0; padding-left: 20px; text-align: left;">${messages.map(msg => `<li>${msg}</li>`).join('')}</ul>`;
+            showToast(messageHtml, 'error');
         }
     }
 
@@ -532,16 +525,8 @@ document.addEventListener('DOMContentLoaded', function () {
         confirmationModal.style.display = 'none';
     }
 
-    function showValidationAlert(messages) {
-        if (!validationAlert) return;
-        if (messages && messages.length > 0) {
-            validationAlert.innerHTML = `<ul>${messages.map(msg => `<li>${msg}</li>`).join('')}</ul>`;
-            validationAlert.style.display = 'block';
-        } else {
-            validationAlert.innerHTML = '';
-            validationAlert.style.display = 'none';
-        }
-    }
+    // Duplicate function removed/consolidated
+
 
     function validateRow(row) {
         const errorMessages = [];
