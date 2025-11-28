@@ -725,10 +725,10 @@ td:last-child {
 }
 
 .toast.greeting {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #004b62;
     font-weight: 600;
     font-size: 1.1em;
-    box-shadow: 0 10px 25px rgba(118, 75, 162, 0.4);
+    box-shadow: 0 4px 6px rgba(0, 75, 98, 0.3);
 }
 
 /* --- Stats Page --- */
