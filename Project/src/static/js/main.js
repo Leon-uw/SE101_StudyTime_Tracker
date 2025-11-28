@@ -2591,10 +2591,13 @@ document.addEventListener('DOMContentLoaded',
                     const tb = document.getElementById('study-table-body');
                     if (!tb) return;
 
-                    tb.querySelectorAll('tr.assignment-row').forEach(tr => {
+                    // Query for all tr elements, not just those with assignment-row class
+                    tb.querySelectorAll('tr[data-id]').forEach(tr => {
                         const td = tr.cells && tr.cells[0];
                         if (!td) return;
+                        // Add assignment-row class if not present
                         if (!tr.classList.contains('assignment-row')) tr.classList.add('assignment-row');
+                        // Add drag handle if not present
                         if (!td.querySelector('.drag-handle')) {
                             const span = document.createElement('span');
                             span.className = 'drag-handle';
@@ -2623,8 +2626,8 @@ document.addEventListener('DOMContentLoaded',
                     if (tb !== _observedTbody) {
                         if (_mo) _mo.disconnect();
                         _mo = new MutationObserver(() => ensureDragHandles());
-                        // Watch rows being added/removed/replaced
-                        _mo.observe(tb, { childList: true });
+                        // Watch rows being added/removed/replaced AND changes to descendants
+                        _mo.observe(tb, { childList: true, subtree: true, characterData: true });
                         _observedTbody = tb;
                     }
                 }
