@@ -62,7 +62,7 @@ def get_all_grades(username):
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
-        curs.execute(f"SELECT * FROM {TABLE_NAME} WHERE username = %s", (username,))
+        curs.execute(f"SELECT * FROM {TABLE_NAME} WHERE username = %s ORDER BY Subject, Category, IsPrediction, id", (username,))
         results = curs.fetchall()
 
         # Convert to lowercase keys for consistency with Sprint 2A dictionaries

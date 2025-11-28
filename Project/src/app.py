@@ -662,13 +662,19 @@ def process_form_data(form):
         if is_prediction and not assignment_name:
             assignment_name = 'Prediction'
 
+        # Parse weight from form data
+        try:
+            weight = float(form.get('weight', 0)) if form.get('weight') else 0.0
+        except (ValueError, TypeError):
+            weight = 0.0
+
         data = {
             "subject": subject,
             "category": form.get('category'),
             "study_time": study_time,
             "assignment_name": assignment_name,
             "grade": grade,
-            "weight": 0,
+            "weight": weight,
             "is_prediction": is_prediction
         }
         return data, None
@@ -678,8 +684,13 @@ def process_form_data(form):
 @app.route('/add', methods=['POST'])
 @login_required
 def add_log():
+    print('\n=== ADD LOG DEBUG ===')
+    print('Form data:', dict(request.form))
     log_data, error = process_form_data(request.form)
-    if error: return jsonify({'status': 'error', 'message': error}), 400
+    print('Processed log_data:', log_data)
+    if error:
+        print('ERROR:', error)
+        return jsonify({'status': 'error', 'message': error}), 400
     
     username = session['user']
 
@@ -692,21 +703,34 @@ def add_log():
             study_time=log_data['study_time'],
             assignment_name=log_data['assignment_name'],
             grade=log_data['grade'],
-            weight=0,  # Weight will be recalculated
+            weight=log_data['weight'],  # Use the calculated weight from frontend
             is_prediction=log_data['is_prediction']
         )
+        print(f'Saved to database with weight: {log_data["weight"]}')
         log_data['id'] = db_id  # Use database-generated ID
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to add assignment: {str(e)}'}), 500
 
     recalculate_weights(username, log_data['subject'], log_data['category'])
+    print('Weights recalculated')
+
     summary = calculate_summary(username, request.form.get('current_filter'))
 
     # Fetch fresh data from database
     assignments_to_return = get_all_grades(username)
+    print(f'Fetched {len(assignments_to_return)} assignments from database')
+    print('First 3 assignments:', assignments_to_return[:3] if len(assignments_to_return) >= 3 else assignments_to_return)
+    print('Last 3 assignments:', assignments_to_return[-3:] if len(assignments_to_return) >= 3 else assignments_to_return)
+
     current_subject_filter = request.form.get('current_filter')
     if current_subject_filter and current_subject_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_subject_filter]
+        print(f'Filtered to {len(assignments_to_return)} assignments for subject: {current_subject_filter}')
+
+    # Find the newly added prediction and log its weight
+    new_prediction = next((a for a in assignments_to_return if a['id'] == log_data['id']), None)
+    if new_prediction:
+        print(f'New prediction weight after recalculation: {new_prediction["weight"]}')
 
     message = 'Prediction added!' if log_data['is_prediction'] else 'Assignment added!'
     return jsonify({'status': 'success', 'message': message, 'log': log_data, 'summary': summary, 'updated_assignments': assignments_to_return})
