@@ -5,7 +5,18 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from collections import Counter, defaultdict
-from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
+from dotenv import load_dotenv
+load_dotenv()
+
+# Conditional database import - use local SQLite if USE_LOCAL_DB is set
+if os.getenv("USE_LOCAL_DB", "").lower() == "true":
+    print("🔧 Using LOCAL SQLite database for development")
+    from db_local import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db
+    # SQLite doesn't need ensure_position_column (already in schema)
+    ensure_position_column = lambda: None
+else:
+    print("🌐 Using REMOTE MySQL database")
+    from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 
 _schema_ready = False

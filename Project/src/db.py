@@ -128,7 +128,7 @@ def seed_initial_data():
             VALUES (%s, %s)
         """
         for subject in subjects:
-            cur.execute(subject_query, ('admin', subject))
+            cur.execute(subject_query, ('testuser', subject))
 
         # Insert sample categories (from Sprint 2A weight_categories)
         categories = [
@@ -146,7 +146,7 @@ def seed_initial_data():
         """
 
         for subject, name, weight, default in categories:
-            cur.execute(category_query, ('admin', subject, name, weight, default))
+            cur.execute(category_query, ('testuser', subject, name, weight, default))
 
         # Insert sample assignments (from Sprint 2A study_data)
         assignments = [
@@ -165,12 +165,18 @@ def seed_initial_data():
         """
 
         for subject, category, time, name, grade, weight in assignments:
-            cur.execute(assignment_query, ('admin', subject, category, time, name, grade, weight))
+            cur.execute(assignment_query, ('testuser', subject, category, time, name, grade, weight))
+
+        # Create test user (password: "password")
+        from werkzeug.security import generate_password_hash
+        test_user_hash = generate_password_hash("password", method='pbkdf2:sha256')
+        cur.execute(f"INSERT INTO {USERS_TABLE} (username, password_hash) VALUES (%s, %s)", ("testuser", test_user_hash))
 
         conn.commit()
         print(f"✓ Seeded {len(categories)} categories and {len(assignments)} sample assignments")
+        print(f"✓ Created test user: testuser / password")
 
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         print(f"✗ Error seeding data: {e}")
     finally:

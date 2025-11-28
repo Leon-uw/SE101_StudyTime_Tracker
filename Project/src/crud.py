@@ -2,8 +2,18 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
-import mysql.connector
+from dotenv import load_dotenv
+load_dotenv()
+
+# Conditional database import
+if os.getenv("USE_LOCAL_DB", "").lower() == "true":
+    from db_local import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
+    # SQLite uses different placeholder syntax
+    PARAM_PLACEHOLDER = "?"
+else:
+    from db import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
+    import mysql.connector
+    PARAM_PLACEHOLDER = "%s"
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -103,7 +113,7 @@ def create_user(username, password):
         curs.execute(query, (username, password_hash))
         conn.commit()
         return curs.lastrowid
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -235,7 +245,7 @@ def add_grade(username, subject, category, study_time, assignment_name, grade, w
         curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction, next_pos))
         conn.commit()
         return curs.lastrowid  # Return the ID of the inserted record
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -256,7 +266,7 @@ def update_grade(username, grade_id, subject, category, study_time, assignment_n
         curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, grade_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -272,7 +282,7 @@ def delete_grade(username, grade_id):
         curs.execute(query, (grade_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -295,7 +305,7 @@ def delete_grades_bulk(username, grade_ids):
         curs.execute(query, params)
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -344,7 +354,7 @@ def recalculate_and_update_weights(username, subject, category_name):
         conn.commit()
 
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -363,7 +373,7 @@ def add_category(username, subject, category_name, total_weight, default_name=''
         curs.execute(query, (username, subject, category_name, total_weight, default_name))
         conn.commit()
         return curs.lastrowid
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -383,7 +393,7 @@ def update_category(username, category_id, subject, category_name, total_weight,
         curs.execute(query, (subject, category_name, total_weight, default_name, category_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -399,7 +409,7 @@ def delete_category(username, category_id):
         curs.execute(query, (category_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -469,7 +479,7 @@ def add_subject(username, name):
         curs.execute(query, (username, name))
         conn.commit()
         return curs.lastrowid
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -502,7 +512,7 @@ def delete_subject(username, subject_id):
 
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -549,7 +559,7 @@ def rename_subject(username, old_name, new_name):
         
         conn.commit()
         return True
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:

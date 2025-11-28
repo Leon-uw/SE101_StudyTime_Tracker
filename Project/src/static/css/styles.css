@@ -474,6 +474,31 @@ select:focus {
     border-color: var(--primary-color);
 }
 
+/* Prediction Name Cell - Contenteditable styling to match input fields */
+.prediction-name-cell {
+    padding: 8px 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-size: 14px;
+    min-width: 150px;
+    display: inline-block;
+    cursor: text;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.prediction-name-cell:focus {
+    border-color: var(--primary-color);
+}
+
+.prediction-name-cell:empty:before {
+    content: attr(data-placeholder);
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
 /* Predictor Section Specifics */
 .predictor-section h2 {
     margin-top: 0;
