@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded',
+    function () {
     // --- Sidebar Logic ---
     const menuBtn = document.getElementById('menu-btn');
     const closeSidebarBtn = document.getElementById('close-sidebar-btn');
@@ -905,6 +906,7 @@ document.addEventListener('DOMContentLoaded', function () {
         assignments.forEach(log => {
             const row = document.createElement('tr');
             row.dataset.id = log.id;
+            row.classList.add('assignment-row');
 
             // Add prediction class if this is a prediction
             if (log.is_prediction) {
@@ -914,9 +916,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Build the row HTML based on whether it's a prediction
             if (log.is_prediction) {
-                row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td><input type="number" class="prediction-input hours-input" data-id="${log.id}" value="${log.study_time || 0}" step="0.1" style="width: 80px;"> hours</td><td>${log.assignment_name}</td><td><input type="number" class="prediction-input grade-input" data-id="${log.id}" value="${log.grade || ''}" step="1" style="width: 80px;">%</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`;
+                row.innerHTML = `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td><input type="number" class="prediction-input hours-input" data-id="${log.id}" value="${log.study_time || 0}" step="0.1" style="width: 80px;"> hours</td><td>${log.assignment_name}</td><td><input type="number" class="prediction-input grade-input" data-id="${log.id}" value="${log.grade || ''}" step="1" style="width: 80px;">%</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`;
             } else {
-                row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+                row.innerHTML = `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
             }
 
             assignmentTableBody.appendChild(row);
@@ -924,6 +926,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Update summary row based on current state (including predictions toggle)
         recalculateSummaryFromDOM();
+        if (typeof ensureDragHandles === 'function') {
+            ensureDragHandles();
+            setTimeout(ensureDragHandles, 0); // catch async paints
+        }
     }
 
     function updateCategoryTableRow(subject, categoryName) {
@@ -1071,6 +1077,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 showToast(result.message, 'success');
             }
             renderAssignmentTable(result.updated_assignments, result.summary, currentSubjectFilter);
+            if (typeof ensureDragHandles === 'function') ensureDragHandles(); 
             if (isNew) {
                 updateCategoryTableRow(result.log.subject, result.log.category);
             }
@@ -1148,6 +1155,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (response.ok) {
                         if (isAssignment) {
                             renderAssignmentTable(result.updated_assignments, result.summary, currentFilter);
+                            if (typeof ensureDragHandles === 'function') ensureDragHandles(); 
 
                             // Extract category name - handle both edit mode and view mode
                             let categoryName;
@@ -1243,178 +1251,178 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function addNewRow(isPrediction = false) {
-        revertWeightPreview();
-        revertPredictorWeightPreview();
-        const newRow = document.createElement('tr');
-        if (isPrediction) {
-            newRow.classList.add('prediction-row');
-            newRow.dataset.isPrediction = 'true';
-        }
-        const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
+function addNewRow(isPrediction = false) {
+  revertWeightPreview();
+  revertPredictorWeightPreview();
 
-        // Get the current subject filter (from hidden input or default to 'all')
-        const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
-        const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
+  const newRow = document.createElement('tr');
+  newRow.classList.add('assignment-row');               // <-- DnD relies on this
+  if (isPrediction) {
+    newRow.classList.add('prediction-row');
+    newRow.dataset.isPrediction = 'true';
+  }
 
-        // Get all subjects from weightCategoriesMap (since the old dropdown no longer exists)
-        const allSubjects = Object.keys(weightCategoriesMap);
+  const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
 
-        // Create subject select dropdown
-        const subjectSelect = document.createElement('select');
-        subjectSelect.name = 'subject';
-        subjectSelect.required = true;
-        subjectSelect.setAttribute('autocomplete', 'off');
+  const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
+  const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
 
-        if (isSubjectFiltered) {
-            // If filtering by subject, lock it to that subject
-            const option = document.createElement('option');
-            option.value = currentSubjectFilter;
-            option.textContent = currentSubjectFilter;
-            option.selected = true;
-            subjectSelect.appendChild(option);
-            subjectSelect.disabled = true;
-            subjectSelect.style.backgroundColor = '#eee';
-        } else {
-            // If viewing all subjects, show dropdown with all options
-            // Add default option
-            const defaultOpt = document.createElement('option');
-            defaultOpt.value = '';
-            defaultOpt.disabled = true;
-            defaultOpt.selected = true;
-            defaultOpt.textContent = '-- Select Subject --';
-            subjectSelect.appendChild(defaultOpt);
+  const allSubjects = Object.keys(weightCategoriesMap);
 
-            // Add all subjects
-            allSubjects.forEach(subject => {
-                const option = document.createElement('option');
-                option.value = subject;
-                option.textContent = subject;
-                subjectSelect.appendChild(option);
-            });
-        }
+  // subject <select>
+  const subjectSelect = document.createElement('select');
+  subjectSelect.name = 'subject';
+  subjectSelect.required = true;
+  subjectSelect.setAttribute('autocomplete', 'off');
 
-        const subjectTd = document.createElement('td');
-        subjectTd.appendChild(subjectSelect);
+  if (isSubjectFiltered) {
+    const option = document.createElement('option');
+    option.value = currentSubjectFilter;
+    option.textContent = currentSubjectFilter;
+    option.selected = true;
+    subjectSelect.appendChild(option);
+    subjectSelect.disabled = true;
+    subjectSelect.style.backgroundColor = '#eee';
+  } else {
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.disabled = true;
+    defaultOpt.selected = true;
+    defaultOpt.textContent = '-- Select Subject --';
+    subjectSelect.appendChild(defaultOpt);
 
-        // Category dropdown (initially empty or populated if subject is locked)
-        const categorySelect = document.createElement('select');
-        categorySelect.name = 'category';
-        categorySelect.required = true;
-        categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
+    allSubjects.forEach(subject => {
+      const option = document.createElement('option');
+      option.value = subject;
+      option.textContent = subject;
+      subjectSelect.appendChild(option);
+    });
+  }
 
-        if (isSubjectFiltered) {
-            const categories = (weightCategoriesMap[currentSubjectFilter] || []).map(c => c.name);
-            categories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat;
-                option.textContent = cat;
-                categorySelect.appendChild(option);
-            });
-        }
+  const subjectTd = document.createElement('td');
+  subjectTd.appendChild(subjectSelect);
 
-        subjectSelect.addEventListener('change', function () {
-            const selectedSubject = this.value;
-            categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
-            if (selectedSubject && weightCategoriesMap[selectedSubject]) {
-                weightCategoriesMap[selectedSubject].forEach(catObj => {
-                    const option = document.createElement('option');
-                    option.value = catObj.name;
-                    option.textContent = catObj.name;
-                    categorySelect.appendChild(option);
-                });
-            }
-        });
+  // category <select>
+  const categorySelect = document.createElement('select');
+  categorySelect.name = 'category';
+  categorySelect.required = true;
+  categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
 
-        // Add event listener to category select to update assignment name placeholder and weight
-        categorySelect.addEventListener('change', function () {
-            const selectedSubject = subjectSelect.value;
-            const selectedCategory = this.value;
-            const assignmentInput = newRow.querySelector('input[name="assignment_name"]');
+  if (isSubjectFiltered) {
+    const categories = (weightCategoriesMap[currentSubjectFilter] || []).map(c => c.name);
+    categories.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat;
+      option.textContent = cat;
+      categorySelect.appendChild(option);
+    });
+  }
 
-            if (selectedSubject && selectedCategory) {
-                // Find the category definition to get the default name pattern
-                const categories = weightCategoriesMap[selectedSubject] || [];
-                const categoryDef = categories.find(c => c.name === selectedCategory);
-
-                if (categoryDef) {
-                    // Count existing assignments for this category
-                    let count = 1;
-                    const existingRows = assignmentTableBody.querySelectorAll('tr[data-id]');
-                    existingRows.forEach(row => {
-                        const subjCell = row.querySelector('td:nth-child(2)');
-                        const catCell = row.querySelector('td:nth-child(3)');
-                        if (subjCell && catCell &&
-                            subjCell.textContent.trim() === selectedSubject &&
-                            catCell.textContent.trim().includes(selectedCategory)) {
-                            count++;
-                        }
-                    });
-
-                    // Update assignment name if default pattern exists
-                    if (assignmentInput && categoryDef.default_name) {
-                        // Simple replacement of # with count
-                        if (categoryDef.default_name.includes('#')) {
-                            assignmentInput.value = categoryDef.default_name.replace('#', count);
-                        } else {
-                            assignmentInput.value = categoryDef.default_name + ' ' + count;
-                        }
-                    }
-
-                    // Calculate and update the weight display
-                    // For a new assignment/prediction, the weight will be total_weight / (existing + 1)
-                    const newTotalAssessments = count;
-                    const calculatedWeight = newTotalAssessments > 0 ? (categoryDef.total_weight / newTotalAssessments).toFixed(2) : '0.00';
-
-                    // Find the weight cell (7th td, index 6)
-                    const weightCell = newRow.querySelector('td:nth-child(7)');
-                    if (weightCell) {
-                        weightCell.textContent = calculatedWeight + '%';
-                    }
-                }
-            }
-        });
-
-        const categoryTd = document.createElement('td');
-        categoryTd.appendChild(categorySelect);
-
-        newRow.appendChild(document.createElement('td')); // Checkbox
-        newRow.appendChild(subjectTd);
-        newRow.appendChild(categoryTd);
-
-        // Inputs
-        if (isPrediction) {
-            newRow.innerHTML += `
-                <td><input type="number" name="study_time" class="prediction-input hours-input" step="0.1" min="0" placeholder="Hours" style="width: 70px;"> hours</td>
-                <td><input type="text" name="assignment_name" placeholder="Assignment Name" style="width: 150px;"></td>
-                <td><input type="number" name="grade" class="prediction-input grade-input" step="1" ${gradeAttrs} placeholder="Grade" style="width: 60px;">%</td>
-                <td>0.00%</td>
-                <td><button class="action-btn delete-btn">Delete</button></td>
-            `;
-        } else {
-            newRow.innerHTML += `
-                <td><input type="number" name="study_time" step="0.1" min="0" required style="width: 70px;"> hours</td>
-                <td><input type="text" name="assignment_name" required style="width: 150px;"></td>
-                <td><input type="number" name="grade" step="1" ${gradeAttrs} style="width: 60px;">%</td>
-                <td>0.00%</td>
-                <td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>
-            `;
-        }
-
-        // Re-append subject and category cells because innerHTML += wipes them out
-        const cells = newRow.querySelectorAll('td');
-        cells[1].innerHTML = '';
-        cells[1].appendChild(subjectSelect);
-        cells[2].innerHTML = '';
-        cells[2].appendChild(categorySelect);
-
-        assignmentTableBody.appendChild(newRow);
-
-        // If subject is filtered, trigger change event to populate categories and potentially default name
-        if (isSubjectFiltered) {
-            subjectSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+  subjectSelect.addEventListener('change', function () {
+    const selectedSubject = this.value;
+    categorySelect.innerHTML = '<option value="" disabled selected>-- Select Category --</option>';
+    if (selectedSubject && weightCategoriesMap[selectedSubject]) {
+      weightCategoriesMap[selectedSubject].forEach(catObj => {
+        const option = document.createElement('option');
+        option.value = catObj.name;
+        option.textContent = catObj.name;
+        categorySelect.appendChild(option);
+      });
     }
+  });
+
+  categorySelect.addEventListener('change', function () {
+    const selectedSubject = subjectSelect.value;
+    const selectedCategory = this.value;
+    const assignmentInput = newRow.querySelector('input[name="assignment_name"]');
+
+    if (selectedSubject && selectedCategory) {
+      const categories = weightCategoriesMap[selectedSubject] || [];
+      const categoryDef = categories.find(c => c.name === selectedCategory);
+
+      if (categoryDef) {
+        let count = 1;
+        const existingRows = assignmentTableBody.querySelectorAll('tr[data-id]');
+        existingRows.forEach(row => {
+          const subjCell = row.querySelector('td:nth-child(2)');
+          const catCell = row.querySelector('td:nth-child(3)');
+          if (subjCell && catCell &&
+              subjCell.textContent.trim() === selectedSubject &&
+              catCell.textContent.trim().includes(selectedCategory)) {
+            count++;
+          }
+        });
+
+        if (assignmentInput && categoryDef.default_name) {
+          if (categoryDef.default_name.includes('#')) {
+            assignmentInput.value = categoryDef.default_name.replace('#', count);
+          } else {
+            assignmentInput.value = categoryDef.default_name + ' ' + count;
+          }
+        }
+
+        const newTotalAssessments = count;
+        const calculatedWeight = newTotalAssessments > 0
+          ? (categoryDef.total_weight / newTotalAssessments).toFixed(2)
+          : '0.00';
+
+        const weightCell = newRow.querySelector('td:nth-child(7)');
+        if (weightCell) weightCell.textContent = calculatedWeight + '%';
+      }
+    }
+  });
+
+  const categoryTd = document.createElement('td');
+  categoryTd.appendChild(categorySelect);
+
+  // ✅ FIRST CELL: drag handle + checkbox (always)
+  const firstTd = document.createElement('td');
+  firstTd.innerHTML = `
+    <span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span>
+    <input type="checkbox" class="select-assignment">
+  `;
+
+  // Assemble the row
+  newRow.appendChild(firstTd);
+  newRow.appendChild(subjectTd);
+  newRow.appendChild(categoryTd);
+
+  // rest of inputs
+  if (isPrediction) {
+    newRow.innerHTML += `
+      <td><input type="number" name="study_time" class="prediction-input hours-input" step="0.1" min="0" placeholder="Hours" style="width: 70px;"> hours</td>
+      <td><input type="text" name="assignment_name" placeholder="Assignment Name" style="width: 150px;"></td>
+      <td><input type="number" name="grade" class="prediction-input grade-input" step="1" ${gradeAttrs} placeholder="Grade" style="width: 60px;">%</td>
+      <td>0.00%</td>
+      <td><button class="action-btn delete-btn">Delete</button></td>
+    `;
+  } else {
+    newRow.innerHTML += `
+      <td><input type="number" name="study_time" step="0.1" min="0" required style="width: 70px;"> hours</td>
+      <td><input type="text" name="assignment_name" required style="width: 150px;"></td>
+      <td><input type="number" name="grade" step="1" ${gradeAttrs} style="width: 60px;">%</td>
+      <td>0.00%</td>
+      <td><button class="action-btn save-btn">Save</button><button class="action-btn delete-btn">Delete</button></td>
+    `;
+  }
+
+  // re-attach selects (innerHTML above wipes them)
+  const cells = newRow.querySelectorAll('td');
+  cells[1].innerHTML = '';
+  cells[1].appendChild(subjectSelect);
+  cells[2].innerHTML = '';
+  cells[2].appendChild(categorySelect);
+
+  assignmentTableBody.appendChild(newRow);
+
+  if (isSubjectFiltered) {
+    subjectSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // make sure the handle & class stay present
+  if (typeof ensureDragHandles === 'function') ensureDragHandles();
+}
+
 
     if (addRowBtn) {
         addRowBtn.addEventListener('click', () => addNewRow(false));
@@ -1461,6 +1469,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (response.ok) {
                     showToast(result.message, 'success');
                     renderAssignmentTable(result.updated_assignments, result.summary, currentSubjectFilter);
+                    if (typeof ensureDragHandles === 'function') ensureDragHandles(); 
                 } else {
                     showToast(result.message, 'error');
                 }
@@ -1852,6 +1861,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (response.ok) {
                     showToast('Prediction converted to assignment!', 'success');
                     renderAssignmentTable(result.updated_assignments, result.summary, subjectFilterDropdown ? subjectFilterDropdown.value : 'all');
+                    if (typeof ensureDragHandles === 'function') ensureDragHandles(); 
                 } else {
                     showToast(result.message || 'Failed to convert prediction', 'error');
                 }
@@ -2413,7 +2423,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         .then(data => {
                             if (data.status === 'success') {
                                 renderAssignmentTable(data.updated_assignments, data.summary, currentFilter);
+                                if (typeof ensureDragHandles === 'function') ensureDragHandles(); 
                                 if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                                if (typeof ensureDragHandles === 'function') ensureDragHandles(); 
                                 updateDeleteButton();
                                 showToast(data.message, 'success');
                             } else {
@@ -2546,4 +2558,220 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+
+  const tbody = document.getElementById('study-table-body');
+  if (!tbody) return;
+
+    function ensureDragHandles() {
+    const tb = document.getElementById('study-table-body');
+    if (!tb) return;
+
+    tb.querySelectorAll('tr.assignment-row').forEach(tr => {
+        const td = tr.cells && tr.cells[0];
+        if (!td) return;
+        if (!tr.classList.contains('assignment-row')) tr.classList.add('assignment-row');
+        if (!td.querySelector('.drag-handle')) {
+            const span = document.createElement('span');
+            span.className = 'drag-handle';
+            span.title = 'Drag';
+            span.setAttribute('aria-label', 'Drag to reorder');
+            span.setAttribute('draggable', 'true');
+            span.textContent = '⋮⋮';
+            td.insertBefore(span, td.firstChild);
+        }
+    });
+    }
+
+
+// Run once immediately
+    ensureDragHandles();
+    //_kickwatch();            
+
+// --- Robust re-attacher (survives tbody replacement + odd re-renders) ---
+    let _observedTbody = null;
+    let _mo = null;
+
+    function _observeCurrentTbody() {
+        const tb = document.getElementById('study-table-body');
+        if (!tb) return;
+
+        if (tb !== _observedTbody) {
+            if (_mo) _mo.disconnect();
+            _mo = new MutationObserver(() => ensureDragHandles());
+    // Watch rows being added/removed/replaced
+            _mo.observe(tb, { childList: true });
+            _observedTbody = tb;
+        }
+    }
+
+// Watch the whole document for a *new* tbody being inserted/replaced
+    const _rootMO = new MutationObserver(() => {
+        _observeCurrentTbody();
+        ensureDragHandles();
+    });
+    _rootMO.observe(document.body, { childList: true, subtree: true });
+
+// Extra safety: if a render mutates attributes/character data only,
+// or fires outside MutationObserver timing, fix periodically for a bit.
+    let _kickCount = 0;
+    function _kickwatch() {
+  // if rows exist but no handles, put them back
+        const tb = document.getElementById('study-table-body');
+        if (tb) {
+            const hasRows = tb.querySelector('tr.assignment-row');
+            const hasHandle = tb.querySelector('.drag-handle');
+            if (hasRows && !hasHandle) ensureDragHandles();
+        }
+        if (_kickCount++ < 20) setTimeout(_kickwatch, 100); // try for ~2s
+    }
+
+// initial bind
+    _observeCurrentTbody();
+    _kickwatch();   
+
+
+
+
+    const _tb = document.getElementById('study-table-body');
+    if (_tb) {
+        const mo = new MutationObserver(() => ensureDragHandles());
+        mo.observe(_tb, { childList: true }); // only care when <tr>s are added/removed
+    }
+
+  let draggingEl = null;
+
+  function rowFromEl(el) {
+    return el && el.closest('tr.assignment-row');
+  }
+
+  // Start drag only from the handle
+    tbody.addEventListener('pointerdown', (e) => {
+        const cell = e.target.closest('td');
+        const isFirstCell = cell && cell.cellIndex === 0;
+        const handle = e.target.closest('.drag-handle');
+        if (!handle && !isFirstCell) return;      // allow first cell as fallback
+        const row = rowFromEl(handle || cell);
+        if (!row) return;
+        row.setAttribute('draggable', 'true');
+    
+    });
+
+
+  // If user just clicks (no drag), remove draggable so it doesn't “stick”
+  tbody.addEventListener('pointerup', (e) => {
+    const row = rowFromEl(e.target);
+    if (row) row.removeAttribute('draggable');
+  });
+
+  tbody.addEventListener('dragstart', (e) => {
+    const row = rowFromEl(e.target);
+    if (!row) return;
+    draggingEl = row;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', row.dataset.id);
+    row.classList.add('dragging');
+  });
+
+  tbody.addEventListener('dragend', (e) => {
+    const row = rowFromEl(e.target);
+    if (row) {
+      row.classList.remove('dragging');
+      row.removeAttribute('draggable');
+    }
+    draggingEl = null;
+  });
+
+  tbody.addEventListener('dragover', (e) => {
+    e.preventDefault(); // REQUIRED or drop won't fire
+    const after = getRowAfterPointer(tbody, e.clientY);
+    const current = draggingEl;
+    if (!current) return;
+    if (!after) tbody.appendChild(current);
+    else if (after !== current) tbody.insertBefore(current, after);
+  });
+
+  tbody.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const ids = Array.from(tbody.querySelectorAll('tr.assignment-row'))
+      .map(tr => parseInt(tr.dataset.id, 10))
+      .filter(Number.isInteger);
+
+    console.log('[DnD] Saving order:', ids);
+
+    try {
+      const r = await fetch('/api/assignments/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order: ids })
+      });
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok || json.status !== 'ok') {
+        console.error('Reorder failed:', json);
+        showToast(json.message || 'Reorder failed', 'error');
+      } else {
+        showToast('Order saved', 'success');
+        ensureDragHandles();
+        setTimeout(ensureDragHandles, 0);
+      }
+    } catch (err) {
+      console.error('Network error saving order', err);
+      showToast('Network error saving order', 'error');
+    }
+  });
+
+  function getRowAfterPointer(container, y) {
+    const rows = [...container.querySelectorAll('tr.assignment-row:not(.dragging)')];
+    let closest = null;
+    let closestOffset = Number.NEGATIVE_INFINITY;
+    for (const row of rows) {
+      const box = row.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) {
+        closestOffset = offset;
+        closest = row;
+      }
+    }
+    return closest;
+  }
+
+    function rowHTML(row) {
+    const firstCell = `
+        <td>
+            <span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span>
+             <input type="checkbox" class="select-assignment" data-id="${row.id}">
+        </td>`;
+
+  // keep your prediction/non-prediction cells exactly like the Jinja template
+    const studyTd = row.is_prediction
+        ? `<td><input type="number" class="prediction-input hours-input" data-id="${row.id}" value="${row.study_time}" step="0.1" min="0" style="width: 80px;"> hours</td>`
+        : `<td>${Number(row.study_time).toFixed(1)} hours</td>`;
+
+     const gradeTd = row.is_prediction
+        ? `<td><input type="number" class="prediction-input grade-input" data-id="${row.id}" value="${row.grade}" step="1" min="0" style="width: 80px;">%</td>`
+        : `<td>${row.grade != null ? row.grade + '%' : '-'}</td>`;
+
+    const actionsTd = row.is_prediction
+        ? `<td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`
+        : `<td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+
+    return `
+        <tr data-id="${row.id}" class="assignment-row${row.is_prediction ? ' prediction-row' : ''}">
+        ${firstCell}
+        <td>${row.subject}</td>
+        <td><span class="category-tag">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+            </svg> ${row.category}</span></td>
+        ${studyTd}
+        <td>${row.assignment_name}</td>
+        ${gradeTd}
+        <td>${Number(row.weight).toFixed(2)}%</td>
+        ${actionsTd}
+        </tr>`;
+    }
+
+
 });
+
+

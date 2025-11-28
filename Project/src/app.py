@@ -3,14 +3,14 @@ import json
 import math
 import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from collections import Counter, defaultdict
-from functools import wraps
+from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
-from db import _connect, SUBJECTS_TABLE, USERS_TABLE  # add USERS_TABLE
 
+_schema_ready = False
 
 # Add current directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import database functions
 from crud import (get_all_grades, get_all_categories, get_categories_as_dict, add_grade, update_grade,
@@ -19,10 +19,11 @@ from crud import (get_all_grades, get_all_categories, get_categories_as_dict, ad
                   get_all_subjects, add_subject as crud_add_subject, delete_subject as crud_delete_subject,
                   rename_subject as crud_rename_subject,
                   get_subject_by_name,
-                  create_user, verify_user, user_exists)
+                  create_user, verify_user, user_exists, TABLE_NAME, ensure_schema)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key'
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -58,15 +59,6 @@ def load_user(user_id: str):
 
 
 # Database-only architecture - all data comes from database (no in-memory dicts)
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user' not in session:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest': return jsonify({'status': 'error', 'message': 'Authentication required'}), 401
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 def recalculate_weights(username, subject, category_name):
     """Recalculate weights for a category in the database."""
@@ -244,13 +236,12 @@ def find_similar_grade(data, target_grade):
 
 @app.context_processor
 def inject_subjects():
-    """Inject subjects into all templates for the sidebar."""
-    if 'user' not in session:
+    if not current_user.is_authenticated:
         return dict(subjects=[])
-    
-    all_subjects = get_all_subjects(session['user'])
+    all_subjects = get_all_subjects(current_user.username)
     unique_subjects = sorted([s['name'] for s in all_subjects])
     return dict(subjects=unique_subjects)
+
 
 @app.route('/')
 @login_required
@@ -264,7 +255,7 @@ def display_table():
 def display_subject(subject_name):
     """Subject-specific view."""
     # Verify subject exists
-    all_subjects = get_all_subjects(session['user'])
+    all_subjects = get_all_subjects(current_user.username)
     unique_subjects = [s['name'] for s in all_subjects]
     if subject_name not in unique_subjects:
          return redirect(url_for('display_table'))
@@ -274,7 +265,7 @@ def display_subject(subject_name):
 def render_subject_view(filter_subject):
     """Helper to render the main view with a specific subject filter."""
     filter_category = request.args.get('category')
-    username = session['user']
+    username = current_user.username
 
     # Fetch data from database
     study_data_db = get_all_grades(username)
@@ -601,11 +592,9 @@ def calculate_stats(username):
 @login_required
 def stats():                      # <-- was: def stats(username):
     # get the username from the logged-in user
-    username = getattr(current_user, 'username', None)
-    if not username:
-        username = session.get('user')
-        if not username:
-            return redirect(url_for(login_manager.login_view))
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+    username = current_user.username
 
     stats_data = calculate_stats(username)   # pass username into the function
 
@@ -681,7 +670,7 @@ def add_log():
     log_data, error = process_form_data(request.form)
     if error: return jsonify({'status': 'error', 'message': error}), 400
     
-    username = session['user']
+    username = current_user.username
 
     # Write to database
     try:
@@ -714,7 +703,7 @@ def add_log():
 @app.route('/update/<int:log_id>', methods=['POST'])
 @login_required
 def update_log(log_id):
-    username = session['user']
+    username = current_user.username
     # PHASE 5 FIX: Check database instead of in-memory dict
     all_assignments = get_all_grades(username)
     old_log = next((log for log in all_assignments if log['id'] == log_id), None)
@@ -762,7 +751,7 @@ def update_log(log_id):
 @login_required
 def delete_log(log_id):
     current_filter = request.args.get('current_filter')
-    username = session['user']
+    username = current_user.username
 
     # PHASE 5 FIX: Check database instead of in-memory dict
     all_assignments = get_all_grades(username)
@@ -797,7 +786,7 @@ def convert_prediction():
     """Convert a prediction to a regular assignment."""
     assignment_id = request.form.get('assignment_id')
     current_filter = request.form.get('current_filter')
-    username = session['user']
+    username = current_user.username
     
     if not assignment_id:
         return jsonify({'status': 'error', 'message': 'Assignment ID is required.'}), 400
@@ -856,7 +845,7 @@ def delete_multiple():
     """Delete multiple assignments at once."""
     current_filter = request.args.get('current_filter')
     ids_to_delete = request.json.get('ids', [])
-    username = session['user']
+    username = current_user.username
 
     if not ids_to_delete:
         return jsonify({'status': 'error', 'message': 'No assignments selected.'}), 400
@@ -897,7 +886,7 @@ def delete_multiple():
 @login_required
 def add_category_route():
     subject = request.form.get('subject')
-    username = session['user']
+    username = current_user.username
     if not subject or subject == 'all':
         return jsonify({'status': 'error', 'message': 'A valid subject must be selected.'}), 400
 
@@ -928,7 +917,7 @@ def add_category_route():
 @login_required
 def update_category_route(cat_id):
     subject = request.form.get('subject')
-    username = session['user']
+    username = current_user.username
     if not subject:
         return jsonify({'status': 'error', 'message': 'Subject not found.'}), 404
 
@@ -961,7 +950,7 @@ def update_category_route(cat_id):
 @app.route('/category/delete/<int:cat_id>', methods=['POST'])
 @login_required
 def delete_category_route(cat_id):
-    username = session['user']
+    username = current_user.username
     try:
         # Delete from database
         rows_affected = delete_category(username, cat_id)
@@ -973,26 +962,44 @@ def delete_category_route(cat_id):
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to delete category: {str(e)}'}), 500
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET','POST'])
 def login():
-    if 'user' in session: return redirect(url_for('display_table'))
+    if current_user.is_authenticated:
+        return redirect(url_for('display_table'))
+
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
+        username = (request.form.get('username') or '').strip()
+        password = (request.form.get('password') or '').strip()
+
         if verify_user(username, password):
-            session['user'] = username
-            flash(f"Hello, {username}!", "greeting")
-            return redirect(url_for('display_table'))
+            conn = _connect(); cur = conn.cursor()
+            try:
+                cur.execute(f"SELECT id, username FROM {USERS_TABLE} WHERE username=%s", (username,))
+                row = cur.fetchone()
+                if not row:
+                    flash('Account problem. Please contact support.', 'error')
+                    return render_template('login.html')
+                user = User(user_id=row[0], username=row[1])
+                login_user(user, remember=True)
+                flash(f"Hello, {username}!", "greeting")
+            finally:
+                cur.close(); conn.close()
+
+            nxt = request.args.get('next')
+            return redirect(nxt or url_for('display_table'))
         else:
             flash('Invalid username or password.', 'error')
+
     return render_template('login.html')
+
+
 
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
+    logout_user()
     flash('You have been successfully logged out.', 'info')
     return redirect(url_for('login'))
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -1038,7 +1045,7 @@ def predict():
 
     # --- 1. Filter Data Sets ---
     # Fetch from database
-    username = session['user']
+    username = current_user.username
     all_grades = get_all_grades(username)
     graded_data = [log for log in all_grades if log.get('grade') is not None]
 
@@ -1252,7 +1259,7 @@ def predict():
 @login_required
 def add_subject():
     subject_name = request.form.get('subject_name', '').strip()
-    username = session['user']
+    username = current_user.username
 
     if not subject_name:
         return jsonify({'status': 'error', 'message': 'Subject name cannot be empty.'}), 400
@@ -1273,7 +1280,7 @@ def add_subject():
 @login_required
 def delete_subject():
     subject_name = request.form.get('subject_name', '').strip()
-    username = session['user']
+    username = current_user.username
 
     if not subject_name:
         return jsonify({'status': 'error', 'message': 'Subject name cannot be empty.'}), 400
@@ -1297,7 +1304,7 @@ def delete_subject():
 def rename_subject_route():
     old_name = request.form.get('old_name')
     new_name = request.form.get('new_name')
-    username = session['user']
+    username = current_user.username
 
     if not old_name or not new_name:
         return jsonify({'status': 'error', 'message': 'Both old and new subject names are required.'}), 400
@@ -1323,7 +1330,7 @@ def predict_subject():
     subject = request.form.get('subject')
     target_grade_str = request.form.get('target_grade')
     study_time_str = request.form.get('study_time')
-    username = session['user']
+    username = current_user.username
     
     if not subject:
         return jsonify({'status': 'error', 'message': 'Subject is required.'}), 400
@@ -1439,6 +1446,91 @@ def predict_subject():
         pass
 
     return jsonify(response_data)
+
+@app.post("/api/assignments/reorder")
+@login_required
+def reorder_assignments():
+    """
+    Body: { "order": [<id1>, <id2>, ...] }  // top-to-bottom row order
+    Updates Position=0..n-1 for *this user's* assignments.
+    """
+    data = request.get_json(silent=True) or {}
+    ids = data.get("order") or []
+    if not isinstance(ids, list) or not ids:
+        return jsonify({"status": "ok", "updated": 0}), 200
+
+    # sanitize -> ints only
+    try:
+        ids = [int(x) for x in ids]
+    except Exception:
+        return jsonify({"status": "error", "message": "invalid ids"}), 400
+
+    username = current_user.username
+
+    conn = _connect()
+    cur = conn.cursor()
+    try:
+        # ---------- (1) Optional ownership check ----------
+        # IMPORTANT: build explicit placeholders for IN (...)
+        in_placeholders = ",".join(["%s"] * len(ids))
+        q = f"""
+            SELECT id
+            FROM {TABLE_NAME}
+            WHERE username=%s AND id IN ({in_placeholders})
+        """
+        cur.execute(q, (username, *ids))
+        owned = {row[0] for row in cur.fetchall()}
+        if len(owned) != len(set(ids)):
+            return jsonify({"status": "error",
+                            "message": "contains ids not owned by user"}), 400
+
+        # ---------- (2) Build CASE fragment ----------
+        # CASE id WHEN <id> THEN <pos> ...
+        case_frag = " ".join(["WHEN %s THEN %s"] * len(ids))
+        params = []
+        for pos, _id in enumerate(ids):
+            params.extend([_id, pos])   # id, position
+
+        # ---------- (3) UPDATE with IN (...) placeholders ----------
+        sql = f"""
+            UPDATE {TABLE_NAME}
+            SET Position = CASE id {case_frag} END
+            WHERE username=%s AND id IN ({in_placeholders})
+        """
+        params.extend([username, *ids])
+
+        cur.execute(sql, params)
+        conn.commit()
+        return jsonify({"status": "ok", "updated": cur.rowcount}), 200
+
+    except Exception as e:
+        conn.rollback()
+        # log for server console; keeps response terse
+        print("Reorder error:", e)
+        return jsonify({"status": "error", "message": "server error"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+
+
+
+
+# --- Bootstrap DB once (Flask 3.x compatible) ---
+_bootstrapped = False
+
+@app.before_request
+def _bootstrap_db_once():
+    global _bootstrapped
+    if _bootstrapped:
+        return
+    try:
+        init_db()                 # creates DB/tables if missing
+        ensure_position_column()  # adds Position + index, backfills
+    except Exception as e:
+        app.logger.exception("DB bootstrap failed: %s", e)
+    _bootstrapped = True
 
 if __name__ == '__main__':
     import os

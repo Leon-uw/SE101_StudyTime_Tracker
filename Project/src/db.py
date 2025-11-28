@@ -26,9 +26,13 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     Grade double NULL,
     Weight double NOT NULL,
     IsPrediction BOOLEAN DEFAULT FALSE,
-    INDEX idx_user_subject_category (username, Subject, Category)
+    Position INT NOT NULL DEFAULT 0,
+    INDEX idx_user_subject_category (username, Subject, Category),
+    INDEX idx_user_position (username, Position)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
+
+
 
 # Categories table DDL
 CATEGORIES_DDL = f"""
@@ -96,8 +100,12 @@ def init_db():
         cur.close()
         conn.close()
 
+    ensure_position_column()
+
     # Seed initial data if tables are empty
     seed_initial_data()
+
+
 
 def seed_initial_data():
     """Populate database with Sprint 2A sample data (only if empty)."""
@@ -167,4 +175,45 @@ def seed_initial_data():
         print(f"✗ Error seeding data: {e}")
     finally:
         cur.close()
+        conn.close()
+
+def ensure_position_column():
+    """Add Position column + index if missing, then backfill per user in current order."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        # Check if Position exists
+        cur.execute("""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='Position'
+        """, (DB_NAME, TABLE_NAME))
+        has_col = cur.fetchone()[0] > 0
+
+        if not has_col:
+            # Add column + index
+            cur.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN Position INT NOT NULL DEFAULT 0")
+            cur.execute(f"CREATE INDEX idx_user_position ON {TABLE_NAME} (username, Position)")
+
+            # Backfill positions per user in (username, id) order
+            # We'll do it in Python to avoid multi-statement SQL hassles.
+            c2 = conn.cursor(dictionary=True)
+            c2.execute(f"SELECT id, username FROM {TABLE_NAME} ORDER BY username, id")
+            pos_by_user = {}
+            updates = []
+            for row in c2:
+                u = row['username']
+                p = pos_by_user.get(u, 0)
+                updates.append((p, row['id']))
+                pos_by_user[u] = p + 1
+            c2.close()
+
+            if updates:
+                cur.executemany(f"UPDATE {TABLE_NAME} SET Position=%s WHERE id=%s", updates)
+
+            conn.commit()
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
         conn.close()

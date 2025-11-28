@@ -1054,3 +1054,20 @@ body.dark-mode .prediction-row {
     border-top: 1px solid var(--border-color);
     text-align: center;
 }
+
+.drag-handle { cursor: grab; user-select: none; padding: 0 6px; }
+.dragging { opacity: 0.6; }
+.placeholder { height: 48px; outline: 2px dashed var(--border-color); }
+
+
+tbody#study-table-body tr {
+  transition: transform 120ms ease;
+}
+
+/* (optional) small hint in header, used in step 4) */
+.drag-col-hint {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-right: 6px;
+  vertical-align: middle;
+}
