@@ -256,6 +256,11 @@ document.addEventListener('DOMContentLoaded',
             return 'all';
         }
         
+        // Helper function to check if we're on the main dashboard (All Subjects view)
+        function isDashboard() {
+            return getCurrentSubject() === 'all';
+        }
+        
         // Helper function to get current grade lock state based on active subject filter
         function getCurrentGradeLock() {
             const currentSubject = getCurrentSubject();
@@ -1116,6 +1121,7 @@ document.addEventListener('DOMContentLoaded',
 
         function renderAssignmentTable(assignments, summaryData, subject) {
             assignmentTableBody.innerHTML = '';
+            const onDashboard = isDashboard();
 
             // Update summary row in thead
             const table = assignmentTableBody.closest('table');
@@ -1139,7 +1145,7 @@ document.addEventListener('DOMContentLoaded',
                             <td>-</td>
                             <td>${summaryData.average_grade.toFixed(1)}% (avg)</td>
                             <td>${summaryData.total_weight.toFixed(2)}% (graded)</td>
-                            <td>-</td>
+                            ${onDashboard ? '' : '<td>-</td>'}
                         `;
 
                     thead.appendChild(summaryRow);
@@ -1160,11 +1166,17 @@ document.addEventListener('DOMContentLoaded',
                 }
 
                 // Build the row HTML based on whether it's a prediction
+                // On dashboard: show drag handle only. Otherwise: show drag handle + checkbox
+                const firstCellHtml = onDashboard 
+                    ? `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span></td>`
+                    : `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${log.id}"></td>`;
+                
                 if (log.is_prediction) {
                     // Create category dropdown for predictions
                     const categoryDropdownHtml = createCategoryDropdown(log.subject, log.category, log.id);
 
-                    row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td class="prediction-category-cell" data-id="${log.id}"></td><td><input type="number" name="study_time" class="prediction-input hours-input" data-id="${log.id}" value="${log.study_time || 0}" step="0.1" style="width: 80px;"> hours</td><td class="prediction-name-cell" contenteditable="true" data-id="${log.id}">${log.assignment_name}</td><td><input type="number" name="grade" class="prediction-input grade-input" data-id="${log.id}" value="${log.grade || ''}" step="1" style="width: 80px;">%</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`;
+                    const predictionActionsHtml = onDashboard ? '' : '<td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>';
+                    row.innerHTML = `${firstCellHtml}<td>${log.subject}</td><td class="prediction-category-cell" data-id="${log.id}"></td><td><input type="number" name="study_time" class="prediction-input hours-input" data-id="${log.id}" value="${log.study_time || 0}" step="0.1" style="width: 80px;"> hours</td><td class="prediction-name-cell" contenteditable="true" data-id="${log.id}">${log.assignment_name}</td><td><input type="number" name="grade" class="prediction-input grade-input" data-id="${log.id}" value="${log.grade || ''}" step="1" style="width: 80px;">%</td><td>${parseFloat(log.weight).toFixed(2)}%</td>${predictionActionsHtml}`;
 
                     // Insert the category dropdown
                     const categoryCell = row.querySelector('.prediction-category-cell');
@@ -1190,7 +1202,8 @@ document.addEventListener('DOMContentLoaded',
                         });
                     }
                 } else {
-                    row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+                    const regularActionsHtml = onDashboard ? '' : '<td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>';
+                    row.innerHTML = `${firstCellHtml}<td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td>${regularActionsHtml}`;
                 }
 
                 assignmentTableBody.appendChild(row);
@@ -3047,11 +3060,11 @@ document.addEventListener('DOMContentLoaded',
             }
 
             function rowHTML(row) {
-                const firstCell = `
-        <td>
-            <span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span>
-             <input type="checkbox" class="select-assignment" data-id="${row.id}">
-        </td>`;
+                const onDashboard = isDashboard();
+                // On dashboard: show drag handle only. Otherwise: show drag handle + checkbox
+                const firstCell = onDashboard 
+                    ? `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span></td>`
+                    : `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${row.id}"></td>`;
 
                 // keep your prediction/non-prediction cells exactly like the Jinja template
                 const studyTd = row.is_prediction
@@ -3062,9 +3075,9 @@ document.addEventListener('DOMContentLoaded',
                     ? `<td><input type="number" class="prediction-input grade-input" data-id="${row.id}" value="${row.grade}" step="1" min="0" style="width: 80px;">%</td>`
                     : `<td>${row.grade != null ? row.grade + '%' : '-'}</td>`;
 
-                const actionsTd = row.is_prediction
+                const actionsTd = onDashboard ? '' : (row.is_prediction
                     ? `<td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`
-                    : `<td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+                    : `<td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`);
 
                 return `
         <tr data-id="${row.id}" class="assignment-row${row.is_prediction ? ' prediction-row' : ''}">

@@ -1138,3 +1138,21 @@ tbody#study-table-body tr {
     margin-right: 6px;
     vertical-align: middle;
 }
+
+/* Dashboard-specific table styling */
+/* Add spacing to the left of Subject column (2nd column) */
+.dashboard-view .table-wrapper table th:nth-child(2),
+.dashboard-view .table-wrapper table td:nth-child(2) {
+    padding-left: 20px;
+}
+
+/* Add spacing to the right of Weight column (last column on dashboard) */
+.dashboard-view .table-wrapper table th:last-child,
+.dashboard-view .table-wrapper table td:last-child {
+    padding-right: 24px;
+}
+
+/* Add more space between drag handle and subject on dashboard */
+.dashboard-view .table-wrapper table td:first-child {
+    padding-right: 12px;
+}
