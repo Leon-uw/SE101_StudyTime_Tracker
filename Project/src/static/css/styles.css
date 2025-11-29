@@ -52,6 +52,149 @@ body.dark-mode {
     --chart-other: #0081a7;
 }
 
+/* Toasty Light Mode */
+body.toasty-mode {
+    /* Toasty Light Palette (Warm Earth Tones) */
+    --bg-color: #fdeae7;
+    --surface-color: #f7d0bd;
+    --text-color: #611700;
+    --text-secondary: #8b2000;
+    --primary-color: #bd0600;
+    --primary-hover: #8b0400;
+    --border-color: #d2691e;
+    --border-light: rgba(189, 6, 0, 0.15);
+    --accent-color: #FFFA75;
+    --danger-color: #bd0600;
+    --warning-color: #d2691e;
+    --success-color: #FFFA75;
+    --sidebar-bg: #8b2000;
+    --sidebar-text: #fdeae7;
+    --sidebar-hover: #bd0600;
+    --shadow: 0 4px 6px rgba(97, 23, 0, 0.15);
+
+    /* Chart Colors - Toasty Light */
+    --chart-strong: #FFFA75;
+    --chart-needs-work: #bd0600;
+    --chart-other: #f7a08e;
+}
+
+/* Toasty Dark Mode */
+body.toasty-mode.dark-mode {
+    /* Toasty Dark Palette */
+    --bg-color: #611700;
+    --surface-color: #8b2000;
+    --text-color: #fdeae7;
+    --text-secondary: #f7d0bd;
+    --primary-color: #f7a08e;
+    --primary-hover: #e9783f;
+    --border-color: #d2691e;
+    --border-light: rgba(247, 160, 142, 0.15);
+    --accent-color: #FFFA75;
+    --danger-color: #ff6b6b;
+    --warning-color: #d2691e;
+    --success-color: #FFFA75;
+    --sidebar-bg: #3d0d00;
+    --sidebar-text: #fdeae7;
+    --sidebar-hover: #bd0600;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+
+    /* Chart Colors - Toasty Dark */
+    --chart-strong: #FFFA75;
+    --chart-needs-work: #ff6b6b;
+    --chart-other: #f7a08e;
+}
+
+/* Toasty Theme Component Overrides */
+body.toasty-mode .secondary-nav {
+    background-color: var(--primary-color);
+}
+
+body.toasty-mode.dark-mode .secondary-nav {
+    background-color: var(--sidebar-bg);
+}
+
+/* Fix yellow button text to be black for readability */
+body.toasty-mode .grade-lock-btn.lock-on,
+body.toasty-mode button[style*="background-color: var(--accent-color)"],
+body.toasty-mode .pill-btn {
+    color: #000 !important;
+}
+
+/* Show Predictions button - OFF state should be brown */
+body.toasty-mode .grade-lock-btn.lock-off {
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+
+/* Total weight indicator - use red/brown theme */
+body.toasty-mode #total-weight-indicator {
+    background-color: #f7d0bd !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+body.toasty-mode.dark-mode #total-weight-indicator {
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Stats bars - use pale red/orange */
+body.toasty-mode .stats-tag,
+body.toasty-mode .toggle-btn.active,
+body.toasty-mode .pill-btn {
+    background: var(--primary-color);
+}
+
+body.toasty-mode.dark-mode .stats-tag,
+body.toasty-mode.dark-mode .toggle-btn.active {
+    background: var(--primary-color);
+}
+
+/* Toast messages - dark text on yellow background */
+body.toasty-mode .toast.success {
+    color: #000;
+}
+
+/* Table headers - use brown instead of blue */
+body.toasty-mode th,
+body.toasty-mode .table-wrapper thead,
+body.toasty-mode .table-wrapper thead th,
+body.toasty-mode .table-wrapper thead .summary-row td {
+    background-color: #f7d0bd !important;
+    color: var(--text-color) !important;
+}
+
+body.toasty-mode.dark-mode th,
+body.toasty-mode.dark-mode .table-wrapper thead,
+body.toasty-mode.dark-mode .table-wrapper thead th,
+body.toasty-mode.dark-mode .table-wrapper thead .summary-row td {
+    background-color: var(--surface-color) !important;
+    color: var(--text-color) !important;
+}
+
+/* Edit button in dark mode - fix blue */
+body.toasty-mode.dark-mode .edit-btn {
+    background-color: var(--primary-color) !important;
+    color: #000 !important;
+    /* Better contrast on salmon */
+}
+
+body.toasty-mode.dark-mode .edit-btn:hover {
+    background-color: var(--primary-hover) !important;
+}
+
+/* Darker yellow/gold for grade lock on in Toasty Dark Mode */
+body.toasty-mode.dark-mode .grade-lock-btn.lock-on,
+body.toasty-mode.dark-mode #grade-lock-btn.lock-on,
+body.toasty-mode.dark-mode #show-predictions-btn.lock-on,
+body.toasty-mode.dark-mode #addPredictionBtn {
+    background-color: #c9c540 !important;
+    color: #000 !important;
+    border: 1px solid #b0ac30 !important;
+    /* Adding border to ensure visibility */
+}
+
 body {
     font-family: 'Merriweather', Georgia, 'Times New Roman', serif;
     margin: 0;
