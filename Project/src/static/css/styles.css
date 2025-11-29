@@ -51,7 +51,16 @@ body {
     transition: background-color 0.3s, color 0.3s;
 }
 
-/* --- Sidebar Styles --- */
+/* --- Sidebar Styles (Hidden - using top nav instead) --- */
+.sidebar {
+    display: none;
+}
+
+.overlay {
+    display: none !important;
+}
+
+/* Legacy sidebar styles kept for reference
 .sidebar {
     height: 100%;
     width: 250px;
@@ -65,6 +74,7 @@ body {
     padding-top: 20px;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
 }
+*/
 
 .sidebar.open {
     left: 0;
@@ -233,19 +243,154 @@ input:checked+.slider:before {
     transition: background-color 0.3s;
 }
 
-.menu-btn {
+/* Secondary Navigation Bar */
+.secondary-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--primary-color);
+    padding: 0 20px;
+    height: 45px;
+    box-sizing: border-box;
+    position: sticky;
+    top: 60px;
+    z-index: 99;
+}
+
+.secondary-nav .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.secondary-nav .nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 0.95em;
+    font-weight: 500;
+    transition: background-color 0.2s;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
-.menu-btn .bar {
-    width: 25px;
-    height: 3px;
-    background-color: var(--text-color);
+.secondary-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.secondary-nav .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.secondary-nav .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.secondary-nav .nav-switch {
+    margin: 0;
+}
+
+.secondary-nav .nav-switch .slider {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.secondary-nav .nav-switch input:checked + .slider {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.secondary-nav .logout-link {
+    opacity: 0.9;
+}
+
+.secondary-nav .logout-link:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Dropdown in secondary nav */
+.nav-dropdown {
+    position: relative;
+}
+
+.nav-dropdown .dropdown-toggle .arrow {
+    font-size: 0.7em;
+    transition: transform 0.2s;
+}
+
+.nav-dropdown:hover .dropdown-toggle .arrow {
+    transform: rotate(180deg);
+}
+
+.nav-dropdown .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: var(--surface-color);
+    min-width: 180px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    padding: 5px 0;
+    margin-top: 5px;
+}
+
+.nav-dropdown:hover .dropdown-menu,
+.nav-dropdown.open .dropdown-menu {
+    display: block;
+}
+
+.nav-dropdown .dropdown-item {
+    display: block;
+    padding: 10px 15px;
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+.nav-dropdown .dropdown-item:hover {
+    background-color: var(--bg-color);
+}
+
+.nav-dropdown .dropdown-divider {
+    height: 1px;
+    background-color: var(--border-color);
     margin: 5px 0;
-    transition: 0.4s;
+}
+
+.nav-dropdown .add-subject-item {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.user-greeting {
+    color: var(--text-color);
+    font-size: 0.9em;
+    margin-right: 15px;
+}
+
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+}
+
+/* Menu button hidden - using top nav */
+.menu-btn {
+    display: none;
 }
 
 .nav-center h1 {

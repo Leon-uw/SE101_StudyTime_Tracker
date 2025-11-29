@@ -1,89 +1,37 @@
 document.addEventListener('DOMContentLoaded',
     function () {
-        // --- Sidebar Logic ---
-        const menuBtn = document.getElementById('menu-btn');
-        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('overlay');
-        const subjectsToggle = document.getElementById('subjects-toggle');
-        const subjectsSubmenu = document.getElementById('subjects-submenu');
-
-        console.log('[Sidebar Debug] Elements found:', {
-            menuBtn: !!menuBtn,
-            closeSidebarBtn: !!closeSidebarBtn,
-            sidebar: !!sidebar,
-            overlay: !!overlay
+        // --- Top Navigation Dropdown Logic ---
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.nav-dropdown')) {
+                document.querySelectorAll('.nav-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('open');
+                });
+            }
         });
 
-        // Ensure sidebar starts closed
-        if (sidebar) {
-            console.log('[Sidebar Debug] Initial sidebar classes:', sidebar.className);
-            sidebar.classList.remove('open');
-            console.log('[Sidebar Debug] After removing open class:', sidebar.className);
-        }
-        if (overlay) {
-            console.log('[Sidebar Debug] Initial overlay classes:', overlay.className);
-            overlay.classList.remove('active');
-            console.log('[Sidebar Debug] After removing active class:', overlay.className);
-        }
-
-        function toggleSidebar() {
-            console.log('[Sidebar Debug] toggleSidebar called');
-            console.log('[Sidebar Debug] sidebar element:', sidebar);
-            console.log('[Sidebar Debug] sidebar classes before toggle:', sidebar ? sidebar.className : 'sidebar is null');
-            console.log('[Sidebar Debug] overlay classes before toggle:', overlay ? overlay.className : 'overlay is null');
-
-            if (sidebar) {
-                sidebar.classList.toggle('open');
-                console.log('[Sidebar Debug] sidebar classes after toggle:', sidebar.className);
-
-                // Force inline styles for debugging
-                if (sidebar.classList.contains('open')) {
-                    sidebar.style.left = '0';
-                    console.log('[Sidebar Debug] Forced sidebar to left: 0');
-                } else {
-                    sidebar.style.left = '-250px';
-                    console.log('[Sidebar Debug] Forced sidebar to left: -250px');
+        // Handle dropdown toggles on mobile (touch devices)
+        document.querySelectorAll('.nav-dropdown .dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                const dropdown = this.closest('.nav-dropdown');
+                const wasOpen = dropdown.classList.contains('open');
+                
+                // Close all other dropdowns
+                document.querySelectorAll('.nav-dropdown').forEach(d => {
+                    d.classList.remove('open');
+                });
+                
+                // Toggle this one
+                if (!wasOpen) {
+                    dropdown.classList.add('open');
                 }
-
-                // Log computed styles
-                const computedStyle = window.getComputedStyle(sidebar);
-                console.log('[Sidebar Debug] Computed left:', computedStyle.left);
-                console.log('[Sidebar Debug] Computed position:', computedStyle.position);
-                console.log('[Sidebar Debug] Computed z-index:', computedStyle.zIndex);
-            } else {
-                console.error('[Sidebar Debug] sidebar element is null!');
-            }
-
-            if (overlay) {
-                overlay.classList.toggle('active');
-                console.log('[Sidebar Debug] overlay classes after toggle:', overlay.className);
-            } else {
-                console.error('[Sidebar Debug] overlay element is null!');
-            }
-        }
-
-        if (menuBtn) {
-            console.log('[Sidebar Debug] Adding click listener to menuBtn');
-            menuBtn.addEventListener('click', function (e) {
-                console.log('[Sidebar Debug] Menu button clicked!', e);
-                toggleSidebar();
             });
-        } else {
-            console.error('[Sidebar Debug] menuBtn not found!');
-        }
+        });
 
-        if (closeSidebarBtn) {
-            closeSidebarBtn.addEventListener('click', toggleSidebar);
-        } else {
-            console.warn('[Sidebar Debug] closeSidebarBtn not found');
-        }
-
-        if (overlay) {
-            overlay.addEventListener('click', toggleSidebar);
-        } else {
-            console.warn('[Sidebar Debug] overlay not found');
-        }
+        // Legacy sidebar elements (kept for compatibility but not used)
+        const subjectsToggle = document.getElementById('subjects-toggle');
+        const subjectsSubmenu = document.getElementById('subjects-submenu');
 
         if (subjectsToggle) {
             subjectsToggle.addEventListener('click', (e) => {

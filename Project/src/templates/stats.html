@@ -22,34 +22,8 @@
 
 >
 
-    <!-- Sidebar -->
+    <!-- Sidebar (hidden - using top nav) -->
     <div id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <h3>Menu</h3>
-            <button id="close-sidebar-btn" class="close-btn">&times;</button>
-        </div>
-        <ul class="sidebar-menu">
-            <li><a href="{{ url_for('display_table') }}">Home</a></li>
-            <li class="has-submenu">
-                <a href="#" id="subjects-toggle">Subjects <span class="arrow">&#9662;</span></a>
-                <ul class="submenu" id="subjects-submenu">
-                    {% for subject in subjects %}
-                    <li><a href="{{ url_for('display_subject', subject_name=subject) }}">{{ subject }}</a></li>
-                    {% endfor %}
-                    <li><a href="#" id="add-subject-link" class="add-subject-link">+ Add Subject</a></li>
-                </ul>
-            </li>
-            <li><a href="{{ url_for('about') }}">About</a></li>
-            <li><a href="{{ url_for('stats') }}">Stats</a></li>
-            <li class="theme-toggle-item">
-                <span>Dark Mode</span>
-                <label class="switch">
-                    <input type="checkbox" id="theme-toggle">
-                    <span class="slider"></span>
-                </label>
-            </li>
-            <li><a href="{{ url_for('logout') }}">Log Out</a></li>
-        </ul>
     </div>
 
     <!-- Overlay -->
@@ -60,21 +34,60 @@
         <!-- Top Navigation Bar -->
         <header class="top-nav">
             <div class="nav-left">
-                <button id="menu-btn" class="menu-btn">
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                </button>
+                <a href="{{ url_for('display_table') }}" class="logo-link">
+                    <div class="logo-placeholder">Logo</div>
+                </a>
             </div>
             <div class="nav-center">
                 <h1>{{ page_title }}</h1>
             </div>
             <div class="nav-right">
-                <a href="{{ url_for('display_table') }}" class="logo-link">
-                    <div class="logo-placeholder">Logo</div>
-                </a>
+                <span class="user-greeting">{{ current_user.username }}</span>
             </div>
         </header>
+
+        <!-- Secondary Navigation Bar -->
+        <nav class="secondary-nav">
+            <div class="nav-links">
+                <a href="{{ url_for('display_table') }}" class="nav-link">Dashboard</a>
+                
+                <div class="nav-dropdown">
+                    <button class="nav-link dropdown-toggle">
+                        Subjects <span class="arrow">▼</span>
+                    </button>
+                    <div class="dropdown-menu">
+                        {% for subject in subjects %}
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{ subject }}</a>
+                        {% endfor %}
+                        <div class="dropdown-divider"></div>
+                        <a href="#" id="add-subject-link" class="dropdown-item add-subject-item">+ Add Subject</a>
+                    </div>
+                </div>
+
+                {% if retired_subjects %}
+                <div class="nav-dropdown">
+                    <button class="nav-link dropdown-toggle">
+                        Retired <span class="arrow">▼</span>
+                    </button>
+                    <div class="dropdown-menu">
+                        {% for subject in retired_subjects %}
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{ subject }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('stats') }}" class="nav-link active">Stats</a>
+                <a href="{{ url_for('about') }}" class="nav-link">About</a>
+            </div>
+            <div class="nav-actions">
+                <label class="switch nav-switch" title="Toggle Dark Mode">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider"></span>
+                </label>
+                <a href="{{ url_for('logout') }}" class="nav-link logout-link">Log Out</a>
+            </div>
+        </nav>
 
         <div class="content-container">
             <div class="main-container">
