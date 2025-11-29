@@ -235,7 +235,7 @@ input:checked+.slider:before {
     background-color: var(--surface-color);
     padding: 10px 20px;
     box-shadow: var(--shadow);
-    height: 60px;
+    height: 80px;
     box-sizing: border-box;
     position: sticky;
     top: 0;
@@ -250,10 +250,10 @@ input:checked+.slider:before {
     align-items: center;
     background-color: var(--primary-color);
     padding: 0 20px;
-    height: 45px;
+    height: 55px;
     box-sizing: border-box;
     position: sticky;
-    top: 60px;
+    top: 80px;
     z-index: 99;
 }
 
@@ -317,6 +317,7 @@ input:checked+.slider:before {
 /* Dropdown in secondary nav */
 .nav-dropdown {
     position: relative;
+    top: 1px;
 }
 
 .nav-dropdown .dropdown-toggle .arrow {
@@ -373,7 +374,8 @@ input:checked+.slider:before {
 
 .user-greeting {
     color: var(--text-color);
-    font-size: 0.9em;
+    font-size: 1.15em;
+    font-weight: 500;
     margin-right: 15px;
 }
 
@@ -386,6 +388,29 @@ input:checked+.slider:before {
 .nav-left {
     display: flex;
     align-items: center;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    gap: 12px;
+}
+
+.logo-img {
+    width: 38px;
+    height: 38px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    background-color: #e0f7fa;
+    margin-right: 8px;
+}
+
+.logo-text {
+    font-size: 1.68em;
+    font-weight: 700;
+    color: var(--text-color);
 }
 
 /* Menu button hidden - using top nav */
@@ -476,6 +501,7 @@ h2 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0;
+    margin-top: 10px;
     /* Removed margin since it's in a flex gap now */
 }
 
