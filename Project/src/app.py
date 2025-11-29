@@ -8,15 +8,8 @@ from collections import Counter, defaultdict
 from dotenv import load_dotenv
 load_dotenv()
 
-# Conditional database import - use local SQLite if USE_LOCAL_DB is set
-if os.getenv("USE_LOCAL_DB", "").lower() == "true":
-    print("🔧 Using LOCAL SQLite database for development")
-    from db_local import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db
-    # SQLite doesn't need ensure_position_column (already in schema)
-    ensure_position_column = lambda: None
-else:
-    print("🌐 Using REMOTE MySQL database")
-    from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
+# Database imports
+from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 
 _schema_ready = False
@@ -29,7 +22,7 @@ from crud import (get_all_grades, get_all_categories, get_categories_as_dict, ad
                   update_category, delete_category, get_total_weight_for_subject,
                   get_all_subjects, add_subject as crud_add_subject, delete_subject as crud_delete_subject,
                   rename_subject as crud_rename_subject,
-                  get_subject_by_name,
+                  get_subject_by_name, get_retired_subjects,
                   create_user, verify_user, user_exists, TABLE_NAME, ensure_schema)
 
 app = Flask(__name__)
@@ -248,10 +241,14 @@ def find_similar_grade(data, target_grade):
 @app.context_processor
 def inject_subjects():
     if not current_user.is_authenticated:
-        return dict(subjects=[])
+        return dict(subjects=[], retired_subjects=[])
+    # Get active subjects (excludes retired)
     all_subjects = get_all_subjects(current_user.username)
     unique_subjects = sorted([s['name'] for s in all_subjects])
-    return dict(subjects=unique_subjects)
+    # Get retired subjects
+    retired = get_retired_subjects(current_user.username)
+    retired_subject_names = sorted([s['name'] for s in retired])
+    return dict(subjects=unique_subjects, retired_subjects=retired_subject_names)
 
 
 @app.route('/')
@@ -265,15 +262,20 @@ def display_table():
 @login_required
 def display_subject(subject_name):
     """Subject-specific view."""
-    # Verify subject exists
-    all_subjects = get_all_subjects(current_user.username)
+    # Verify subject exists (include retired subjects so they can still be viewed)
+    all_subjects = get_all_subjects(current_user.username, include_retired=True)
     unique_subjects = [s['name'] for s in all_subjects]
     if subject_name not in unique_subjects:
          return redirect(url_for('display_table'))
     
-    return render_subject_view(subject_name)
+    # Check if this subject is retired
+    retired = get_retired_subjects(current_user.username)
+    retired_names = [s['name'] for s in retired]
+    is_retired_subject = subject_name in retired_names
+    
+    return render_subject_view(subject_name, is_retired_subject=is_retired_subject)
 
-def render_subject_view(filter_subject):
+def render_subject_view(filter_subject, is_retired_subject=False):
     """Helper to render the main view with a specific subject filter."""
     filter_category = request.args.get('category')
     username = current_user.username
@@ -342,6 +344,7 @@ def render_subject_view(filter_subject):
         weight_categories_json=json.dumps(weight_categories_db),
         page_title=page_title,
         username=username,
+        is_retired_subject=is_retired_subject,
         is_dashboard=is_dashboard
     )
 
@@ -1363,6 +1366,46 @@ def rename_subject_route():
         return jsonify({'status': 'error', 'message': str(e)}), 400
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Database error: {str(e)}'}), 500
+
+@app.route('/retire_subject', methods=['POST'])
+@login_required
+def retire_subject_route():
+    """Mark a subject as retired."""
+    subject_name = request.form.get('subject_name')
+    username = current_user.username
+
+    if not subject_name:
+        return jsonify({'status': 'error', 'message': 'Subject name is required.'}), 400
+
+    try:
+        from db import retire_subject
+        success = retire_subject(username, subject_name)
+        if success:
+            return jsonify({'status': 'success', 'message': f'Subject "{subject_name}" has been retired.'})
+        else:
+            return jsonify({'status': 'error', 'message': f'Subject "{subject_name}" not found.'}), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to retire subject: {str(e)}'}), 500
+
+@app.route('/unretire_subject', methods=['POST'])
+@login_required
+def unretire_subject_route():
+    """Restore a retired subject to active status."""
+    subject_name = request.form.get('subject_name')
+    username = current_user.username
+
+    if not subject_name:
+        return jsonify({'status': 'error', 'message': 'Subject name is required.'}), 400
+
+    try:
+        from db import unretire_subject
+        success = unretire_subject(username, subject_name)
+        if success:
+            return jsonify({'status': 'success', 'message': f'Subject "{subject_name}" has been restored.'})
+        else:
+            return jsonify({'status': 'error', 'message': f'Subject "{subject_name}" not found.'}), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to restore subject: {str(e)}'}), 500
 
 @app.route('/predict_subject', methods=['POST'])
 @login_required

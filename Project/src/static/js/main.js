@@ -95,6 +95,34 @@ document.addEventListener('DOMContentLoaded',
             });
         }
 
+        // --- Retired Subjects Submenu Toggle ---
+        const retiredSubjectsToggle = document.getElementById('retired-subjects-toggle');
+        const retiredSubjectsSubmenu = document.getElementById('retired-subjects-submenu');
+        
+        if (retiredSubjectsToggle) {
+            retiredSubjectsToggle.addEventListener('click', (e) => {
+                if (e.target === retiredSubjectsToggle || e.target.closest('#retired-subjects-toggle')) {
+                    e.preventDefault();
+                    retiredSubjectsToggle.parentElement.classList.toggle('active');
+                }
+            });
+        }
+
+        // Ensure retired subject links work properly
+        if (retiredSubjectsSubmenu) {
+            retiredSubjectsSubmenu.addEventListener('click', (e) => {
+                const link = e.target.closest('a');
+                if (link && link.href) {
+                    // Allow default navigation
+                    setTimeout(() => {
+                        if (sidebar && sidebar.classList.contains('open')) {
+                            toggleSidebar();
+                        }
+                    }, 100);
+                }
+            });
+        }
+
         // Ensure subject links in submenu work properly
         if (subjectsSubmenu) {
             subjectsSubmenu.addEventListener('click', (e) => {
@@ -2529,6 +2557,92 @@ document.addEventListener('DOMContentLoaded',
                         })
                         .catch(error => {
                             showToast('Error adding subject: ' + error.message, 'error');
+                        });
+                });
+            }
+
+            // --- Retire Subject Button Handler ---
+            const retireSubjectBtn = document.getElementById('retire-subject-btn');
+            const retireSubjectModal = document.getElementById('retire-subject-modal');
+            const retireSubjectMessage = document.getElementById('retire-subject-message');
+            const retireSubjectConfirm = document.getElementById('retire-subject-confirm');
+            const retireSubjectCancel = document.getElementById('retire-subject-cancel');
+
+            if (retireSubjectBtn && retireSubjectModal) {
+                let subjectToRetire = '';
+
+                retireSubjectBtn.addEventListener('click', function () {
+                    subjectToRetire = this.dataset.subject;
+                    retireSubjectMessage.textContent = `Are you sure you want to retire "${subjectToRetire}"?\n\nRetired subjects won't appear in the main subjects list, but you can still access them from "Retired Subjects" in the menu.`;
+                    retireSubjectModal.style.display = 'flex';
+                });
+
+                retireSubjectCancel.addEventListener('click', function () {
+                    retireSubjectModal.style.display = 'none';
+                });
+
+                retireSubjectConfirm.addEventListener('click', function () {
+                    retireSubjectModal.style.display = 'none';
+                    fetch('/retire_subject', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ subject_name: subjectToRetire })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                showToast(data.message, 'success');
+                                // Reload page to update sidebar
+                                setTimeout(() => window.location.reload(), 1000);
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error retiring subject: ' + error.message, 'error');
+                        });
+                });
+            }
+
+            // --- Restore Subject Button Handler ---
+            const restoreSubjectBtn = document.getElementById('restore-subject-btn');
+            const restoreSubjectModal = document.getElementById('restore-subject-modal');
+            const restoreSubjectMessage = document.getElementById('restore-subject-message');
+            const restoreSubjectConfirm = document.getElementById('restore-subject-confirm');
+            const restoreSubjectCancel = document.getElementById('restore-subject-cancel');
+
+            if (restoreSubjectBtn && restoreSubjectModal) {
+                let subjectToRestore = '';
+
+                restoreSubjectBtn.addEventListener('click', function () {
+                    subjectToRestore = this.dataset.subject;
+                    restoreSubjectMessage.textContent = `Restore "${subjectToRestore}" to active subjects?`;
+                    restoreSubjectModal.style.display = 'flex';
+                });
+
+                restoreSubjectCancel.addEventListener('click', function () {
+                    restoreSubjectModal.style.display = 'none';
+                });
+
+                restoreSubjectConfirm.addEventListener('click', function () {
+                    restoreSubjectModal.style.display = 'none';
+                    fetch('/unretire_subject', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ subject_name: subjectToRestore })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                showToast(data.message, 'success');
+                                // Reload page to update sidebar
+                                setTimeout(() => window.location.reload(), 1000);
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error restoring subject: ' + error.message, 'error');
                         });
                 });
             }

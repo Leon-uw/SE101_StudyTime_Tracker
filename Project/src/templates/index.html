@@ -30,6 +30,16 @@
                     <li><a href="#" id="add-subject-link" class="add-subject-link">+ Add Subject</a></li>
                 </ul>
             </li>
+            {% if retired_subjects %}
+            <li class="has-submenu">
+                <a href="#" id="retired-subjects-toggle">Retired Subjects <span class="arrow">&#9662;</span></a>
+                <ul class="submenu" id="retired-subjects-submenu">
+                    {% for subject in retired_subjects %}
+                    <li><a href="{{ url_for('display_subject', subject_name=subject) }}">{{ subject }}</a></li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endif %}
             <li><a href="{{ url_for('about') }}">About</a></li>
             <li><a href="{{ url_for('stats') }}">Stats</a></li>
             <li class="theme-toggle-item">
@@ -59,6 +69,9 @@
             </div>
             <div class="nav-center">
                 <h1>{{ page_title }}
+                    {% if is_retired_subject %}
+                    <span style="font-size: 0.6em; background-color: var(--text-secondary); color: white; padding: 2px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">RETIRED</span>
+                    {% endif %}
                     {% if selected_subject and selected_subject != 'all' %}
                     <button id="rename-subject-btn" class="icon-btn" title="Rename Subject"
                         style="background: none; border: none; cursor: pointer; color: var(--text-color); margin-left: 10px;">
@@ -340,8 +353,21 @@
         </div>
 
         {% if selected_subject and selected_subject != 'all' %}
-        <div class="delete-subject-bar"
+        <div class="subject-actions-bar"
             style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-light); width: 100%; text-align: center;">
+            {% if is_retired_subject %}
+            <button type="button" id="restore-subject-btn" class="subject-action-btn"
+                style="padding: 10px 20px; font-size: 1em; background-color: var(--success-color); color: white; margin-right: 15px;" 
+                data-subject="{{ selected_subject }}">
+                Restore Subject {{ selected_subject }}
+            </button>
+            {% else %}
+            <button type="button" id="retire-subject-btn" class="subject-action-btn"
+                style="padding: 10px 20px; font-size: 1em; background-color: var(--text-secondary); color: white; margin-right: 15px;" 
+                data-subject="{{ selected_subject }}">
+                Retire Subject {{ selected_subject }}
+            </button>
+            {% endif %}
             <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn"
                 style="padding: 10px 20px; font-size: 1em;" data-subject="{{ selected_subject }}">Delete Subject {{
                 selected_subject }}</button>
@@ -406,6 +432,32 @@
                     style="background-color: var(--primary-color); color: white;">Rename</button>
                 <button id="rename-subject-cancel"
                     style="background-color: var(--text-secondary); color: white;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="retire-subject-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--text-secondary);">Retire Subject</h3>
+            <p id="retire-subject-message"></p>
+            <div class="modal-buttons">
+                <button id="retire-subject-confirm"
+                    style="background-color: var(--text-secondary); color: white;">Yes, Retire</button>
+                <button id="retire-subject-cancel"
+                    style="background-color: #6c757d; color: white;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="restore-subject-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--success-color);">Restore Subject</h3>
+            <p id="restore-subject-message"></p>
+            <div class="modal-buttons">
+                <button id="restore-subject-confirm"
+                    style="background-color: var(--success-color); color: white;">Yes, Restore</button>
+                <button id="restore-subject-cancel"
+                    style="background-color: #6c757d; color: white;">Cancel</button>
             </div>
         </div>
     </div>

@@ -447,19 +447,45 @@ def get_total_weight_for_subject(username, subject, exclude_category_id=None):
 # PHASE 7: Subject CRUD Operations
 # ============================================================================
 
-def get_all_subjects(username):
-    """Get all subjects for a user."""
+def get_all_subjects(username, include_retired=False):
+    """Get all subjects for a user. By default excludes retired subjects."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
-        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s ORDER BY name", (username,))
+        if include_retired:
+            curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s ORDER BY name", (username,))
+        else:
+            # Exclude retired subjects (is_retired = FALSE or NULL)
+            curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND (is_retired = FALSE OR is_retired IS NULL) ORDER BY name", (username,))
         results = curs.fetchall()
 
         return [
             {
                 'id': row['id'],
                 'name': row['name'],
-                'created_at': row['created_at']
+                'created_at': row['created_at'],
+                'is_retired': row.get('is_retired', False) or False
+            }
+            for row in results
+        ]
+    finally:
+        curs.close()
+        conn.close()
+
+def get_retired_subjects(username):
+    """Get all retired subjects for a user."""
+    conn = _connect()
+    try:
+        curs = conn.cursor(dictionary=True)
+        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND is_retired = TRUE ORDER BY name", (username,))
+        results = curs.fetchall()
+
+        return [
+            {
+                'id': row['id'],
+                'name': row['name'],
+                'created_at': row['created_at'],
+                'is_retired': True
             }
             for row in results
         ]

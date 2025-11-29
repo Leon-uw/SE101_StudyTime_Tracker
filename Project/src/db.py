@@ -117,6 +117,7 @@ def init_db():
         conn.close()
 
     ensure_position_column()
+    ensure_retired_column()
 
     # Seed initial data if tables are empty
     seed_initial_data()
@@ -296,6 +297,84 @@ def get_grade_lock_for_subject(username, subject):
         if result:
             return bool(result[0])
         return True  # Default to True if not set
+    finally:
+        cur.close()
+        conn.close()
+
+def ensure_retired_column():
+    """Add is_retired column to subjects table if it doesn't exist."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        # Check if column exists
+        cur.execute(f"""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = '{DB_NAME}'
+            AND TABLE_NAME = '{SUBJECTS_TABLE}'
+            AND COLUMN_NAME = 'is_retired'
+        """)
+        if cur.fetchone()[0] == 0:
+            cur.execute(f"""
+                ALTER TABLE {SUBJECTS_TABLE}
+                ADD COLUMN is_retired BOOLEAN DEFAULT FALSE
+            """)
+            conn.commit()
+            print(f"Added is_retired column to {SUBJECTS_TABLE}")
+    except Exception as e:
+        print(f"Warning: Could not add is_retired column: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+def retire_subject(username, subject_name):
+    """Mark a subject as retired."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE {SUBJECTS_TABLE} SET is_retired = TRUE WHERE username = %s AND name = %s",
+            (username, subject_name)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        cur.close()
+        conn.close()
+
+def unretire_subject(username, subject_name):
+    """Mark a subject as not retired (active)."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE {SUBJECTS_TABLE} SET is_retired = FALSE WHERE username = %s AND name = %s",
+            (username, subject_name)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        cur.close()
+        conn.close()
+
+def get_retired_subjects(username):
+    """Get all retired subjects for a user."""
+    conn = _connect()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND is_retired = TRUE ORDER BY name",
+            (username,)
+        )
+        results = cur.fetchall()
+        return [
+            {
+                'id': row['id'],
+                'name': row['name'],
+                'created_at': row['created_at'],
+                'is_retired': True
+            }
+            for row in results
+        ]
     finally:
         cur.close()
         conn.close()
