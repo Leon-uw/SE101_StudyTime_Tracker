@@ -1547,7 +1547,65 @@ def reorder_assignments():
         cur.close()
         conn.close()
 
+@app.route('/api/grade_lock/get', methods=['GET'])
+@login_required
+def get_grade_lock_preferences():
+    """
+    Get all grade lock preferences for the current user.
+    Returns: {"status": "success", "preferences": {"Math": true, "Science": false, ...}}
+    """
+    try:
+        from db import get_grade_lock_preferences as get_prefs
+        preferences = get_prefs(session['username'])
+        return jsonify({
+            'status': 'success',
+            'preferences': preferences
+        })
+    except Exception as e:
+        print(f"Error getting grade lock preferences: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to retrieve grade lock preferences'
+        }), 500
 
+@app.route('/api/grade_lock/set', methods=['POST'])
+@login_required
+def set_grade_lock_preference():
+    """
+    Set grade lock preference for a specific subject.
+    Body: {"subject": "Math", "grade_lock": true}
+    Returns: {"status": "success"}
+    """
+    try:
+        data = request.get_json()
+        subject = data.get('subject')
+        grade_lock = data.get('grade_lock')
+        
+        if not subject:
+            return jsonify({
+                'status': 'error',
+                'message': 'Subject is required'
+            }), 400
+        
+        if grade_lock is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'grade_lock is required'
+            }), 400
+        
+        from db import set_grade_lock_preference as set_pref
+        set_pref(session['username'], subject, bool(grade_lock))
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Grade lock for {subject} updated'
+        })
+    except Exception as e:
+        print(f"Error setting grade lock preference: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to update grade lock preference'
+        }), 500
 
 
 

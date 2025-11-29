@@ -171,8 +171,104 @@ document.addEventListener('DOMContentLoaded',
         const triggerSubjectPredictBtn = document.getElementById('trigger-subject-predict-btn');
 
         // --- State Variables ---
-        // Load from localStorage, default Grade Lock to true, Show Predictions to false
-        let isGradeLockOn = localStorage.getItem('isGradeLockOn') !== null ? localStorage.getItem('isGradeLockOn') === 'true' : true;
+        // Grade Lock: Per-subject storage - each subject remembers its own grade lock state
+        // Stored as object in localStorage: { "Math": true, "Science": false, ... }
+        // Also synced with server database via API
+        // Load from localStorage, default Grade Lock to true per subject, Show Predictions to false
+        let gradeLockBySubject = {};
+        try {
+            const stored = localStorage.getItem('gradeLockBySubject');
+            gradeLockBySubject = stored ? JSON.parse(stored) : {};
+        } catch (e) {
+            console.error('Error loading grade lock settings:', e);
+            gradeLockBySubject = {};
+        }
+        
+        // Load grade lock preferences from server
+        async function loadGradeLockFromServer() {
+            try {
+                const response = await fetch('/api/grade_lock/get');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'success' && data.preferences) {
+                        // Merge server preferences with local (server is source of truth)
+                        gradeLockBySubject = data.preferences;
+                        localStorage.setItem('gradeLockBySubject', JSON.stringify(gradeLockBySubject));
+                        updateGradeLockButton();
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading grade lock from server:', e);
+            }
+        }
+        
+        // Save grade lock preference to server
+        async function saveGradeLockToServer(subject, gradeLock) {
+            try {
+                const response = await fetch('/api/grade_lock/set', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        subject: subject,
+                        grade_lock: gradeLock
+                    })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to save grade lock to server');
+                }
+            } catch (e) {
+                console.error('Error saving grade lock to server:', e);
+            }
+        }
+        
+        // Load preferences on page load
+        loadGradeLockFromServer();
+        
+        // Helper function to get grade lock state for a subject
+        function getGradeLock(subject) {
+            // Default to true if not set
+            return gradeLockBySubject[subject] !== undefined ? gradeLockBySubject[subject] : true;
+        }
+        
+        // Helper function to set grade lock state for a subject
+        function setGradeLock(subject, value) {
+            gradeLockBySubject[subject] = value;
+            localStorage.setItem('gradeLockBySubject', JSON.stringify(gradeLockBySubject));
+            // Also save to server
+            saveGradeLockToServer(subject, value);
+        }
+        
+        // Helper function to get the current active subject
+        function getCurrentSubject() {
+            // First try the visible dropdown (for home page with 'all subjects')
+            if (subjectFilterVisible && subjectFilterVisible.value && subjectFilterVisible.value !== 'all') {
+                return subjectFilterVisible.value;
+            }
+            
+            // Try the hidden filter input (set on subject-specific pages)
+            if (subjectFilterDropdown && subjectFilterDropdown.value && subjectFilterDropdown.value !== 'all') {
+                return subjectFilterDropdown.value;
+            }
+            
+            return 'all';
+        }
+        
+        // Helper function to get current grade lock state based on active subject filter
+        function getCurrentGradeLock() {
+            const currentSubject = getCurrentSubject();
+            if (currentSubject === 'all') {
+                // When 'all' is selected, return true if ANY subject has grade lock on
+                // Or default to true if no subjects are configured
+                const subjects = Object.keys(weightCategoriesMap);
+                if (subjects.length === 0) return true;
+                return subjects.some(subj => getGradeLock(subj));
+            }
+            return getGradeLock(currentSubject);
+        }
+        
         let showPredictions = localStorage.getItem('showPredictions') === 'true';
 
         if (triggerSubjectPredictBtn) {
@@ -536,32 +632,65 @@ document.addEventListener('DOMContentLoaded',
 
         // ... (Confirmation Modal Listeners) ...
 
+        // Helper function to update grade lock button display
+        function updateGradeLockButton() {
+            if (!gradeLockBtn) return;
+            
+            const currentSubject = getCurrentSubject();
+            const isLocked = getCurrentGradeLock();
+            
+            if (currentSubject === 'all') {
+                gradeLockBtn.textContent = 'Grade Lock (All)';
+            } else {
+                gradeLockBtn.textContent = isLocked ? `Grade Lock (${currentSubject}): ON` : `Grade Lock (${currentSubject}): OFF`;
+            }
+            
+            gradeLockBtn.classList.toggle('lock-on', isLocked);
+            gradeLockBtn.classList.toggle('lock-off', !isLocked);
+        }
+
         if (gradeLockBtn) {
             // Initialize button state
-            gradeLockBtn.textContent = isGradeLockOn ? 'Grade Lock: ON' : 'Grade Lock: OFF';
-            gradeLockBtn.classList.toggle('lock-on', isGradeLockOn);
-            gradeLockBtn.classList.toggle('lock-off', !isGradeLockOn);
+            updateGradeLockButton();
 
             gradeLockBtn.addEventListener('click', function () {
-                isGradeLockOn = !isGradeLockOn;
-                localStorage.setItem('isGradeLockOn', isGradeLockOn); // Save state
-
-                this.textContent = isGradeLockOn ? 'Grade Lock: ON' : 'Grade Lock: OFF';
-                this.classList.toggle('lock-on', isGradeLockOn);
-                this.classList.toggle('lock-off', !isGradeLockOn);
+                const currentSubject = getCurrentSubject();
+                
+                if (currentSubject === 'all') {
+                    showToast('Please select a specific subject to toggle grade lock', 'info');
+                    return;
+                }
+                
+                const currentState = getGradeLock(currentSubject);
+                const newState = !currentState;
+                setGradeLock(currentSubject, newState);
+                
+                updateGradeLockButton();
 
                 // Remove forced styles if they were applied
                 this.style.backgroundColor = '';
 
-                // Update all grade input fields max attribute
+                // Update all grade input fields max attribute for current subject
                 const allGradeInputs = document.querySelectorAll('input[name="grade"]');
                 allGradeInputs.forEach(input => {
-                    if (isGradeLockOn) {
+                    const row = input.closest('tr');
+                    if (!row) return;
+                    
+                    // Check if this row belongs to the current subject
+                    const subjectCell = row.querySelector('td:nth-child(2)');
+                    if (!subjectCell) return;
+                    
+                    const rowSubject = subjectCell.textContent.trim();
+                    if (rowSubject !== currentSubject) return;
+                    
+                    if (newState) {
                         input.setAttribute('max', '100');
                     } else {
                         input.removeAttribute('max');
                     }
                 });
+                
+                showToast(`Grade Lock for ${currentSubject}: ${newState ? 'ON' : 'OFF'}`, 'success');
             });
         }
 
@@ -633,11 +762,18 @@ document.addEventListener('DOMContentLoaded',
 
             // Additional validation for grade lock
             const gradeInput = row.querySelector('input[name="grade"]');
-            if (gradeInput && gradeInput.value && isGradeLockOn) {
-                const gradeValue = parseFloat(gradeInput.value);
-                if (gradeValue > 100) {
-                    errorMessages.push('Grade cannot exceed 100% when Grade Lock is ON.');
-                    gradeInput.classList.add('input-error');
+            if (gradeInput && gradeInput.value) {
+                // Get the subject for this row
+                const subjectSelect = row.querySelector('select[name="subject"]');
+                const subjectCell = row.querySelector('td:nth-child(2)');
+                const rowSubject = subjectSelect ? subjectSelect.value : (subjectCell ? subjectCell.textContent.trim() : null);
+                
+                if (rowSubject && getGradeLock(rowSubject)) {
+                    const gradeValue = parseFloat(gradeInput.value);
+                    if (gradeValue > 100) {
+                        errorMessages.push(`Grade cannot exceed 100% when Grade Lock is ON for ${rowSubject}.`);
+                        gradeInput.classList.add('input-error');
+                    }
                 }
             }
 
@@ -1437,6 +1573,9 @@ document.addEventListener('DOMContentLoaded',
                 newRow.dataset.isPrediction = 'true';
             }
 
+            // Determine grade lock based on current subject filter or default to true
+            const currentSubject = subjectFilterVisible ? subjectFilterVisible.value : 'all';
+            const isGradeLockOn = currentSubject !== 'all' ? getGradeLock(currentSubject) : true;
             const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
 
 
@@ -1550,7 +1689,10 @@ document.addEventListener('DOMContentLoaded',
                     const assignmentNameText = cells[4].textContent.trim();
                     const gradeText = cells[5].textContent.trim();
                     const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
-                    const gradeAttributes = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
+                    
+                    // Get grade lock state for this row's subject
+                    const rowGradeLock = getGradeLock(subjectText);
+                    const gradeAttributes = rowGradeLock ? 'min="0" max="100"' : 'min="0"';
 
                     // Get all subjects from weightCategoriesMap
                     const allSubjects = Object.keys(weightCategoriesMap);
@@ -1668,7 +1810,7 @@ document.addEventListener('DOMContentLoaded',
                     const formData = new FormData();
                     formData.append('subject', subject);
                     formData.append('weight', weight);
-                    formData.append('grade_lock', isGradeLockOn ? 'true' : 'false');
+                    formData.append('grade_lock', getGradeLock(subject) ? 'true' : 'false');
 
                     if (hours) formData.append('hours', hours);
                     if (grade) formData.append('target_grade', grade);
@@ -2241,7 +2383,7 @@ document.addEventListener('DOMContentLoaded',
                     if (weight) formData.append('weight', weight);
                     if (hours) formData.append('hours', hours);
                     if (targetGrade) formData.append('target_grade', targetGrade);
-                    formData.append('grade_lock', isGradeLockOn ? 'true' : 'false');
+                    formData.append('grade_lock', getGradeLock(subject) ? 'true' : 'false');
 
                     try {
                         const response = await fetch('/predict', {
@@ -2620,6 +2762,9 @@ document.addEventListener('DOMContentLoaded',
                     if (subjectFilterDropdown) {
                         subjectFilterDropdown.value = selectedSubject;
                     }
+                    
+                    // Update grade lock button for new subject
+                    updateGradeLockButton();
 
                     // Filter table rows client-side without page reload
                     const rows = assignmentTableBody.querySelectorAll('tr[data-id]');
