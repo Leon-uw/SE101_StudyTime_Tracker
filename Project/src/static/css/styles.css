@@ -19,6 +19,11 @@
     --sidebar-text: #f0fbff;
     --sidebar-hover: #0081a7;
     --shadow: 0 4px 6px rgba(0, 75, 98, 0.15);
+
+    /* Chart Colors */
+    --chart-strong: #61dc9b;
+    --chart-needs-work: #ff5959;
+    --chart-other: #93dbff;
 }
 
 body.dark-mode {
@@ -40,6 +45,11 @@ body.dark-mode {
     --sidebar-text: #f0fbff;
     --sidebar-hover: #0081a7;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+
+    /* Chart Colors - Dark Mode */
+    --chart-strong: #25A762;
+    --chart-needs-work: #CC0000;
+    --chart-other: #0081a7;
 }
 
 body {

@@ -10,17 +10,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<body
-    data-graded-scores='{{ stats.graded_scores|tojson }}'
+<body data-graded-scores='{{ stats.graded_scores|tojson }}'
     data-top-hours-subjects='{{ stats.top_hours_subjects|tojson }}'
-    data-efficient-subjects='{{ stats.efficient_subjects|tojson }}'
-    data-strong='{{ stats.strong_scores|tojson }}'
-    data-needs='{{ stats.needs_work|tojson }}'
-    data-assignment-count='{{ stats.overall.assignment_count }}'
-    data-all-grades='{{ stats.all_grades|tojson }}'
-    data-all-logs='{{ stats.all_study_logs|tojson }}'    
-
->
+    data-efficient-subjects='{{ stats.efficient_subjects|tojson }}' data-strong='{{ stats.strong_scores|tojson }}'
+    data-needs='{{ stats.needs_work|tojson }}' data-assignment-count='{{ stats.overall.assignment_count }}'
+    data-all-grades='{{ stats.all_grades|tojson }}' data-all-logs='{{ stats.all_study_logs|tojson }}'>
 
     <!-- Sidebar (hidden - using top nav) -->
     <div id="sidebar" class="sidebar">
@@ -35,7 +29,8 @@
         <header class="top-nav">
             <div class="nav-left">
                 <a href="{{ url_for('display_table') }}" class="logo-link">
-                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo" class="logo-img">
+                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo"
+                        class="logo-img">
                     <span class="logo-text">Snowmark</span>
                 </a>
             </div>
@@ -51,14 +46,15 @@
         <nav class="secondary-nav">
             <div class="nav-links">
                 <a href="{{ url_for('display_table') }}" class="nav-link">Dashboard</a>
-                
+
                 <div class="nav-dropdown">
                     <button class="nav-link dropdown-toggle">
                         Subjects <span class="arrow">▼</span>
                     </button>
                     <div class="dropdown-menu">
                         {% for subject in subjects %}
-                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{ subject }}</a>
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{
+                            subject }}</a>
                         {% endfor %}
                         <div class="dropdown-divider"></div>
                         <a href="#" id="add-subject-link" class="dropdown-item add-subject-item">+ Add Subject</a>
@@ -72,7 +68,8 @@
                     </button>
                     <div class="dropdown-menu">
                         {% for subject in retired_subjects %}
-                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{ subject }}</a>
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{
+                            subject }}</a>
                         {% endfor %}
                     </div>
                 </div>
@@ -96,7 +93,8 @@
                     <div class="stats-header">
                         <div>
                             <h2>Statistics</h2>
-                            <p class="stats-lede">Quick pulse on how your studying is going, what is working, and where to
+                            <p class="stats-lede">Quick pulse on how your studying is going, what is working, and where
+                                to
                                 focus next.</p>
                         </div>
                         <div class="stats-tag">Live from your study log</div>
@@ -121,7 +119,8 @@
                             <p class="label">Overall GPA</p>
                             <div class="metric-value">
                                 {% if stats.overall.gpa is not none %}
-                                <span class="stat-grade" data-grade-percent="{{ stats.overall.gpa }}">{{ "%.1f"|format(stats.overall.gpa) }}%</span>
+                                <span class="stat-grade" data-grade-percent="{{ stats.overall.gpa }}">{{
+                                    "%.1f"|format(stats.overall.gpa) }}%</span>
                                 {% else %}N/A{% endif %}
                             </div>
                             <p class="stat-subtext">Weighted across graded work</p>
@@ -135,7 +134,9 @@
                             <p class="label">Grade / Hour</p>
                             <div class="metric-value">
                                 {% if stats.overall.grade_per_hour is not none %}
-                                <span class="stat-grade-per-hour" data-grade-per-hour="{{ stats.overall.grade_per_hour }}">{{ "%.2f"|format(stats.overall.grade_per_hour) }}%/h</span>
+                                <span class="stat-grade-per-hour"
+                                    data-grade-per-hour="{{ stats.overall.grade_per_hour }}">{{
+                                    "%.2f"|format(stats.overall.grade_per_hour) }}%/h</span>
                                 {% else %}N/A{% endif %}
                             </div>
                             <p class="stat-subtext">Ratio of total average grade to time studied</p>
@@ -144,7 +145,8 @@
                             <p class="label">Predictions Run</p>
                             <div class="metric-value">{{ stats.predictions.total }}</div>
                             {% if stats.predictions.top_subject %}
-                            <p class="stat-subtext">Most predicted: {{ stats.predictions.top_subject.subject }} ({{ stats.predictions.top_subject.count }})</p>
+                            <p class="stat-subtext">Most predicted: {{ stats.predictions.top_subject.subject }} ({{
+                                stats.predictions.top_subject.count }})</p>
                             {% else %}
                             <p class="stat-subtext">No predictions yet</p>
                             {% endif %}
@@ -157,7 +159,10 @@
                                 {% else %}N/A{% endif %}
                             </div>
                             {% if stats.prediction_accuracy.mean_abs_error is not none %}
-                            <p class="stat-subtext">Avg error: {{ "%.1f"|format(stats.prediction_accuracy.mean_abs_error) }} pts across {{ stats.prediction_accuracy.matched }} matched prediction{{ 's' if stats.prediction_accuracy.matched != 1 else '' }}.</p>
+                            <p class="stat-subtext">Avg error: {{
+                                "%.1f"|format(stats.prediction_accuracy.mean_abs_error) }} pts across {{
+                                stats.prediction_accuracy.matched }} matched prediction{{ 's' if
+                                stats.prediction_accuracy.matched != 1 else '' }}.</p>
                             {% else %}
                             <p class="stat-subtext">Log actual grades for predicted items to track accuracy.</p>
                             {% endif %}
@@ -177,13 +182,15 @@
                                     <div class="stat-list-main">
                                         <strong>{{ item.subject }}</strong>
                                         {% if item.average_grade is not none %}
-                                        <div class="muted">Avg <span class="stat-grade" data-grade-percent="{{ item.average_grade }}">{{ "%.1f"|format(item.average_grade) }}%</span></div>
+                                        <div class="muted">Avg <span class="stat-grade"
+                                                data-grade-percent="{{ item.average_grade }}">{{
+                                                "%.1f"|format(item.average_grade) }}%</span></div>
                                         {% endif %}
                                     </div>
                                     <div class="stat-list-meta">
-        <span class="highlight">{{ "%.1f"|format(item.hours) }}h</span>
-        <span class="muted mini">time logged</span>
-    </div>
+                                        <span class="highlight">{{ "%.1f"|format(item.hours) }}h</span>
+                                        <span class="muted mini">time logged</span>
+                                    </div>
                                 </li>
                                 {% endfor %}
                             </ul>
@@ -203,9 +210,13 @@
                                 <li>
                                     <div class="stat-list-main">
                                         <strong>{{ item.subject }}</strong>
-                                        <div class="muted"><span class="stat-grade" data-grade-percent="{{ item.average_grade }}">{{ "%.1f"|format(item.average_grade) }}%</span> average</div>
+                                        <div class="muted"><span class="stat-grade"
+                                                data-grade-percent="{{ item.average_grade }}">{{
+                                                "%.1f"|format(item.average_grade) }}%</span> average</div>
                                     </div>
-                                    <span class="highlight stat-grade-per-hour" data-grade-per-hour="{{ item.efficiency }}">{{ "%.2f"|format(item.efficiency) }}%/h</span>
+                                    <span class="highlight stat-grade-per-hour"
+                                        data-grade-per-hour="{{ item.efficiency }}">{{ "%.2f"|format(item.efficiency)
+                                        }}%/h</span>
                                 </li>
                                 {% endfor %}
                             </ul>
@@ -220,8 +231,10 @@
                                 <span class="pill">Best performance</span>
                             </div>
                             {% if stats.best_category %}
-                            <p><strong>{{ stats.best_category.category }}</strong> in {{ stats.best_category.subject }}</p>
-                            <p class="big-number stat-grade" data-grade-percent="{{ stats.best_category.average }}">{{ "%.1f"|format(stats.best_category.average) }}%</p>
+                            <p><strong>{{ stats.best_category.category }}</strong> in {{ stats.best_category.subject }}
+                            </p>
+                            <p class="big-number stat-grade" data-grade-percent="{{ stats.best_category.average }}">{{
+                                "%.1f"|format(stats.best_category.average) }}%</p>
                             <p class="muted">{{ stats.best_category.samples }} graded item(s)</p>
                             {% else %}
                             <p class="muted">Keep logging grades to surface your strongest category.</p>
@@ -235,8 +248,11 @@
                             </div>
                             {% if stats.focus_subject %}
                             <p><strong>{{ stats.focus_subject.subject }}</strong></p>
-                            <p class="big-number danger-text stat-grade" data-grade-percent="{{ stats.focus_subject.average }}">{{ "%.1f"|format(stats.focus_subject.average) }}%</p>
-                            <p class="muted">{{ "%.1f"|format(stats.focus_subject.hours) }}h across {{ stats.focus_subject.assignments }} assignment(s)</p>
+                            <p class="big-number danger-text stat-grade"
+                                data-grade-percent="{{ stats.focus_subject.average }}">{{
+                                "%.1f"|format(stats.focus_subject.average) }}%</p>
+                            <p class="muted">{{ "%.1f"|format(stats.focus_subject.hours) }}h across {{
+                                stats.focus_subject.assignments }} assignment(s)</p>
                             <p class="hint">Spend a bit more time here to lift your average.</p>
                             {% else %}
                             <p class="muted">No graded subjects yet — add a grade to get guidance.</p>
@@ -246,7 +262,8 @@
                         <div class="stats-card">
                             <div class="card-heading">
                                 <h3>High Scores</h3>
-                                <span id="high-pill-text" class="pill" data-toggle-percent-label="90%+ results" data-toggle-gpa-label="3.6+ GPA results">90%+ results</span>
+                                <span id="high-pill-text" class="pill" data-toggle-percent-label="90%+ results"
+                                    data-toggle-gpa-label="3.6+ GPA results">90%+ results</span>
                             </div>
                             <div class="threshold-controls inline">
                                 <div class="threshold-group">
@@ -256,11 +273,13 @@
                                 </div>
                             </div>
                             <p class="big-number" id="high-score-pct-display">
-                                {% if stats.strong_scores.pct is not none %}{{ "%.1f"|format(stats.strong_scores.pct) }}%{% else %}N/A{% endif %}
+                                {% if stats.strong_scores.pct is not none %}{{ "%.1f"|format(stats.strong_scores.pct)
+                                }}%{% else %}N/A{% endif %}
                             </p>
                             <p class="muted" id="high-score-desc">
                                 {% if stats.strong_scores.pct is not none %}
-                                {{ stats.strong_scores.count }} of {{ stats.overall.assignment_count }} graded items cleared the high-score bar.
+                                {{ stats.strong_scores.count }} of {{ stats.overall.assignment_count }} graded items
+                                cleared the high-score bar.
                                 {% else %}
                                 Add more graded items to see this metric.
                                 {% endif %}
@@ -281,11 +300,13 @@
                                 </div>
                             </div>
                             <p class="big-number danger-text" id="needs-work-pct-display">
-                                {% if stats.needs_work.pct is not none %}{{ "%.1f"|format(stats.needs_work.pct) }}%{% else %}N/A{% endif %}
+                                {% if stats.needs_work.pct is not none %}{{ "%.1f"|format(stats.needs_work.pct) }}%{%
+                                else %}N/A{% endif %}
                             </p>
                             <p class="muted" id="needs-work-desc">
                                 {% if stats.needs_work.pct is not none %}
-                                {{ stats.needs_work.count }} of {{ stats.overall.assignment_count }} graded items are under the target range.
+                                {{ stats.needs_work.count }} of {{ stats.overall.assignment_count }} graded items are
+                                under the target range.
                                 {% else %}
                                 Add more graded items to see this metric.
                                 {% endif %}
@@ -371,241 +392,279 @@
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
 
     <script>
-    (function () {
-        const el = document.body.dataset;
+        (function () {
+            const el = document.body.dataset;
 
-        // ---- data (already computed server-side) ----
-        const gradedAgg   = JSON.parse(el.gradedScores || "[]");      // [numbers]
-        const topHoursAgg = JSON.parse(el.topHoursSubjects || "[]");  // [{subject, hours}]
-        const effAgg      = JSON.parse(el.efficientSubjects || "[]"); // [{subject, efficiency, average_grade}]
-        const strong      = JSON.parse(el.strong || "{}");
-        const needs       = JSON.parse(el.needs || "{}");
-        const totalAssignments = Number(el.assignmentCount || 0);
+            // ---- data (already computed server-side) ----
+            const gradedAgg = JSON.parse(el.gradedScores || "[]");      // [numbers]
+            const topHoursAgg = JSON.parse(el.topHoursSubjects || "[]");  // [{subject, hours}]
+            const effAgg = JSON.parse(el.efficientSubjects || "[]"); // [{subject, efficiency, average_grade}]
+            const strong = JSON.parse(el.strong || "{}");
+            const needs = JSON.parse(el.needs || "{}");
+            const totalAssignments = Number(el.assignmentCount || 0);
 
-        // Optional raw rows if you added them earlier (fallbacks handle absence)
-        const allGrades = JSON.parse(el.allGrades || "[]");           // [{subject, score}]
-        const allLogs   = JSON.parse(el.allLogs || "[]");             // [{subject, hours}]
+            // Optional raw rows if you added them earlier (fallbacks handle absence)
+            const allGrades = JSON.parse(el.allGrades || "[]");           // [{subject, score}]
+            const allLogs = JSON.parse(el.allLogs || "[]");             // [{subject, hours}]
 
-        // ---- helpers ----
-        const $ = (s) => document.querySelector(s);
+            // ---- helpers ----
+            const $ = (s) => document.querySelector(s);
 
-        const LS_KEYS = {
-            grades:   'stats.sel.grades',
-            hours:    'stats.sel.hours',
-            eff:      'stats.sel.eff',
-            outcomes: 'stats.sel.outcomes',
-        };
-        const selects = {
-            grades:   $('#gradesSelect'),
-            hours:    $('#hoursSelect'),
-            eff:      $('#effSelect'),
-            outcomes: $('#outcomesSelect'),
-        };
-        function loadSel(key) { return localStorage.getItem(key) || 'ALL'; }
-        function saveSel(key, v) { localStorage.setItem(key, v); }
+            const LS_KEYS = {
+                grades: 'stats.sel.grades',
+                hours: 'stats.sel.hours',
+                eff: 'stats.sel.eff',
+                outcomes: 'stats.sel.outcomes',
+            };
+            const selects = {
+                grades: $('#gradesSelect'),
+                hours: $('#hoursSelect'),
+                eff: $('#effSelect'),
+                outcomes: $('#outcomesSelect'),
+            };
+            function loadSel(key) { return localStorage.getItem(key) || 'ALL'; }
+            function saveSel(key, v) { localStorage.setItem(key, v); }
 
-        function toDeciles(xs) {
-            const bins = new Array(10).fill(0);
-            xs.forEach(v => {
-                const x = Number(v);
-                if (!isFinite(x)) return;
-                const idx = Math.min(9, Math.max(0, Math.floor(x/10)));
-                bins[idx] += 1;
-            });
-            return bins;
-        }
-        function hoursBySubject(logs) {
-            const map = new Map();
-            logs.forEach(l => map.set(l.subject, (map.get(l.subject)||0) + Number(l.hours||0)));
-            return Array.from(map, ([subject, hours]) => ({subject, hours}));
-        }
-        function efficiencyFromRaw(grades, logs) {
-            const sum = new Map(), cnt = new Map(), hrs = new Map();
-            grades.forEach(g => { sum.set(g.subject,(sum.get(g.subject)||0)+Number(g.score||0));
-                                cnt.set(g.subject,(cnt.get(g.subject)||0)+1); });
-            logs.forEach(l => hrs.set(l.subject,(hrs.get(l.subject)||0)+Number(l.hours||0)));
-            return Array.from(new Set([...sum.keys(), ...hrs.keys()])).map(s=>{
-                const avg = (sum.get(s)||0)/Math.max(1,(cnt.get(s)||0));
-                const h   =  hrs.get(s)||0;
-                return {subject:s, efficiency: h? avg/h : 0};
-            });
-        }
+            function toDeciles(xs) {
+                const bins = new Array(10).fill(0);
+                xs.forEach(v => {
+                    const x = Number(v);
+                    if (!isFinite(x)) return;
+                    const idx = Math.min(9, Math.max(0, Math.floor(x / 10)));
+                    bins[idx] += 1;
+                });
+                return bins;
+            }
+            function hoursBySubject(logs) {
+                const map = new Map();
+                logs.forEach(l => map.set(l.subject, (map.get(l.subject) || 0) + Number(l.hours || 0)));
+                return Array.from(map, ([subject, hours]) => ({ subject, hours }));
+            }
+            function efficiencyFromRaw(grades, logs) {
+                const sum = new Map(), cnt = new Map(), hrs = new Map();
+                grades.forEach(g => {
+                    sum.set(g.subject, (sum.get(g.subject) || 0) + Number(g.score || 0));
+                    cnt.set(g.subject, (cnt.get(g.subject) || 0) + 1);
+                });
+                logs.forEach(l => hrs.set(l.subject, (hrs.get(l.subject) || 0) + Number(l.hours || 0)));
+                return Array.from(new Set([...sum.keys(), ...hrs.keys()])).map(s => {
+                    const avg = (sum.get(s) || 0) / Math.max(1, (cnt.get(s) || 0));
+                    const h = hrs.get(s) || 0;
+                    return { subject: s, efficiency: h ? avg / h : 0 };
+                });
+            }
 
-        // ---- Chart instances ----
-        let chartGrades, chartHours, chartEff, chartOut;
+            // ---- Chart instances ----
+            let chartGrades, chartHours, chartEff, chartOut;
 
-        // common chart options (dark theme friendly)
-        const baseOpts = {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 800, easing: 'easeOutCubic' },
-            scales: {
-                y: { beginAtZero: true, ticks: { precision: 0 } },
-                x: { ticks: { autoSkip: false } }
-            },
-            plugins: {
-                legend: { display: false },
-                title: { display: true, font: { weight: '600' } },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => (ctx.dataset.label ? `${ctx.dataset.label}: ${ctx.parsed.y ?? ctx.parsed}` : `${ctx.parsed}`)
+            // common chart options (dark theme friendly)
+            const baseOpts = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 800, easing: 'easeOutCubic' },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { ticks: { autoSkip: false } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, font: { weight: '600' } },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => (ctx.dataset.label ? `${ctx.dataset.label}: ${ctx.parsed.y ?? ctx.parsed}` : `${ctx.parsed}`)
+                        }
                     }
                 }
-            }
-        };
+            };
 
-        function renderGrades(sel) {
-            const labels = ["0–10","10–20","20–30","30–40","40–50","50–60","60–70","70–80","80–90","90–100"];
-            const data = allGrades.length
-                ? (sel==='ALL' ? allGrades : allGrades.filter(g=>g.subject===sel)).map(g=>g.score)
-                : gradedAgg;
-            const bins = toDeciles(data);
+            function renderGrades(sel) {
+                const labels = ["0–10", "10–20", "20–30", "30–40", "40–50", "50–60", "60–70", "70–80", "80–90", "90–100"];
+                const data = allGrades.length
+                    ? (sel === 'ALL' ? allGrades : allGrades.filter(g => g.subject === sel)).map(g => g.score)
+                    : gradedAgg;
+                const bins = toDeciles(data);
 
-            chartGrades?.destroy();
-            chartGrades = new Chart($('#gradesHistogram'), {
-                type: 'bar',
-                data: { labels, datasets: [{ label: 'Count', data: bins, borderRadius: 6 }] },
-                options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Grade Distribution (${sel==='ALL'?'All subjects':sel})` } } }
-            });
-        }
-
-        function renderHours(sel) {
-            let labels, values;
-            if (allLogs.length) {
-                const rows = sel==='ALL' ? allLogs : allLogs.filter(l=>l.subject===sel);
-                const agg  = hoursBySubject(rows).sort((a,b)=>b.hours-a.hours);
-                labels = agg.map(x=>x.subject); values = agg.map(x=>x.hours);
-            } else {
-                labels = topHoursAgg.map(x=>x.subject); values = topHoursAgg.map(x=>Number(x.hours||0));
+                chartGrades?.destroy();
+                chartGrades = new Chart($('#gradesHistogram'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Count', data: bins, borderRadius: 6 }] },
+                    options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Grade Distribution (${sel === 'ALL' ? 'All subjects' : sel})` } } }
+                });
             }
 
-            chartHours?.destroy();
-            chartHours = new Chart($('#topHoursBar'), {
-                type: 'bar',
-                data: { labels, datasets: [{ label: 'Hours', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6 }] },
-                options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Top Subjects by Hours (${sel==='ALL'?'All subjects':sel})` } } }
-            });
-        }
+            function renderHours(sel) {
+                let labels, values;
+                if (allLogs.length) {
+                    const rows = sel === 'ALL' ? allLogs : allLogs.filter(l => l.subject === sel);
+                    const agg = hoursBySubject(rows).sort((a, b) => b.hours - a.hours);
+                    labels = agg.map(x => x.subject); values = agg.map(x => x.hours);
+                } else {
+                    labels = topHoursAgg.map(x => x.subject); values = topHoursAgg.map(x => Number(x.hours || 0));
+                }
 
-        function renderEfficiency(sel) {
-            let labels, values;
-            if (allGrades.length && allLogs.length) {
-                const g = sel==='ALL' ? allGrades : allGrades.filter(x=>x.subject===sel);
-                const l = sel==='ALL' ? allLogs   : allLogs.filter(x=>x.subject===sel);
-                const arr = efficiencyFromRaw(g,l).sort((a,b)=>b.efficiency-a.efficiency);
-                labels = arr.map(x=>x.subject);
-                values = arr.map(x=>Number(x.efficiency.toFixed(3)));
-            } else {
-                labels = effAgg.map(x=>x.subject);
-                values = effAgg.map(x=>Number(x.efficiency||0));
+                chartHours?.destroy();
+                chartHours = new Chart($('#topHoursBar'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Hours', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6 }] },
+                    options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Top Subjects by Hours (${sel === 'ALL' ? 'All subjects' : sel})` } } }
+                });
             }
 
-            chartEff?.destroy();
-            chartEff = new Chart($('#efficiencyBar'), {
-                type: 'bar',
-                data: { labels, datasets: [{ label: 'Efficiency (%/h)', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6 }] },
-                options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Efficiency by Subject (${sel==='ALL'?'All subjects':sel})` } } }
-            });
-        }
+            function renderEfficiency(sel) {
+                let labels, values;
+                if (allGrades.length && allLogs.length) {
+                    const g = sel === 'ALL' ? allGrades : allGrades.filter(x => x.subject === sel);
+                    const l = sel === 'ALL' ? allLogs : allLogs.filter(x => x.subject === sel);
+                    const arr = efficiencyFromRaw(g, l).sort((a, b) => b.efficiency - a.efficiency);
+                    labels = arr.map(x => x.subject);
+                    values = arr.map(x => Number(x.efficiency.toFixed(3)));
+                } else {
+                    labels = effAgg.map(x => x.subject);
+                    values = effAgg.map(x => Number(x.efficiency || 0));
+                }
 
-        function getThresholds() {
-            // Read current thresholds from the inputs on the page
-            const hi = Math.max(0, Math.min(100, Number(document.getElementById('high-threshold')?.value ?? 90)));
-            const lo = Math.max(0, Math.min(100, Number(document.getElementById('low-threshold')?.value ?? 70)));
-            return { high: hi, low: lo };
-        }
+                chartEff?.destroy();
+                chartEff = new Chart($('#efficiencyBar'), {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Efficiency (%/h)', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6 }] },
+                    options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Efficiency by Subject (${sel === 'ALL' ? 'All subjects' : sel})` } } }
+                });
+            }
 
-        function renderOutcomes(sel) {
-            // Need per-subject scores -> prefer raw grades list
-            // allGrades looks like: [{ subject, score }, ...]
-            const { high, low } = getThresholds();
+            function getThresholds() {
+                // Read current thresholds from the inputs on the page
+                const hi = Math.max(0, Math.min(100, Number(document.getElementById('high-threshold')?.value ?? 90)));
+                const lo = Math.max(0, Math.min(100, Number(document.getElementById('low-threshold')?.value ?? 70)));
+                return { high: hi, low: lo };
+            }
 
-            let rows = allGrades.length ? allGrades : [];
-            if (!rows.length) {
-                // Fallback to aggregate (no subject filter possible)
-                const strongCount = Number(strong.count || 0);
-                const needsCount  = Number(needs.count  || 0);
-                const otherCount  = Math.max(0, totalAssignments - strongCount - needsCount);
+            function renderOutcomes(sel) {
+                // Need per-subject scores -> prefer raw grades list
+                // allGrades looks like: [{ subject, score }, ...]
+                const { high, low } = getThresholds();
+
+                // Get colors from CSS variables
+                const styles = getComputedStyle(document.body);
+                const strongColor = styles.getPropertyValue('--chart-strong').trim();
+                const needsWorkColor = styles.getPropertyValue('--chart-needs-work').trim();
+                const otherColor = styles.getPropertyValue('--chart-other').trim();
+
+                let rows = allGrades.length ? allGrades : [];
+                if (!rows.length) {
+                    // Fallback to aggregate (no subject filter possible)
+                    const strongCount = Number(strong.count || 0);
+                    const needsCount = Number(needs.count || 0);
+                    const otherCount = Math.max(0, totalAssignments - strongCount - needsCount);
+
+                    chartOut?.destroy();
+                    chartOut = new Chart(document.getElementById('outcomesPie'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Strong', 'Needs Work', 'Other'],
+                            datasets: [{
+                                data: [strongCount, needsCount, otherCount],
+                                backgroundColor: [strongColor, needsWorkColor, otherColor]
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Score Outcomes (All subjects)' } }
+                        }
+                    });
+                    return;
+                }
+
+                // Filter by subject if not "ALL"
+                if (sel !== 'ALL') rows = rows.filter(r => r.subject === sel);
+
+                // Count using current thresholds
+                let strongCount = 0, needsCount = 0, otherCount = 0;
+                for (const r of rows) {
+                    const g = Number(r.score);
+                    if (!isFinite(g)) continue;
+                    if (g >= high) strongCount++;
+                    else if (g < low) needsCount++;
+                    else otherCount++;
+                }
 
                 chartOut?.destroy();
                 chartOut = new Chart(document.getElementById('outcomesPie'), {
                     type: 'doughnut',
-                    data: { labels: ['Strong', 'Needs Work', 'Other'], datasets: [{ data: [strongCount, needsCount, otherCount] }] },
+                    data: {
+                        labels: ['Strong', 'Needs Work', 'Other'],
+                        datasets: [{
+                            data: [strongCount, needsCount, otherCount],
+                            backgroundColor: [strongColor, needsWorkColor, otherColor]
+                        }]
+                    },
                     options: {
                         responsive: true, maintainAspectRatio: false,
-                        plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Score Outcomes (All subjects)' } }
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            title: { display: true, text: `Score Outcomes (${sel === 'ALL' ? 'All subjects' : sel})` }
+                        }
                     }
                 });
-                return;
             }
 
-            // Filter by subject if not "ALL"
-            if (sel !== 'ALL') rows = rows.filter(r => r.subject === sel);
-
-            // Count using current thresholds
-            let strongCount = 0, needsCount = 0, otherCount = 0;
-            for (const r of rows) {
-                const g = Number(r.score);
-                if (!isFinite(g)) continue;
-                if (g >= high) strongCount++;
-                else if (g < low) needsCount++;
-                else otherCount++;
+            // ---- wire up selects with persistence ----
+            function initSelect(selEl, key, renderFn) {
+                if (!selEl) return;
+                const saved = loadSel(key);
+                selEl.value = saved;
+                renderFn(saved);
+                selEl.addEventListener('change', e => { saveSel(key, e.target.value); renderFn(e.target.value); });
             }
 
-            chartOut?.destroy();
-            chartOut = new Chart(document.getElementById('outcomesPie'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Strong', 'Needs Work', 'Other'],
-                    datasets: [{ data: [strongCount, needsCount, otherCount] }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        title: { display: true, text: `Score Outcomes (${sel === 'ALL' ? 'All subjects' : sel})` }
-                    }
-                }
+            // Keep filters only for Grades and Outcomes
+            // Delay initial rendering to ensure dark mode class is applied first
+            requestAnimationFrame(() => {
+                initSelect(selects.grades, LS_KEYS.grades, renderGrades);
+                initSelect(selects.outcomes, LS_KEYS.outcomes, renderOutcomes);
+
+                // Always show all-subject data for Hours and Efficiency
+                renderHours('ALL');
+                renderEfficiency('ALL');
             });
-        }
 
-        // ---- wire up selects with persistence ----
-        function initSelect(selEl, key, renderFn) {
-            if (!selEl) return;
-            const saved = loadSel(key);
-            selEl.value = saved;
-            renderFn(saved);
-            selEl.addEventListener('change', e => { saveSel(key, e.target.value); renderFn(e.target.value); });
-        }
+            // (optional cleanup: clear old saved filter values)
+            localStorage.removeItem(LS_KEYS.hours);
+            localStorage.removeItem(LS_KEYS.eff);
 
-        // Keep filters only for Grades and Outcomes
-        initSelect(selects.grades, LS_KEYS.grades, renderGrades);
-        initSelect(selects.outcomes, LS_KEYS.outcomes, renderOutcomes);
+            // Re-render Outcomes when thresholds change
+            const hiInput = document.getElementById('high-threshold');
+            const loInput = document.getElementById('low-threshold');
+            const outcomesSelEl = document.getElementById('outcomesSelect');
 
-        // Always show all-subject data for Hours and Efficiency
-        renderHours('ALL');
-        renderEfficiency('ALL');
+            function reRenderOutcomesFromUI() {
+                const sel = outcomesSelEl ? outcomesSelEl.value : 'ALL';
+                renderOutcomes(sel);
+            }
 
-        // (optional cleanup: clear old saved filter values)
-        localStorage.removeItem(LS_KEYS.hours);
-        localStorage.removeItem(LS_KEYS.eff);
+            hiInput?.addEventListener('input', reRenderOutcomesFromUI);
+            loInput?.addEventListener('input', reRenderOutcomesFromUI);
 
-        // Re-render Outcomes when thresholds change
-        const hiInput = document.getElementById('high-threshold');
-        const loInput = document.getElementById('low-threshold');
-        const outcomesSelEl = document.getElementById('outcomesSelect');
+            // If you also have an "Apply thresholds" button:
+            document.getElementById('apply-thresholds')?.addEventListener('click', reRenderOutcomesFromUI);
 
-        function reRenderOutcomesFromUI() {
-            const sel = outcomesSelEl ? outcomesSelEl.value : 'ALL';
-            renderOutcomes(sel);
-        }
+            // Re-render charts when theme changes
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('change', () => {
+                    // Wait for dark mode class to be applied/removed before re-rendering
+                    setTimeout(() => {
+                        // Re-render all charts with new theme colors
+                        const gradesSelVal = selects.grades ? selects.grades.value : 'ALL';
+                        const outcomesSelVal = selects.outcomes ? selects.outcomes.value : 'ALL';
 
-        hiInput?.addEventListener('input', reRenderOutcomesFromUI);
-        loInput?.addEventListener('input', reRenderOutcomesFromUI);
-
-        // If you also have an "Apply thresholds" button:
-        document.getElementById('apply-thresholds')?.addEventListener('click', reRenderOutcomesFromUI);
-    })();
+                        renderGrades(gradesSelVal);
+                        renderHours('ALL');
+                        renderEfficiency('ALL');
+                        renderOutcomes(outcomesSelVal);
+                    }, 50); // Small delay to let DOM update
+                });
+            }
+        })();
     </script>
 
 
