@@ -47,7 +47,7 @@
     <div id="overlay" class="overlay"></div>
 
     <!-- Main Content -->
-    <div class="main-wrapper">
+    <div class="main-wrapper{% if is_dashboard %} dashboard-view{% endif %}">
         <!-- Top Navigation Bar -->
         <header class="top-nav">
             <div class="nav-left">
@@ -139,17 +139,25 @@
                         <table>
                             <thead>
                                 <tr>
+                                    {% if is_dashboard %}
+                                    <th style="white-space:nowrap; width: 30px;">
+                                        <span class="drag-col-hint" title="Drag rows">⇅</span>
+                                    </th>
+                                    {% else %}
                                     <th style="white-space:nowrap; width: 56px;">
                                         <span class="drag-col-hint" title="Drag rows">⇅</span>
                                         <input type="checkbox" id="selectAll">
                                     </th>
+                                    {% endif %}
                                     <th>Subject</th>
                                     <th>Category</th>
                                     <th>Study Time</th>
                                     <th>Assignment Name</th>
                                     <th>Grade</th>
                                     <th>Weight</th>
+                                    {% if not is_dashboard %}
                                     <th>Actions</th>
+                                    {% endif %}
                                 </tr>
                                 {% if summary_data %}
                                 <tr class="summary-row">
@@ -160,7 +168,9 @@
                                     <td>-</td>
                                     <td>{{ "%.1f"|format(summary_data.average_grade) }}% (avg)</td>
                                     <td>{{ "%.2f"|format(summary_data.total_weight) }}% (graded)</td>
+                                    {% if not is_dashboard %}
                                     <td>-</td>
+                                    {% endif %}
                                 </tr>
                                 {% endif %}
                             </thead>
@@ -169,10 +179,16 @@
                                 {% for row in data %}
                                 <tr data-id="{{ row.id }}"
                                     class="assignment-row {% if row.is_prediction %}prediction-row{% endif %}">
+                                    {% if is_dashboard %}
+                                    <td>
+                                        <span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span>
+                                    </td>
+                                    {% else %}
                                     <td>
                                         <span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span>
                                         <input type="checkbox" class="select-assignment" data-id="{{ row.id }}">
                                     </td>
+                                    {% endif %}
                                     <td>{{ row.subject }}</td>
                                     <td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -197,6 +213,7 @@
                                     <td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td>
                                     {% endif %}
                                     <td>{{ "%.2f"|format(row.weight) }}%</td>
+                                    {% if not is_dashboard %}
                                     <td>
                                         {% if row.is_prediction %}
                                         <button class="action-btn predict-btn">Predict</button>
@@ -207,6 +224,7 @@
                                         <button class="action-btn delete-btn">Delete</button>
                                         {% endif %}
                                     </td>
+                                    {% endif %}
                                 </tr>{% endfor %}
                             </tbody>
                         </table>

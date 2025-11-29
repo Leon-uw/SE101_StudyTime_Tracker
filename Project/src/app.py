@@ -292,6 +292,12 @@ def render_subject_view(filter_subject):
         data_to_display = [log for log in study_data_db if log['subject'] == filter_subject]
         if filter_category and filter_category != 'all':
             data_to_display = [log for log in data_to_display if log['category'] == filter_category]
+    else:
+        # On "All Subjects" dashboard: show only ungraded assignments (no predictions, no graded items)
+        data_to_display = [
+            log for log in study_data_db 
+            if not log.get('is_prediction', False) and log.get('grade') is None
+        ]
 
     # Calculate summary
     summary_data = calculate_summary(username, filter_subject)
@@ -319,6 +325,7 @@ def render_subject_view(filter_subject):
             chart_data[s] = total_hours
             
     page_title = "All Subjects" if filter_subject == 'all' else filter_subject
+    is_dashboard = filter_subject == 'all'
 
     return render_template(
         'index.html',
@@ -334,7 +341,8 @@ def render_subject_view(filter_subject):
         weight_categories_py=temp_weight_categories,
         weight_categories_json=json.dumps(weight_categories_db),
         page_title=page_title,
-        username=username
+        username=username,
+        is_dashboard=is_dashboard
     )
 
 @app.route('/about')
