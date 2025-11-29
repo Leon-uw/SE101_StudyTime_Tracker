@@ -562,6 +562,10 @@ select:focus {
     align-items: center;
 }
 
+.modal-overlay.active {
+    display: flex;
+}
+
 .modal-content {
     background: var(--surface-color);
     padding: 30px;

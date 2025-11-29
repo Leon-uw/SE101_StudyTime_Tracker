@@ -1484,15 +1484,89 @@ document.addEventListener('DOMContentLoaded',
 
         // REMOVED: Duplicate handleAssignmentSave (missing weight extraction logic)
 
-        async function handleCategorySave(row) {
-            if (!validateRow(row)) return;
+        // Store pending category save data for naming update modal
+        let pendingCategorySave = null;
+
+        async function handleCategorySave(row, updateAssignments = null) {
+            console.log('handleCategorySave called', row, updateAssignments);
+            if (!validateRow(row)) {
+                console.log('validateRow returned false');
+                return;
+            }
+            console.log('validateRow passed');
             const catId = row.dataset.id;
             const isNew = !catId;
+            console.log('catId:', catId, 'isNew:', isNew);
+            
+            // Get the new default_name value
+            const defaultNameInput = row.querySelector('input[name="default_name"]');
+            const newDefaultName = defaultNameInput ? defaultNameInput.value : '';
+            console.log('newDefaultName:', newDefaultName);
+            
+            // For existing categories, check if default_name changed (only if updateAssignments not already decided)
+            if (!isNew && updateAssignments === null && newDefaultName) {
+                console.log('Checking if default_name changed...');
+                try {
+                    // Fetch the current category to compare default_name
+                    console.log('Fetching category:', `/category/get/${catId}`);
+                    const catResponse = await fetch(`/category/get/${catId}`);
+                    console.log('catResponse.ok:', catResponse.ok);
+                    if (catResponse.ok) {
+                        const catResult = await catResponse.json();
+                        console.log('catResult:', catResult);
+                        
+                        if (catResult.status === 'success' && catResult.category) {
+                            const oldDefaultName = catResult.category.default_name || '';
+                            console.log('oldDefaultName:', oldDefaultName, 'newDefaultName:', newDefaultName);
+                            
+                            // If default_name changed and both old and new have values, show the modal
+                            if (oldDefaultName && oldDefaultName !== newDefaultName) {
+                                console.log('Names are different, showing modal');
+                                // Store the pending save data
+                                pendingCategorySave = { row, catId, oldDefaultName, newDefaultName };
+                                
+                                // Show the naming update modal
+                                const updateNamingModal = document.getElementById('update-naming-modal');
+                                const updateNamingExample = document.getElementById('update-naming-example');
+                                console.log('updateNamingModal:', updateNamingModal);
+                                
+                                if (updateNamingModal) {
+                                    // Create an example of the change (number goes exactly where # is)
+                                    const oldExample = oldDefaultName.replace('#', '1');
+                                    const newExample = newDefaultName.replace('#', '1');
+                                    updateNamingExample.textContent = `Example: "${oldExample}" → "${newExample}"`;
+                                    updateNamingModal.classList.add('active');
+                                    console.log('Modal should be visible now');
+                                    return; // Wait for modal response
+                                }
+                            } else {
+                                console.log('Names are the same or old is empty, proceeding with save');
+                            }
+                        }
+                    } else {
+                        console.log('catResponse not ok, status:', catResponse.status);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch category for comparison:', error);
+                    // Continue with save without the naming update option
+                }
+            } else {
+                console.log('Skipping default_name check. isNew:', isNew, 'updateAssignments:', updateAssignments, 'newDefaultName:', newDefaultName);
+            }
+            
+            console.log('Proceeding with the save...');
+            // Proceed with the save
             const url = isNew ? '/category/add' : `/category/update/${catId}`;
             const formData = new FormData();
             row.querySelectorAll('input').forEach(input => formData.append(input.name, input.value));
             const subject = subjectFilterDropdown.value;
             formData.append('subject', subject);
+            
+            // Add the update_assignments flag if specified
+            if (updateAssignments !== null) {
+                formData.append('update_assignments', updateAssignments ? 'true' : 'false');
+            }
+            
             try {
                 const response = await fetch(url, {
                     method: 'POST',
@@ -1510,6 +1584,31 @@ document.addEventListener('DOMContentLoaded',
                 console.error('Category save failed:', error);
                 showToast('A network error occurred.', 'error');
             }
+        }
+        
+        // Handle naming update modal buttons
+        const updateNamingModal = document.getElementById('update-naming-modal');
+        const updateNamingYes = document.getElementById('update-naming-yes');
+        const updateNamingNo = document.getElementById('update-naming-no');
+        
+        if (updateNamingYes) {
+            updateNamingYes.addEventListener('click', function() {
+                if (updateNamingModal) updateNamingModal.classList.remove('active');
+                if (pendingCategorySave) {
+                    handleCategorySave(pendingCategorySave.row, true);
+                    pendingCategorySave = null;
+                }
+            });
+        }
+        
+        if (updateNamingNo) {
+            updateNamingNo.addEventListener('click', function() {
+                if (updateNamingModal) updateNamingModal.classList.remove('active');
+                if (pendingCategorySave) {
+                    handleCategorySave(pendingCategorySave.row, false);
+                    pendingCategorySave = null;
+                }
+            });
         }
 
         if (confirmNoBtn) {
@@ -1582,8 +1681,13 @@ document.addEventListener('DOMContentLoaded',
 
         if (categoryTableBody) {
             categoryTableBody.addEventListener('click', async function (event) {
+                console.log('Category table clicked', event.target);
                 const button = event.target.closest('.action-btn');
-                if (!button) return;
+                if (!button) {
+                    console.log('No action button found');
+                    return;
+                }
+                console.log('Button found:', button.className);
                 const row = button.closest('tr');
                 if (button.classList.contains('edit-btn')) {
                     button.textContent = 'Save';
@@ -1594,6 +1698,7 @@ document.addEventListener('DOMContentLoaded',
                     cells[1].innerHTML = `<input type="number" name="total_weight" value="${parseInt(cells[1].textContent, 10) || 0}" min="0" max="100" required>`;
                     cells[4].innerHTML = `<input type="text" name="default_name" value="${cells[4].textContent.trim() === '-' ? '' : cells[4].textContent.trim()}" placeholder="e.g., Quiz #">`;
                 } else if (button.classList.contains('save-btn')) {
+                    console.log('Save button clicked, calling handleCategorySave');
                     await handleCategorySave(row);
                 } else if (button.classList.contains('delete-btn')) {
                     showConfirmation("Delete this category definition? This cannot be undone.", row, 'category');

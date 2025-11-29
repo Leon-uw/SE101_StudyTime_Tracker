@@ -211,6 +211,26 @@ def get_all_categories(username, subject=None):
         curs.close()
         conn.close()
 
+def get_category_by_id(username, category_id):
+    """Get a single category by ID for a user."""
+    conn = _connect()
+    try:
+        curs = conn.cursor(dictionary=True)
+        curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} WHERE id = %s AND username = %s", (category_id, username))
+        row = curs.fetchone()
+        if row:
+            return {
+                'id': row['id'],
+                'subject': row['Subject'],
+                'name': row['CategoryName'],
+                'total_weight': row['TotalWeight'],
+                'default_name': row['DefaultName'] or ''
+            }
+        return None
+    finally:
+        curs.close()
+        conn.close()
+
 def get_categories_as_dict(username):
     """Get categories organized by subject for a user."""
     categories = get_all_categories(username)
@@ -393,6 +413,77 @@ def update_category(username, category_id, subject, category_name, total_weight,
         curs.execute(query, (subject, category_name, total_weight, default_name, category_id, username))
         conn.commit()
         return curs.rowcount
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        curs.close()
+        conn.close()
+
+def update_assignment_names_for_category(username, subject, category_name, old_pattern, new_pattern):
+    """
+    Update assignment names that match the old naming pattern to use the new pattern.
+    
+    For example, if old_pattern is "Quiz #" and new_pattern is "Test #", this will
+    update assignments named "Quiz 1", "Quiz 2" to "Test 1", "Test 2".
+    
+    The pattern uses "#" as a placeholder for the number.
+    """
+    import re
+    conn = _connect()
+    try:
+        # Get all assignments for this category
+        curs = conn.cursor(dictionary=True)
+        curs.execute(
+            f"""SELECT id, AssignmentName FROM {TABLE_NAME} 
+                WHERE username = %s AND Subject = %s AND Category = %s""",
+            (username, subject, category_name)
+        )
+        assignments = curs.fetchall()
+        
+        if not assignments or not old_pattern or not new_pattern:
+            return 0
+        
+        # Split old pattern by # to get prefix and suffix
+        old_parts = old_pattern.split('#')
+        old_prefix = old_parts[0] if len(old_parts) > 0 else ''
+        old_suffix = old_parts[1] if len(old_parts) > 1 else ''
+        
+        # Split new pattern by # to get prefix and suffix
+        new_parts = new_pattern.split('#')
+        new_prefix = new_parts[0] if len(new_parts) > 0 else ''
+        new_suffix = new_parts[1] if len(new_parts) > 1 else ''
+        
+        if not old_prefix and not old_suffix:
+            return 0
+        
+        # Create regex pattern to match old naming scheme
+        # Escape special regex characters
+        escaped_old_prefix = re.escape(old_prefix)
+        escaped_old_suffix = re.escape(old_suffix)
+        pattern = re.compile(f'^{escaped_old_prefix}(\\d+){escaped_old_suffix}$', re.IGNORECASE)
+        
+        updated_count = 0
+        update_curs = conn.cursor()
+        
+        for assignment in assignments:
+            match = pattern.match(assignment['AssignmentName'].strip())
+            if match:
+                # Extract the number
+                number = match.group(1)
+                # Create the new name using the new pattern (number goes exactly where # is)
+                new_name = f"{new_prefix}{number}{new_suffix}"
+                
+                # Update the assignment name
+                update_curs.execute(
+                    f"UPDATE {TABLE_NAME} SET AssignmentName = %s WHERE id = %s AND username = %s",
+                    (new_name, assignment['id'], username)
+                )
+                updated_count += update_curs.rowcount
+        
+        conn.commit()
+        update_curs.close()
+        return updated_count
     except Exception as e:
         conn.rollback()
         raise e

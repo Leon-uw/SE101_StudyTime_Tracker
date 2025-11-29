@@ -23,6 +23,7 @@ from crud import (get_all_grades, get_all_categories, get_categories_as_dict, ad
                   get_all_subjects, add_subject as crud_add_subject, delete_subject as crud_delete_subject,
                   rename_subject as crud_rename_subject,
                   get_subject_by_name, get_retired_subjects,
+                  get_category_by_id, update_assignment_names_for_category,
                   create_user, verify_user, user_exists, TABLE_NAME, ensure_schema)
 
 app = Flask(__name__)
@@ -959,6 +960,19 @@ def add_category_route():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to add category: {str(e)}'}), 500
 
+@app.route('/category/get/<int:cat_id>', methods=['GET'])
+@login_required
+def get_category_route(cat_id):
+    """Get a single category by ID."""
+    username = current_user.username
+    try:
+        category = get_category_by_id(username, cat_id)
+        if not category:
+            return jsonify({'status': 'error', 'message': 'Category not found.'}), 404
+        return jsonify({'status': 'success', 'category': category})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to get category: {str(e)}'}), 500
+
 @app.route('/category/update/<int:cat_id>', methods=['POST'])
 @login_required
 def update_category_route(cat_id):
@@ -971,9 +985,14 @@ def update_category_route(cat_id):
         category_name = request.form.get('name')
         new_weight = int(request.form.get('total_weight'))
         default_name = request.form.get('default_name', '')
+        update_assignments = request.form.get('update_assignments', 'false').lower() == 'true'
 
         if not category_name or new_weight is None:
             return jsonify({'status': 'error', 'message': 'Category Name and Total Weight are required.'}), 400
+
+        # Get the old category to check if default_name changed
+        old_category = get_category_by_id(username, cat_id)
+        old_default_name = old_category.get('default_name', '') if old_category else ''
 
         # Check total weight from database (excluding current category)
         current_total_weight = get_total_weight_for_subject(username, subject, exclude_category_id=cat_id)
@@ -986,8 +1005,18 @@ def update_category_route(cat_id):
         if rows_affected == 0:
             return jsonify({'status': 'error', 'message': 'Category not found.'}), 404
 
+        # Update assignment names if requested and the naming pattern changed
+        assignments_updated = 0
+        if update_assignments and old_default_name and default_name and old_default_name != default_name:
+            assignments_updated = update_assignment_names_for_category(
+                username, subject, category_name, old_default_name, default_name
+            )
+
         updated_category = {"id": cat_id, "name": category_name, "total_weight": new_weight, "default_name": default_name}
-        return jsonify({'status': 'success', 'message': 'Category updated!', 'category': updated_category, 'subject': subject})
+        message = 'Category updated!'
+        if assignments_updated > 0:
+            message += f' {assignments_updated} assignment(s) renamed.'
+        return jsonify({'status': 'success', 'message': message, 'category': updated_category, 'subject': subject, 'assignments_updated': assignments_updated})
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Invalid data. Weight must be a number.'}), 400
     except Exception as e:
@@ -1607,7 +1636,7 @@ def get_grade_lock_preferences():
     """
     try:
         from db import get_grade_lock_preferences as get_prefs
-        preferences = get_prefs(session['username'])
+        preferences = get_prefs(current_user.username)
         return jsonify({
             'status': 'success',
             'preferences': preferences
@@ -1645,7 +1674,7 @@ def set_grade_lock_preference():
             }), 400
         
         from db import set_grade_lock_preference as set_pref
-        set_pref(session['username'], subject, bool(grade_lock))
+        set_pref(current_user.username, subject, bool(grade_lock))
         
         return jsonify({
             'status': 'success',
