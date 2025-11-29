@@ -1195,6 +1195,11 @@ document.addEventListener('DOMContentLoaded',
 
                 assignmentTableBody.appendChild(row);
             });
+            
+            // Update delete button state after rendering (clears stale selection counts)
+            if (typeof updateDeleteButton === 'function') {
+                updateDeleteButton();
+            }
         }
 
         function applyPredictorWeightPreview(subject, category) {
@@ -1488,6 +1493,10 @@ document.addEventListener('DOMContentLoaded',
                         // Update weight indicator if deleting a category row
                         if (type === 'category') {
                             updateTotalWeightIndicator();
+                        }
+                        // Update delete button state after removing row
+                        if (type === 'assignment' && typeof updateDeleteButton === 'function') {
+                            updateDeleteButton();
                         }
                         return;
                     }
