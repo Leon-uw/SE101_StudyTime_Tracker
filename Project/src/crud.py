@@ -2,9 +2,101 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
-import mysql.connector
+from dotenv import load_dotenv
+load_dotenv()
+
+# Conditional database import
+if os.getenv("USE_LOCAL_DB", "").lower() == "true":
+    from db_local import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
+    # SQLite uses different placeholder syntax
+    PARAM_PLACEHOLDER = "?"
+else:
+    from db import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
+    import mysql.connector
+    PARAM_PLACEHOLDER = "%s"
 from werkzeug.security import generate_password_hash, check_password_hash
+
+
+def _column_exists(conn, table, col):
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = %s
+          AND COLUMN_NAME = %s
+    """, (table, col))
+    exists = cur.fetchone()[0] > 0
+    cur.close()
+    return exists
+
+def ensure_schema():
+    """Add Position column if missing and backfill it deterministically."""
+    conn = _connect()
+    try:
+        # 1) Add column if missing
+        if not _column_exists(conn, TABLE_NAME, "Position"):
+            cur = conn.cursor()
+            cur.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN Position INT NOT NULL DEFAULT 0")
+            conn.commit()
+            cur.close()
+
+        # 2) Backfill per user if everything is zero/unset
+        _backfill_positions(conn)
+
+    finally:
+        conn.close()
+
+def _backfill_positions(conn):
+    """For each username, set Position = 0..n-1 using current id order (stable)."""
+    cur = conn.cursor(dictionary=True)
+
+    # Find distinct users
+    cur.execute(f"SELECT DISTINCT username FROM {TABLE_NAME}")
+    users = [r["username"] for r in cur.fetchall()]
+
+    for u in users:
+        # Pull all ids for user ordered by existing Position then fallback to id
+        cur.execute(
+            f"SELECT id FROM {TABLE_NAME} WHERE username=%s ORDER BY Position ASC, id ASC",
+            (u,)
+        )
+        ids = [r["id"] for r in cur.fetchall()]
+        # If Position already looks good (strictly increasing from 0), skip
+        ok = True
+        cur2 = conn.cursor()
+        cur2.execute(
+            f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE username=%s AND Position NOT BETWEEN 0 AND 1000000",
+            (u,)
+        )
+        if cur2.fetchone()[0] > 0:
+            ok = False
+        cur2.close()
+
+        if not ids or ok:
+            continue
+
+        # Rewrite positions 0..n-1
+        upd = conn.cursor()
+        for pos, _id in enumerate(ids):
+            upd.execute(f"UPDATE {TABLE_NAME} SET Position=%s WHERE id=%s AND username=%s",
+                        (pos, _id, u))
+        conn.commit()
+        upd.close()
+
+    cur.close()
+
+def next_position_for_user(username):
+    """Return next integer position for a user's new row."""
+    conn = _connect()
+    cur = conn.cursor()
+    try:
+        cur.execute(f"SELECT COALESCE(MAX(Position), -1) + 1 FROM {TABLE_NAME} WHERE username=%s", (username,))
+        return int(cur.fetchone()[0] or 0)
+    finally:
+        cur.close()
+        conn.close()
+
 
 # ============================================================================
 # PHASE 8: User Authentication
@@ -21,7 +113,7 @@ def create_user(username, password):
         curs.execute(query, (username, password_hash))
         conn.commit()
         return curs.lastrowid
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -62,7 +154,14 @@ def get_all_grades(username):
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
-        curs.execute(f"SELECT * FROM {TABLE_NAME} WHERE username = %s ORDER BY Subject, Category, IsPrediction, id", (username,))
+        curs.execute(
+            f"""SELECT id, Subject, Category, StudyTime, AssignmentName,
+                    Grade, Weight, IsPrediction, Position
+                FROM {TABLE_NAME}
+                WHERE username = %s
+                ORDER BY Position ASC, id ASC""",
+            (username,)
+        )
         results = curs.fetchall()
 
         # Convert to lowercase keys for consistency with Sprint 2A dictionaries
@@ -75,7 +174,8 @@ def get_all_grades(username):
                 'assignment_name': row['AssignmentName'],
                 'grade': row['Grade'],
                 'weight': row['Weight'],
-                'is_prediction': bool(row['IsPrediction']) if 'IsPrediction' in row else False
+                'is_prediction': bool(row['IsPrediction']) if 'IsPrediction' in row else False,
+                'position': row['Position'],
             }
             for row in results
         ]
@@ -133,14 +233,19 @@ def add_grade(username, subject, category, study_time, assignment_name, grade, w
     conn = _connect()
     try:
         curs = conn.cursor()
+
+        curs.execute(f"SELECT COALESCE(MAX(Position), -1) + 1 FROM {TABLE_NAME} WHERE username=%s", (username,))
+        next_pos = curs.fetchone()[0]
+
         query = f"""
-        INSERT INTO {TABLE_NAME} (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO {TABLE_NAME}
+            (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction, Position)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-        curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction))
+        curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction, next_pos))
         conn.commit()
         return curs.lastrowid  # Return the ID of the inserted record
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -161,7 +266,7 @@ def update_grade(username, grade_id, subject, category, study_time, assignment_n
         curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, grade_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -177,7 +282,7 @@ def delete_grade(username, grade_id):
         curs.execute(query, (grade_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -200,7 +305,7 @@ def delete_grades_bulk(username, grade_ids):
         curs.execute(query, params)
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -249,7 +354,7 @@ def recalculate_and_update_weights(username, subject, category_name):
         conn.commit()
 
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -268,7 +373,7 @@ def add_category(username, subject, category_name, total_weight, default_name=''
         curs.execute(query, (username, subject, category_name, total_weight, default_name))
         conn.commit()
         return curs.lastrowid
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -288,7 +393,7 @@ def update_category(username, category_id, subject, category_name, total_weight,
         curs.execute(query, (subject, category_name, total_weight, default_name, category_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -304,7 +409,7 @@ def delete_category(username, category_id):
         curs.execute(query, (category_id, username))
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -374,7 +479,7 @@ def add_subject(username, name):
         curs.execute(query, (username, name))
         conn.commit()
         return curs.lastrowid
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -407,7 +512,7 @@ def delete_subject(username, subject_id):
 
         conn.commit()
         return curs.rowcount
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:
@@ -454,7 +559,7 @@ def rename_subject(username, old_name, new_name):
         
         conn.commit()
         return True
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         raise e
     finally:

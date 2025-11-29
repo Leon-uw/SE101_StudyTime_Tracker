@@ -26,9 +26,13 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     Grade double NULL,
     Weight double NOT NULL,
     IsPrediction BOOLEAN DEFAULT FALSE,
-    INDEX idx_user_subject_category (username, Subject, Category)
+    Position INT NOT NULL DEFAULT 0,
+    INDEX idx_user_subject_category (username, Subject, Category),
+    INDEX idx_user_position (username, Position)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
+
+
 
 # Categories table DDL
 CATEGORIES_DDL = f"""
@@ -67,6 +71,21 @@ CREATE TABLE IF NOT EXISTS {USERS_TABLE} (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
+# User Preferences table DDL - stores per-subject settings like grade_lock
+USER_PREFERENCES_TABLE = f"{DB_USER}_user_preferences"
+
+USER_PREFERENCES_DDL = f"""
+CREATE TABLE IF NOT EXISTS {USER_PREFERENCES_TABLE} (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username varchar(255) NOT NULL,
+    subject varchar(255) NOT NULL,
+    grade_lock BOOLEAN DEFAULT TRUE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_subject_pref (username, subject),
+    INDEX idx_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
 def _connect(db=None):
     return mysql.connector.connect(
         host=DB_HOST, user=DB_USER, password=DB_PASS, database=db or DB_NAME
@@ -86,18 +105,23 @@ def init_db():
     conn = _connect(DB_NAME)
     try:
         cur = conn.cursor()
-        # Create all three tables
+        # Create all tables
         cur.execute(GRADES_DDL)
         cur.execute(CATEGORIES_DDL)
         cur.execute(SUBJECTS_DDL)
         cur.execute(USERS_DDL)
+        cur.execute(USER_PREFERENCES_DDL)
         conn.commit()
     finally:
         cur.close()
         conn.close()
 
+    ensure_position_column()
+
     # Seed initial data if tables are empty
     seed_initial_data()
+
+
 
 def seed_initial_data():
     """Populate database with Sprint 2A sample data (only if empty)."""
@@ -120,7 +144,7 @@ def seed_initial_data():
             VALUES (%s, %s)
         """
         for subject in subjects:
-            cur.execute(subject_query, ('admin', subject))
+            cur.execute(subject_query, ('testuser', subject))
 
         # Insert sample categories (from Sprint 2A weight_categories)
         categories = [
@@ -138,7 +162,7 @@ def seed_initial_data():
         """
 
         for subject, name, weight, default in categories:
-            cur.execute(category_query, ('admin', subject, name, weight, default))
+            cur.execute(category_query, ('testuser', subject, name, weight, default))
 
         # Insert sample assignments (from Sprint 2A study_data)
         assignments = [
@@ -157,14 +181,121 @@ def seed_initial_data():
         """
 
         for subject, category, time, name, grade, weight in assignments:
-            cur.execute(assignment_query, ('admin', subject, category, time, name, grade, weight))
+            cur.execute(assignment_query, ('testuser', subject, category, time, name, grade, weight))
+
+        # Create test user (password: "password")
+        from werkzeug.security import generate_password_hash
+        test_user_hash = generate_password_hash("password", method='pbkdf2:sha256')
+        cur.execute(f"INSERT INTO {USERS_TABLE} (username, password_hash) VALUES (%s, %s)", ("testuser", test_user_hash))
 
         conn.commit()
         print(f"✓ Seeded {len(categories)} categories and {len(assignments)} sample assignments")
+        print(f"✓ Created test user: testuser / password")
 
-    except mysql.connector.Error as e:
+    except Exception as e:
         conn.rollback()
         print(f"✗ Error seeding data: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+def ensure_position_column():
+    """Add Position column + index if missing, then backfill per user in current order."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        # Check if Position exists
+        cur.execute("""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='Position'
+        """, (DB_NAME, TABLE_NAME))
+        has_col = cur.fetchone()[0] > 0
+
+        if not has_col:
+            # Add column + index
+            cur.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN Position INT NOT NULL DEFAULT 0")
+            cur.execute(f"CREATE INDEX idx_user_position ON {TABLE_NAME} (username, Position)")
+
+            # Backfill positions per user in (username, id) order
+            # We'll do it in Python to avoid multi-statement SQL hassles.
+            c2 = conn.cursor(dictionary=True)
+            c2.execute(f"SELECT id, username FROM {TABLE_NAME} ORDER BY username, id")
+            pos_by_user = {}
+            updates = []
+            for row in c2:
+                u = row['username']
+                p = pos_by_user.get(u, 0)
+                updates.append((p, row['id']))
+                pos_by_user[u] = p + 1
+            c2.close()
+
+            if updates:
+                cur.executemany(f"UPDATE {TABLE_NAME} SET Position=%s WHERE id=%s", updates)
+
+            conn.commit()
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+def get_grade_lock_preferences(username):
+    """
+    Get all grade lock preferences for a user.
+    Returns a dictionary: {subject: grade_lock_boolean}
+    """
+    conn = _connect()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            f"SELECT subject, grade_lock FROM {USER_PREFERENCES_TABLE} WHERE username = %s",
+            (username,)
+        )
+        results = cur.fetchall()
+        # Convert to dict
+        return {row['subject']: bool(row['grade_lock']) for row in results}
+    finally:
+        cur.close()
+        conn.close()
+
+def set_grade_lock_preference(username, subject, grade_lock):
+    """
+    Set grade lock preference for a specific subject.
+    Uses INSERT ... ON DUPLICATE KEY UPDATE to create or update.
+    """
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+            INSERT INTO {USER_PREFERENCES_TABLE} (username, subject, grade_lock)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE grade_lock = VALUES(grade_lock)
+            """,
+            (username, subject, grade_lock)
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+def get_grade_lock_for_subject(username, subject):
+    """
+    Get grade lock preference for a specific subject.
+    Returns True by default if not set.
+    """
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT grade_lock FROM {USER_PREFERENCES_TABLE} WHERE username = %s AND subject = %s",
+            (username, subject)
+        )
+        result = cur.fetchone()
+        if result:
+            return bool(result[0])
+        return True  # Default to True if not set
     finally:
         cur.close()
         conn.close()

@@ -139,7 +139,10 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th style="white-space:nowrap; width: 56px;">
+                                        <span class="drag-col-hint" title="Drag rows">⇅</span>
+                                        <input type="checkbox" id="selectAll">
+                                    </th>
                                     <th>Subject</th>
                                     <th>Category</th>
                                     <th>Study Time</th>
@@ -161,11 +164,15 @@
                                 </tr>
                                 {% endif %}
                             </thead>
+
                             <tbody id="study-table-body">
-                                {% for row in data %}<tr data-id="{{ row.id }}"
-                                    class="{% if row.is_prediction %}prediction-row{% endif %}" {% if row.is_prediction
-                                    %}data-is-prediction="true" {% endif %}>
-                                    <td><input type="checkbox" class="select-assignment" data-id="{{ row.id }}"></td>
+                                {% for row in data %}
+                                <tr data-id="{{ row.id }}"
+                                    class="assignment-row {% if row.is_prediction %}prediction-row{% endif %}">
+                                    <td>
+                                        <span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span>
+                                        <input type="checkbox" class="select-assignment" data-id="{{ row.id }}">
+                                    </td>
                                     <td>{{ row.subject }}</td>
                                     <td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -180,9 +187,7 @@
                                             data-id="{{ row.id }}" value="{{ row.study_time }}" step="0.1" min="0"
                                             style="width: 80px;"> hours
                                     </td>
-                                    <td><input type="text" name="assignment_name" class="prediction-input"
-                                            data-id="{{ row.id }}" value="{{ row.assignment_name }}"
-                                            style="width: 150px;"></td>
+                                    <td class="prediction-name-cell" contenteditable="true" data-id="{{ row.id }}">{{ row.assignment_name }}</td>
                                     <td><input type="number" name="grade" class="prediction-input grade-input"
                                             data-id="{{ row.id }}" value="{{ row.grade }}" step="1" min="0"
                                             style="width: 80px;">%</td>
@@ -208,7 +213,7 @@
                     </div>
                     <!-- Combined Control Bar -->
                     <div class="control-bar"
-                        style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 20px; align-items: center; margin-top: 15px; padding: 15px; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow);">
+                        style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 20px; align-items: center; margin-top: 15px; padding: 15px; background-color: var(--surface-color); border: 1px solid var(--border-light); border-radius: 8px; box-shadow: var(--shadow);">
 
                         <!-- Standard Buttons -->
                         <div class="button-group" style="display: flex; gap: 8px;">
@@ -230,7 +235,7 @@
 
                         <!-- Subject Grade Predictor (Conditional) -->
                         <div id="subject-predictor-container"
-                            style="display: none; flex: 1; min-width: 300px; border-left: 2px solid var(--border-color); padding-left: 20px;">
+                            style="display: none; flex: 1; min-width: 300px; border-left: 2px solid var(--border-light); padding-left: 20px;">
                             <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
                                 <h3 style="margin: 0; font-size: 1.1em; white-space: nowrap; color: var(--text-color);">
                                     Subject Predictor:</h3>
@@ -318,7 +323,7 @@
 
         {% if selected_subject and selected_subject != 'all' %}
         <div class="delete-subject-bar"
-            style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-color); width: 100%; text-align: center;">
+            style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-light); width: 100%; text-align: center;">
             <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn"
                 style="padding: 10px 20px; font-size: 1em;" data-subject="{{ selected_subject }}">Delete Subject {{
                 selected_subject }}</button>
@@ -390,6 +395,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <!-- <script src="{{ url_for('static', filename='js/menu-fix.js') }}?v={{ range(1, 10000) | random }}" defer></script> -->
 </body>
 
 </html>
