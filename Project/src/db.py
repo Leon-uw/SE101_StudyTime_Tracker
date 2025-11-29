@@ -71,6 +71,21 @@ CREATE TABLE IF NOT EXISTS {USERS_TABLE} (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
+# User Preferences table DDL - stores per-subject settings like grade_lock
+USER_PREFERENCES_TABLE = f"{DB_USER}_user_preferences"
+
+USER_PREFERENCES_DDL = f"""
+CREATE TABLE IF NOT EXISTS {USER_PREFERENCES_TABLE} (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username varchar(255) NOT NULL,
+    subject varchar(255) NOT NULL,
+    grade_lock BOOLEAN DEFAULT TRUE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_subject_pref (username, subject),
+    INDEX idx_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+"""
+
 def _connect(db=None):
     return mysql.connector.connect(
         host=DB_HOST, user=DB_USER, password=DB_PASS, database=db or DB_NAME
@@ -90,11 +105,12 @@ def init_db():
     conn = _connect(DB_NAME)
     try:
         cur = conn.cursor()
-        # Create all three tables
+        # Create all tables
         cur.execute(GRADES_DDL)
         cur.execute(CATEGORIES_DDL)
         cur.execute(SUBJECTS_DDL)
         cur.execute(USERS_DDL)
+        cur.execute(USER_PREFERENCES_DDL)
         conn.commit()
     finally:
         cur.close()
@@ -222,4 +238,64 @@ def ensure_position_column():
             cur.close()
         except Exception:
             pass
+        conn.close()
+
+def get_grade_lock_preferences(username):
+    """
+    Get all grade lock preferences for a user.
+    Returns a dictionary: {subject: grade_lock_boolean}
+    """
+    conn = _connect()
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute(
+            f"SELECT subject, grade_lock FROM {USER_PREFERENCES_TABLE} WHERE username = %s",
+            (username,)
+        )
+        results = cur.fetchall()
+        # Convert to dict
+        return {row['subject']: bool(row['grade_lock']) for row in results}
+    finally:
+        cur.close()
+        conn.close()
+
+def set_grade_lock_preference(username, subject, grade_lock):
+    """
+    Set grade lock preference for a specific subject.
+    Uses INSERT ... ON DUPLICATE KEY UPDATE to create or update.
+    """
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"""
+            INSERT INTO {USER_PREFERENCES_TABLE} (username, subject, grade_lock)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE grade_lock = VALUES(grade_lock)
+            """,
+            (username, subject, grade_lock)
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+def get_grade_lock_for_subject(username, subject):
+    """
+    Get grade lock preference for a specific subject.
+    Returns True by default if not set.
+    """
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT grade_lock FROM {USER_PREFERENCES_TABLE} WHERE username = %s AND subject = %s",
+            (username, subject)
+        )
+        result = cur.fetchone()
+        if result:
+            return bool(result[0])
+        return True  # Default to True if not set
+    finally:
+        cur.close()
         conn.close()
