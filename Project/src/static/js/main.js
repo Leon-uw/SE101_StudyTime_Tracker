@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded',
     function () {
         // --- Top Navigation Dropdown Logic ---
         // Close dropdowns when clicking outside
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (!e.target.closest('.nav-dropdown')) {
                 document.querySelectorAll('.nav-dropdown').forEach(dropdown => {
                     dropdown.classList.remove('open');
@@ -12,16 +12,16 @@ document.addEventListener('DOMContentLoaded',
 
         // Handle dropdown toggles on mobile (touch devices)
         document.querySelectorAll('.nav-dropdown .dropdown-toggle').forEach(toggle => {
-            toggle.addEventListener('click', function(e) {
+            toggle.addEventListener('click', function (e) {
                 e.preventDefault();
                 const dropdown = this.closest('.nav-dropdown');
                 const wasOpen = dropdown.classList.contains('open');
-                
+
                 // Close all other dropdowns
                 document.querySelectorAll('.nav-dropdown').forEach(d => {
                     d.classList.remove('open');
                 });
-                
+
                 // Toggle this one
                 if (!wasOpen) {
                     dropdown.classList.add('open');
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded',
         // --- Retired Subjects Submenu Toggle ---
         const retiredSubjectsToggle = document.getElementById('retired-subjects-toggle');
         const retiredSubjectsSubmenu = document.getElementById('retired-subjects-submenu');
-        
+
         if (retiredSubjectsToggle) {
             retiredSubjectsToggle.addEventListener('click', (e) => {
                 if (e.target === retiredSubjectsToggle || e.target.closest('#retired-subjects-toggle')) {
@@ -87,24 +87,53 @@ document.addEventListener('DOMContentLoaded',
             });
         }
 
-        // --- Dark Mode Logic ---
+        // --- Theme System (Color Scheme + Dark Mode) ---
         const themeToggle = document.getElementById('theme-toggle');
-        const currentTheme = localStorage.getItem('theme');
+        const schemeToggle = document.getElementById('scheme-toggle');
 
-        if (currentTheme === 'dark') {
-            document.body.classList.add('dark-mode');
-            if (themeToggle) themeToggle.checked = true;
+        // Load saved preferences
+        let currentScheme = localStorage.getItem('colorScheme') || 'default';
+        let currentMode = localStorage.getItem('theme') || 'light';
+
+        // Apply saved theme on load
+        function applyTheme(scheme, mode) {
+            // Remove all theme classes
+            document.body.classList.remove('toasty-mode', 'dark-mode');
+
+            // Apply scheme
+            if (scheme === 'toasty') {
+                document.body.classList.add('toasty-mode');
+            }
+
+            // Apply mode
+            if (mode === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+
+            // Update toggle states
+            if (themeToggle) themeToggle.checked = (mode === 'dark');
+            if (schemeToggle) schemeToggle.checked = (scheme === 'toasty');
         }
 
+        // Apply saved theme
+        applyTheme(currentScheme, currentMode);
+
+        // Dark mode toggle handler
         if (themeToggle) {
             themeToggle.addEventListener('change', () => {
-                if (themeToggle.checked) {
-                    document.body.classList.add('dark-mode');
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    document.body.classList.remove('dark-mode');
-                    localStorage.setItem('theme', 'light');
-                }
+                currentMode = themeToggle.checked ? 'dark' : 'light';
+                localStorage.setItem('theme', currentMode);
+                applyTheme(currentScheme, currentMode);
+                updateTotalWeightIndicator();
+            });
+        }
+
+        // Color scheme toggle handler
+        if (schemeToggle) {
+            schemeToggle.addEventListener('change', () => {
+                currentScheme = schemeToggle.checked ? 'toasty' : 'default';
+                localStorage.setItem('colorScheme', currentScheme);
+                applyTheme(currentScheme, currentMode);
                 updateTotalWeightIndicator();
             });
         }
@@ -159,7 +188,7 @@ document.addEventListener('DOMContentLoaded',
             console.error('Error loading grade lock settings:', e);
             gradeLockBySubject = {};
         }
-        
+
         // Load grade lock preferences from server
         async function loadGradeLockFromServer() {
             try {
@@ -177,7 +206,7 @@ document.addEventListener('DOMContentLoaded',
                 console.error('Error loading grade lock from server:', e);
             }
         }
-        
+
         // Save grade lock preference to server
         async function saveGradeLockToServer(subject, gradeLock) {
             try {
@@ -191,7 +220,7 @@ document.addEventListener('DOMContentLoaded',
                         grade_lock: gradeLock
                     })
                 });
-                
+
                 if (!response.ok) {
                     console.error('Failed to save grade lock to server');
                 }
@@ -199,16 +228,16 @@ document.addEventListener('DOMContentLoaded',
                 console.error('Error saving grade lock to server:', e);
             }
         }
-        
+
         // Load preferences on page load
         loadGradeLockFromServer();
-        
+
         // Helper function to get grade lock state for a subject
         function getGradeLock(subject) {
             // Default to true if not set
             return gradeLockBySubject[subject] !== undefined ? gradeLockBySubject[subject] : true;
         }
-        
+
         // Helper function to set grade lock state for a subject
         function setGradeLock(subject, value) {
             gradeLockBySubject[subject] = value;
@@ -216,27 +245,27 @@ document.addEventListener('DOMContentLoaded',
             // Also save to server
             saveGradeLockToServer(subject, value);
         }
-        
+
         // Helper function to get the current active subject
         function getCurrentSubject() {
             // First try the visible dropdown (for home page with 'all subjects')
             if (subjectFilterVisible && subjectFilterVisible.value && subjectFilterVisible.value !== 'all') {
                 return subjectFilterVisible.value;
             }
-            
+
             // Try the hidden filter input (set on subject-specific pages)
             if (subjectFilterDropdown && subjectFilterDropdown.value && subjectFilterDropdown.value !== 'all') {
                 return subjectFilterDropdown.value;
             }
-            
+
             return 'all';
         }
-        
+
         // Helper function to check if we're on the main dashboard (All Subjects view)
         function isDashboard() {
             return getCurrentSubject() === 'all';
         }
-        
+
         // Helper function to get current grade lock state based on active subject filter
         function getCurrentGradeLock() {
             const currentSubject = getCurrentSubject();
@@ -249,7 +278,7 @@ document.addEventListener('DOMContentLoaded',
             }
             return getGradeLock(currentSubject);
         }
-        
+
         let showPredictions = localStorage.getItem('showPredictions') === 'true';
 
         if (triggerSubjectPredictBtn) {
@@ -616,16 +645,16 @@ document.addEventListener('DOMContentLoaded',
         // Helper function to update grade lock button display
         function updateGradeLockButton() {
             if (!gradeLockBtn) return;
-            
+
             const currentSubject = getCurrentSubject();
             const isLocked = getCurrentGradeLock();
-            
+
             if (currentSubject === 'all') {
                 gradeLockBtn.textContent = 'Grade Lock (All)';
             } else {
                 gradeLockBtn.textContent = isLocked ? `Grade Lock (${currentSubject}): ON` : `Grade Lock (${currentSubject}): OFF`;
             }
-            
+
             gradeLockBtn.classList.toggle('lock-on', isLocked);
             gradeLockBtn.classList.toggle('lock-off', !isLocked);
         }
@@ -636,16 +665,16 @@ document.addEventListener('DOMContentLoaded',
 
             gradeLockBtn.addEventListener('click', function () {
                 const currentSubject = getCurrentSubject();
-                
+
                 if (currentSubject === 'all') {
                     showToast('Please select a specific subject to toggle grade lock', 'info');
                     return;
                 }
-                
+
                 const currentState = getGradeLock(currentSubject);
                 const newState = !currentState;
                 setGradeLock(currentSubject, newState);
-                
+
                 updateGradeLockButton();
 
                 // Remove forced styles if they were applied
@@ -656,21 +685,21 @@ document.addEventListener('DOMContentLoaded',
                 allGradeInputs.forEach(input => {
                     const row = input.closest('tr');
                     if (!row) return;
-                    
+
                     // Check if this row belongs to the current subject
                     const subjectCell = row.querySelector('td:nth-child(2)');
                     if (!subjectCell) return;
-                    
+
                     const rowSubject = subjectCell.textContent.trim();
                     if (rowSubject !== currentSubject) return;
-                    
+
                     if (newState) {
                         input.setAttribute('max', '100');
                     } else {
                         input.removeAttribute('max');
                     }
                 });
-                
+
                 showToast(`Grade Lock for ${currentSubject}: ${newState ? 'ON' : 'OFF'}`, 'success');
             });
         }
@@ -748,7 +777,7 @@ document.addEventListener('DOMContentLoaded',
                 const subjectSelect = row.querySelector('select[name="subject"]');
                 const subjectCell = row.querySelector('td:nth-child(2)');
                 const rowSubject = subjectSelect ? subjectSelect.value : (subjectCell ? subjectCell.textContent.trim() : null);
-                
+
                 if (rowSubject && getGradeLock(rowSubject)) {
                     const gradeValue = parseFloat(gradeInput.value);
                     if (gradeValue > 100) {
@@ -1143,10 +1172,10 @@ document.addEventListener('DOMContentLoaded',
 
                 // Build the row HTML based on whether it's a prediction
                 // On dashboard: show drag handle only. Otherwise: show drag handle + checkbox
-                const firstCellHtml = onDashboard 
+                const firstCellHtml = onDashboard
                     ? `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span></td>`
                     : `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${log.id}"></td>`;
-                
+
                 if (log.is_prediction) {
                     // Create category dropdown for predictions
                     const categoryDropdownHtml = createCategoryDropdown(log.subject, log.category, log.id);
@@ -1184,7 +1213,7 @@ document.addEventListener('DOMContentLoaded',
 
                 assignmentTableBody.appendChild(row);
             });
-            
+
             // Update delete button state after rendering (clears stale selection counts)
             if (typeof updateDeleteButton === 'function') {
                 updateDeleteButton();
@@ -1445,12 +1474,12 @@ document.addEventListener('DOMContentLoaded',
             const catId = row.dataset.id;
             const isNew = !catId;
             console.log('catId:', catId, 'isNew:', isNew);
-            
+
             // Get the new default_name value
             const defaultNameInput = row.querySelector('input[name="default_name"]');
             const newDefaultName = defaultNameInput ? defaultNameInput.value : '';
             console.log('newDefaultName:', newDefaultName);
-            
+
             // For existing categories, check if default_name changed (only if updateAssignments not already decided)
             if (!isNew && updateAssignments === null && newDefaultName) {
                 console.log('Checking if default_name changed...');
@@ -1462,22 +1491,22 @@ document.addEventListener('DOMContentLoaded',
                     if (catResponse.ok) {
                         const catResult = await catResponse.json();
                         console.log('catResult:', catResult);
-                        
+
                         if (catResult.status === 'success' && catResult.category) {
                             const oldDefaultName = catResult.category.default_name || '';
                             console.log('oldDefaultName:', oldDefaultName, 'newDefaultName:', newDefaultName);
-                            
+
                             // If default_name changed and both old and new have values, show the modal
                             if (oldDefaultName && oldDefaultName !== newDefaultName) {
                                 console.log('Names are different, showing modal');
                                 // Store the pending save data
                                 pendingCategorySave = { row, catId, oldDefaultName, newDefaultName };
-                                
+
                                 // Show the naming update modal
                                 const updateNamingModal = document.getElementById('update-naming-modal');
                                 const updateNamingExample = document.getElementById('update-naming-example');
                                 console.log('updateNamingModal:', updateNamingModal);
-                                
+
                                 if (updateNamingModal) {
                                     // Create an example of the change (number goes exactly where # is)
                                     const oldExample = oldDefaultName.replace('#', '1');
@@ -1501,7 +1530,7 @@ document.addEventListener('DOMContentLoaded',
             } else {
                 console.log('Skipping default_name check. isNew:', isNew, 'updateAssignments:', updateAssignments, 'newDefaultName:', newDefaultName);
             }
-            
+
             console.log('Proceeding with the save...');
             // Proceed with the save
             const url = isNew ? '/category/add' : `/category/update/${catId}`;
@@ -1509,12 +1538,12 @@ document.addEventListener('DOMContentLoaded',
             row.querySelectorAll('input').forEach(input => formData.append(input.name, input.value));
             const subject = subjectFilterDropdown.value;
             formData.append('subject', subject);
-            
+
             // Add the update_assignments flag if specified
             if (updateAssignments !== null) {
                 formData.append('update_assignments', updateAssignments ? 'true' : 'false');
             }
-            
+
             try {
                 const response = await fetch(url, {
                     method: 'POST',
@@ -1533,14 +1562,14 @@ document.addEventListener('DOMContentLoaded',
                 showToast('A network error occurred.', 'error');
             }
         }
-        
+
         // Handle naming update modal buttons
         const updateNamingModal = document.getElementById('update-naming-modal');
         const updateNamingYes = document.getElementById('update-naming-yes');
         const updateNamingNo = document.getElementById('update-naming-no');
-        
+
         if (updateNamingYes) {
-            updateNamingYes.addEventListener('click', function() {
+            updateNamingYes.addEventListener('click', function () {
                 if (updateNamingModal) updateNamingModal.classList.remove('active');
                 if (pendingCategorySave) {
                     handleCategorySave(pendingCategorySave.row, true);
@@ -1548,9 +1577,9 @@ document.addEventListener('DOMContentLoaded',
                 }
             });
         }
-        
+
         if (updateNamingNo) {
-            updateNamingNo.addEventListener('click', function() {
+            updateNamingNo.addEventListener('click', function () {
                 if (updateNamingModal) updateNamingModal.classList.remove('active');
                 if (pendingCategorySave) {
                     handleCategorySave(pendingCategorySave.row, false);
@@ -1784,7 +1813,7 @@ document.addEventListener('DOMContentLoaded',
                     // Adjust indices: cells[0] is checkbox, cells[1] is subject, cells[2] is category, etc.
                     const subjectText = cells[1].textContent.trim();
                     const categoryText = cells[2].querySelector('.category-tag').lastChild.textContent.trim();
-                    
+
                     // Store original category on the row for weight preview calculations
                     row.dataset.originalCategory = categoryText;
                     const studyTimeText = cells[3].textContent.trim();
@@ -1792,7 +1821,7 @@ document.addEventListener('DOMContentLoaded',
                     const assignmentNameText = cells[4].textContent.trim();
                     const gradeText = cells[5].textContent.trim();
                     const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
-                    
+
                     // Get grade lock state for this row's subject
                     const rowGradeLock = getGradeLock(subjectText);
                     const gradeAttributes = rowGradeLock ? 'min="0" max="100"' : 'min="0"';
@@ -2951,7 +2980,7 @@ document.addEventListener('DOMContentLoaded',
                     if (subjectFilterDropdown) {
                         subjectFilterDropdown.value = selectedSubject;
                     }
-                    
+
                     // Update grade lock button for new subject
                     updateGradeLockButton();
 
@@ -3229,7 +3258,7 @@ document.addEventListener('DOMContentLoaded',
             function rowHTML(row) {
                 const onDashboard = isDashboard();
                 // On dashboard: show drag handle only. Otherwise: show drag handle + checkbox
-                const firstCell = onDashboard 
+                const firstCell = onDashboard
                     ? `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span></td>`
                     : `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${row.id}"></td>`;
 

@@ -79,6 +79,14 @@
                 <a href="{{ url_for('about') }}" class="nav-link">About</a>
             </div>
             <div class="nav-actions">
+                <div style="display: flex; align-items: center; gap: 6px; margin-right: 10px;">
+                    <span title="Default (Frosty)" style="font-size: 1.2em; cursor: default;">❄️</span>
+                    <label class="switch nav-switch" title="Toggle Color Scheme (Default/Toasty)">
+                        <input type="checkbox" id="scheme-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <span title="Toasty" style="font-size: 1.2em; cursor: default;">🔥</span>
+                </div>
                 <label class="switch nav-switch" title="Toggle Dark Mode">
                     <input type="checkbox" id="theme-toggle">
                     <span class="slider"></span>
@@ -485,9 +493,10 @@
                 const bins = toDeciles(data);
 
                 chartGrades?.destroy();
+                const barColor = getComputedStyle(document.body).getPropertyValue('--primary-color').trim();
                 chartGrades = new Chart($('#gradesHistogram'), {
                     type: 'bar',
-                    data: { labels, datasets: [{ label: 'Count', data: bins, borderRadius: 6 }] },
+                    data: { labels, datasets: [{ label: 'Count', data: bins, borderRadius: 6, backgroundColor: barColor }] },
                     options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Grade Distribution (${sel === 'ALL' ? 'All subjects' : sel})` } } }
                 });
             }
@@ -503,10 +512,11 @@
                 }
 
                 chartHours?.destroy();
+                const barColor = getComputedStyle(document.body).getPropertyValue('--primary-color').trim();
                 chartHours = new Chart($('#topHoursBar'), {
                     type: 'bar',
-                    data: { labels, datasets: [{ label: 'Hours', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6 }] },
-                    options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Top Subjects by Hours (${sel === 'ALL' ? 'All subjects' : sel})` } } }
+                    data: { labels, datasets: [{ label: 'Hours', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6, backgroundColor: barColor }] },
+                    options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Study Time by Subject (${sel === 'ALL' ? 'All subjects' : sel})` } } }
                 });
             }
 
@@ -524,9 +534,10 @@
                 }
 
                 chartEff?.destroy();
+                const barColor = getComputedStyle(document.body).getPropertyValue('--primary-color').trim();
                 chartEff = new Chart($('#efficiencyBar'), {
                     type: 'bar',
-                    data: { labels, datasets: [{ label: 'Efficiency (%/h)', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6 }] },
+                    data: { labels, datasets: [{ label: 'Efficiency (%/h)', data: values, borderRadius: 6, barPercentage: 0.65, categoryPercentage: 0.6, backgroundColor: barColor }] },
                     options: { ...baseOpts, plugins: { ...baseOpts.plugins, title: { ...baseOpts.plugins.title, text: `Efficiency by Subject (${sel === 'ALL' ? 'All subjects' : sel})` } } }
                 });
             }
@@ -662,6 +673,22 @@
                         renderEfficiency('ALL');
                         renderOutcomes(outcomesSelVal);
                     }, 50); // Small delay to let DOM update
+                });
+            }
+
+            // Re-render charts when color scheme changes
+            const schemeToggle = document.getElementById('scheme-toggle');
+            if (schemeToggle) {
+                schemeToggle.addEventListener('change', () => {
+                    setTimeout(() => {
+                        const gradesSelVal = selects.grades ? selects.grades.value : 'ALL';
+                        const outcomesSelVal = selects.outcomes ? selects.outcomes.value : 'ALL';
+
+                        renderGrades(gradesSelVal);
+                        renderHours('ALL');
+                        renderEfficiency('ALL');
+                        renderOutcomes(outcomesSelVal);
+                    }, 50);
                 });
             }
         })();
