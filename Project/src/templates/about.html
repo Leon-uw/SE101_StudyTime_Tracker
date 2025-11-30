@@ -4,40 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - Study Log Dashboard</title>
+    <title>About - Snowmark</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    {% if not current_user.is_authenticated %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% endif %}
 </head>
 
 <body>
-
-    <!-- Sidebar -->
+    {% if current_user.is_authenticated %}
+    <!-- Sidebar (hidden - using top nav) -->
     <div id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <h3>Menu</h3>
-            <button id="close-sidebar-btn" class="close-btn">&times;</button>
-        </div>
-        <ul class="sidebar-menu">
-            <li><a href="{{ url_for('display_table') }}">Home</a></li>
-            <li class="has-submenu">
-                <a href="#" id="subjects-toggle">Subjects <span class="arrow">&#9662;</span></a>
-                <ul class="submenu" id="subjects-submenu">
-                    {% for subject in subjects %}
-                    <li><a href="{{ url_for('display_subject', subject_name=subject) }}">{{ subject }}</a></li>
-                    {% endfor %}
-                    <li><a href="#" id="add-subject-link" class="add-subject-link">+ Add Subject</a></li>
-                </ul>
-            </li>
-            <li><a href="{{ url_for('about') }}">About</a></li>
-            <li><a href="{{ url_for('stats') }}">Stats</a></li>
-            <li class="theme-toggle-item">
-                <span>Dark Mode</span>
-                <label class="switch">
-                    <input type="checkbox" id="theme-toggle">
-                    <span class="slider"></span>
-                </label>
-            </li>
-            <li><a href="{{ url_for('logout') }}">Log Out</a></li>
-        </ul>
     </div>
 
     <!-- Overlay -->
@@ -48,21 +27,84 @@
         <!-- Top Navigation Bar -->
         <header class="top-nav">
             <div class="nav-left">
-                <button id="menu-btn" class="menu-btn">
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                </button>
+                <a href="{{ url_for('display_table') }}" class="logo-link">
+                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo"
+                        class="logo-img">
+                    <span class="logo-text">Snowmark</span>
+                </a>
             </div>
             <div class="nav-center">
                 <h1>{{ page_title }}</h1>
             </div>
             <div class="nav-right">
-                <a href="{{ url_for('display_table') }}" class="logo-link">
-                    <div class="logo-placeholder">Logo</div>
-                </a>
+                <span class="user-greeting">{{ current_user.username }}</span>
             </div>
         </header>
+
+        <!-- Secondary Navigation Bar -->
+        <nav class="secondary-nav">
+            <div class="nav-links">
+                <a href="{{ url_for('display_table') }}" class="nav-link">Dashboard</a>
+
+                <div class="nav-dropdown">
+                    <button class="nav-link dropdown-toggle">
+                        Subjects <span class="arrow">▼</span>
+                    </button>
+                    <div class="dropdown-menu">
+                        {% for subject in subjects %}
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{
+                            subject }}</a>
+                        {% endfor %}
+                        <div class="dropdown-divider"></div>
+                        <a href="#" id="add-subject-link" class="dropdown-item add-subject-item">+ Add Subject</a>
+                    </div>
+                </div>
+
+                {% if retired_subjects %}
+                <div class="nav-dropdown">
+                    <button class="nav-link dropdown-toggle">
+                        Retired <span class="arrow">▼</span>
+                    </button>
+                    <div class="dropdown-menu">
+                        {% for subject in retired_subjects %}
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{
+                            subject }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('stats') }}" class="nav-link">Stats</a>
+                <a href="{{ url_for('about') }}" class="nav-link active">About</a>
+            </div>
+            <div class="nav-actions">
+                <label class="switch icon-switch scheme-switch nav-switch" title="Toggle Color Scheme (Frosty/Toasty)">
+                    <input type="checkbox" id="scheme-toggle">
+                    <span class="slider"></span>
+                </label>
+                <label class="switch icon-switch theme-switch nav-switch" title="Toggle Dark Mode">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider"></span>
+                </label>
+                <a href="{{ url_for('logout') }}" class="nav-link logout-link">Log Out</a>
+            </div>
+        </nav>
+    {% else %}
+    <!-- Public About Page Navigation - matches landing page header -->
+    <header class="landing-header scrolled">
+        <div class="landing-header-left">
+            <a href="{{ url_for('landing') }}" class="landing-logo-link">
+                <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo" class="landing-header-logo">
+                <span class="landing-header-title">Snowmark</span>
+            </a>
+        </div>
+        <div class="landing-header-right">
+            <a href="{{ url_for('login') }}" class="landing-header-link">Log In</a>
+            <a href="{{ url_for('register') }}" class="landing-header-btn">Sign Up</a>
+        </div>
+    </header>
+    <div class="main-wrapper landing-about">
+    {% endif %}
 
         <div class="content-container">
             <div class="main-container">
@@ -70,31 +112,47 @@
                     <h2>About This Project</h2>
                     <h2>Work Smarter, Not Just Harder</h2>
                     <p>
-                        We built this platform because we've all been there — spending hours studying but not knowing if it's enough, wondering which assignments deserve more attention, and feeling uncertain about whether we're on track to hit our grade goals.
+                        We built this platform because we've all been there — spending hours studying but not knowing if
+                        it's enough, wondering which assignments deserve more attention, and feeling uncertain about
+                        whether we're on track to hit our grade goals.
                     </p>
                     <p>
-                        Our study log dashboard takes the guesswork out of academic planning. By tracking your assignments, grades, and study time in one place, we help you make data-driven decisions about where to focus your energy.
+                        Our study log dashboard takes the guesswork out of academic planning. By tracking your
+                        assignments, grades, and study time in one place, we help you make data-driven decisions about
+                        where to focus your energy.
                     </p>
 
                     <h2>What We Do</h2>
                     <p>
-                        This isn't just another grade calculator. Our platform analyzes your historical performance to give you personalized insights about your academic progress. Enter your course grading schemes, log the scores you receive, and track the time you spend on assignments—then let our system do the rest.
+                        This isn't just another grade calculator. Our platform analyzes your historical performance to
+                        give you personalized insights about your academic progress. Enter your course grading schemes,
+                        log the scores you receive, and track the time you spend on assignments—then let our system do
+                        the rest.
                     </p>
                     <ul>
-                        <li>Predicts what grades you should aim for on upcoming assignments based on your target grade and current performance.</li>
-                        <li>Calculates how much time you should invest in each course to reach your goals efficiently.</li>
-                        <li>Highlights your strengths and areas for improvement with detailed statistics and visualizations.</li>
-                        <li>Reveals your most efficient study patterns through grade-per-hour ratios and efficiency tracking.</li>
+                        <li>Predicts what grades you should aim for on upcoming assignments based on your target grade
+                            and current performance.</li>
+                        <li>Calculates how much time you should invest in each course to reach your goals efficiently.
+                        </li>
+                        <li>Highlights your strengths and areas for improvement with detailed statistics and
+                            visualizations.</li>
+                        <li>Reveals your most efficient study patterns through grade-per-hour ratios and efficiency
+                            tracking.</li>
                     </ul>
 
                     <h2>Built for Students, By Students</h2>
                     <p>
-                        We understand the pressure of juggling multiple courses with different grading schemes, deadlines, and expectations. That's why we created a tool that brings clarity to the chaos. Our dashboard gives you a clear picture of your academic standing across all your courses — track your GPA, monitor your study hours, and see which subjects need more attention. Set target grades for each course and we'll help you stay on track to achieve them.
+                        We understand the pressure of juggling multiple courses with different grading schemes,
+                        deadlines, and expectations. That's why we created a tool that brings clarity to the chaos. Our
+                        dashboard gives you a clear picture of your academic standing across all your courses — track
+                        your GPA, monitor your study hours, and see which subjects need more attention. Set target
+                        grades for each course and we'll help you stay on track to achieve them.
                     </p>
 
                     <h2>Your Data, Your Privacy</h2>
                     <p>
-                        Your academic information is personal. We store your courses, grades, and study hours securely so you can access them from any device — but your data remains private and belongs to you.
+                        Your academic information is personal. We store your courses, grades, and study hours securely
+                        so you can access them from any device — but your data remains private and belongs to you.
                     </p>
 
                 </div>
@@ -102,6 +160,7 @@
         </div>
     </div>
 
+    {% if current_user.is_authenticated %}
     <div id="add-subject-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-top: 0;">Add New Subject</h3>
@@ -115,6 +174,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    {% endif %}
 </body>
 
 </html>

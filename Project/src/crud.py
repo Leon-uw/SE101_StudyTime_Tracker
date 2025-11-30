@@ -156,7 +156,7 @@ def get_all_grades(username):
         curs = conn.cursor(dictionary=True)
         curs.execute(
             f"""SELECT id, Subject, Category, StudyTime, AssignmentName,
-                    Grade, Weight, IsPrediction, Position
+                    Grade, Weight, IsPrediction, PredictedGrade, Position
                 FROM {TABLE_NAME}
                 WHERE username = %s
                 ORDER BY Position ASC, id ASC""",
@@ -175,6 +175,7 @@ def get_all_grades(username):
                 'grade': row['Grade'],
                 'weight': row['Weight'],
                 'is_prediction': bool(row['IsPrediction']) if 'IsPrediction' in row else False,
+                'predicted_grade': row.get('PredictedGrade'),
                 'position': row['Position'],
             }
             for row in results
@@ -211,6 +212,26 @@ def get_all_categories(username, subject=None):
         curs.close()
         conn.close()
 
+def get_category_by_id(username, category_id):
+    """Get a single category by ID for a user."""
+    conn = _connect()
+    try:
+        curs = conn.cursor(dictionary=True)
+        curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} WHERE id = %s AND username = %s", (category_id, username))
+        row = curs.fetchone()
+        if row:
+            return {
+                'id': row['id'],
+                'subject': row['Subject'],
+                'name': row['CategoryName'],
+                'total_weight': row['TotalWeight'],
+                'default_name': row['DefaultName'] or ''
+            }
+        return None
+    finally:
+        curs.close()
+        conn.close()
+
 def get_categories_as_dict(username):
     """Get categories organized by subject for a user."""
     categories = get_all_categories(username)
@@ -228,7 +249,7 @@ def get_categories_as_dict(username):
 
     return result
 
-def add_grade(username, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
+def add_grade(username, subject, category, study_time, assignment_name, grade, weight, is_prediction=False, predicted_grade=None):
     """Add a new assignment to the database for a user"""
     conn = _connect()
     try:
@@ -239,10 +260,10 @@ def add_grade(username, subject, category, study_time, assignment_name, grade, w
 
         query = f"""
         INSERT INTO {TABLE_NAME}
-            (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction, Position)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction, PredictedGrade, Position)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-        curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction, next_pos))
+        curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction, predicted_grade, next_pos))
         conn.commit()
         return curs.lastrowid  # Return the ID of the inserted record
     except Exception as e:
@@ -252,7 +273,7 @@ def add_grade(username, subject, category, study_time, assignment_name, grade, w
         curs.close()
         conn.close()
 
-def update_grade(username, grade_id, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
+def update_grade(username, grade_id, subject, category, study_time, assignment_name, grade, weight, is_prediction=False, predicted_grade=None):
     """Update an existing grade for a user"""
     conn = _connect()
     try:
@@ -260,10 +281,10 @@ def update_grade(username, grade_id, subject, category, study_time, assignment_n
         # Ensure we only update if it belongs to the user
         query = f"""
         UPDATE {TABLE_NAME}
-        SET Subject = %s, Category = %s, StudyTime = %s, AssignmentName = %s, Grade = %s, Weight = %s, IsPrediction = %s
+        SET Subject = %s, Category = %s, StudyTime = %s, AssignmentName = %s, Grade = %s, Weight = %s, IsPrediction = %s, PredictedGrade = %s
         WHERE id = %s AND username = %s
         """
-        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, grade_id, username))
+        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, predicted_grade, grade_id, username))
         conn.commit()
         return curs.rowcount
     except Exception as e:
@@ -400,6 +421,77 @@ def update_category(username, category_id, subject, category_name, total_weight,
         curs.close()
         conn.close()
 
+def update_assignment_names_for_category(username, subject, category_name, old_pattern, new_pattern):
+    """
+    Update assignment names that match the old naming pattern to use the new pattern.
+    
+    For example, if old_pattern is "Quiz #" and new_pattern is "Test #", this will
+    update assignments named "Quiz 1", "Quiz 2" to "Test 1", "Test 2".
+    
+    The pattern uses "#" as a placeholder for the number.
+    """
+    import re
+    conn = _connect()
+    try:
+        # Get all assignments for this category
+        curs = conn.cursor(dictionary=True)
+        curs.execute(
+            f"""SELECT id, AssignmentName FROM {TABLE_NAME} 
+                WHERE username = %s AND Subject = %s AND Category = %s""",
+            (username, subject, category_name)
+        )
+        assignments = curs.fetchall()
+        
+        if not assignments or not old_pattern or not new_pattern:
+            return 0
+        
+        # Split old pattern by # to get prefix and suffix
+        old_parts = old_pattern.split('#')
+        old_prefix = old_parts[0] if len(old_parts) > 0 else ''
+        old_suffix = old_parts[1] if len(old_parts) > 1 else ''
+        
+        # Split new pattern by # to get prefix and suffix
+        new_parts = new_pattern.split('#')
+        new_prefix = new_parts[0] if len(new_parts) > 0 else ''
+        new_suffix = new_parts[1] if len(new_parts) > 1 else ''
+        
+        if not old_prefix and not old_suffix:
+            return 0
+        
+        # Create regex pattern to match old naming scheme
+        # Escape special regex characters
+        escaped_old_prefix = re.escape(old_prefix)
+        escaped_old_suffix = re.escape(old_suffix)
+        pattern = re.compile(f'^{escaped_old_prefix}(\\d+){escaped_old_suffix}$', re.IGNORECASE)
+        
+        updated_count = 0
+        update_curs = conn.cursor()
+        
+        for assignment in assignments:
+            match = pattern.match(assignment['AssignmentName'].strip())
+            if match:
+                # Extract the number
+                number = match.group(1)
+                # Create the new name using the new pattern (number goes exactly where # is)
+                new_name = f"{new_prefix}{number}{new_suffix}"
+                
+                # Update the assignment name
+                update_curs.execute(
+                    f"UPDATE {TABLE_NAME} SET AssignmentName = %s WHERE id = %s AND username = %s",
+                    (new_name, assignment['id'], username)
+                )
+                updated_count += update_curs.rowcount
+        
+        conn.commit()
+        update_curs.close()
+        return updated_count
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        curs.close()
+        conn.close()
+
 def delete_category(username, category_id):
     """Delete a category definition for a user"""
     conn = _connect()
@@ -447,19 +539,45 @@ def get_total_weight_for_subject(username, subject, exclude_category_id=None):
 # PHASE 7: Subject CRUD Operations
 # ============================================================================
 
-def get_all_subjects(username):
-    """Get all subjects for a user."""
+def get_all_subjects(username, include_retired=False):
+    """Get all subjects for a user. By default excludes retired subjects."""
     conn = _connect()
     try:
         curs = conn.cursor(dictionary=True)
-        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s ORDER BY name", (username,))
+        if include_retired:
+            curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s ORDER BY name", (username,))
+        else:
+            # Exclude retired subjects (is_retired = FALSE or NULL)
+            curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND (is_retired = FALSE OR is_retired IS NULL) ORDER BY name", (username,))
         results = curs.fetchall()
 
         return [
             {
                 'id': row['id'],
                 'name': row['name'],
-                'created_at': row['created_at']
+                'created_at': row['created_at'],
+                'is_retired': row.get('is_retired', False) or False
+            }
+            for row in results
+        ]
+    finally:
+        curs.close()
+        conn.close()
+
+def get_retired_subjects(username):
+    """Get all retired subjects for a user."""
+    conn = _connect()
+    try:
+        curs = conn.cursor(dictionary=True)
+        curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND is_retired = TRUE ORDER BY name", (username,))
+        results = curs.fetchall()
+
+        return [
+            {
+                'id': row['id'],
+                'name': row['name'],
+                'created_at': row['created_at'],
+                'is_retired': True
             }
             for row in results
         ]

@@ -1,89 +1,37 @@
 document.addEventListener('DOMContentLoaded',
     function () {
-        // --- Sidebar Logic ---
-        const menuBtn = document.getElementById('menu-btn');
-        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('overlay');
-        const subjectsToggle = document.getElementById('subjects-toggle');
-        const subjectsSubmenu = document.getElementById('subjects-submenu');
-
-        console.log('[Sidebar Debug] Elements found:', {
-            menuBtn: !!menuBtn,
-            closeSidebarBtn: !!closeSidebarBtn,
-            sidebar: !!sidebar,
-            overlay: !!overlay
+        // --- Top Navigation Dropdown Logic ---
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.nav-dropdown')) {
+                document.querySelectorAll('.nav-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('open');
+                });
+            }
         });
 
-        // Ensure sidebar starts closed
-        if (sidebar) {
-            console.log('[Sidebar Debug] Initial sidebar classes:', sidebar.className);
-            sidebar.classList.remove('open');
-            console.log('[Sidebar Debug] After removing open class:', sidebar.className);
-        }
-        if (overlay) {
-            console.log('[Sidebar Debug] Initial overlay classes:', overlay.className);
-            overlay.classList.remove('active');
-            console.log('[Sidebar Debug] After removing active class:', overlay.className);
-        }
+        // Handle dropdown toggles on mobile (touch devices)
+        document.querySelectorAll('.nav-dropdown .dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                const dropdown = this.closest('.nav-dropdown');
+                const wasOpen = dropdown.classList.contains('open');
 
-        function toggleSidebar() {
-            console.log('[Sidebar Debug] toggleSidebar called');
-            console.log('[Sidebar Debug] sidebar element:', sidebar);
-            console.log('[Sidebar Debug] sidebar classes before toggle:', sidebar ? sidebar.className : 'sidebar is null');
-            console.log('[Sidebar Debug] overlay classes before toggle:', overlay ? overlay.className : 'overlay is null');
+                // Close all other dropdowns
+                document.querySelectorAll('.nav-dropdown').forEach(d => {
+                    d.classList.remove('open');
+                });
 
-            if (sidebar) {
-                sidebar.classList.toggle('open');
-                console.log('[Sidebar Debug] sidebar classes after toggle:', sidebar.className);
-
-                // Force inline styles for debugging
-                if (sidebar.classList.contains('open')) {
-                    sidebar.style.left = '0';
-                    console.log('[Sidebar Debug] Forced sidebar to left: 0');
-                } else {
-                    sidebar.style.left = '-250px';
-                    console.log('[Sidebar Debug] Forced sidebar to left: -250px');
+                // Toggle this one
+                if (!wasOpen) {
+                    dropdown.classList.add('open');
                 }
-
-                // Log computed styles
-                const computedStyle = window.getComputedStyle(sidebar);
-                console.log('[Sidebar Debug] Computed left:', computedStyle.left);
-                console.log('[Sidebar Debug] Computed position:', computedStyle.position);
-                console.log('[Sidebar Debug] Computed z-index:', computedStyle.zIndex);
-            } else {
-                console.error('[Sidebar Debug] sidebar element is null!');
-            }
-
-            if (overlay) {
-                overlay.classList.toggle('active');
-                console.log('[Sidebar Debug] overlay classes after toggle:', overlay.className);
-            } else {
-                console.error('[Sidebar Debug] overlay element is null!');
-            }
-        }
-
-        if (menuBtn) {
-            console.log('[Sidebar Debug] Adding click listener to menuBtn');
-            menuBtn.addEventListener('click', function (e) {
-                console.log('[Sidebar Debug] Menu button clicked!', e);
-                toggleSidebar();
             });
-        } else {
-            console.error('[Sidebar Debug] menuBtn not found!');
-        }
+        });
 
-        if (closeSidebarBtn) {
-            closeSidebarBtn.addEventListener('click', toggleSidebar);
-        } else {
-            console.warn('[Sidebar Debug] closeSidebarBtn not found');
-        }
-
-        if (overlay) {
-            overlay.addEventListener('click', toggleSidebar);
-        } else {
-            console.warn('[Sidebar Debug] overlay not found');
-        }
+        // Legacy sidebar elements (kept for compatibility but not used)
+        const subjectsToggle = document.getElementById('subjects-toggle');
+        const subjectsSubmenu = document.getElementById('subjects-submenu');
 
         if (subjectsToggle) {
             subjectsToggle.addEventListener('click', (e) => {
@@ -91,6 +39,34 @@ document.addEventListener('DOMContentLoaded',
                 if (e.target === subjectsToggle || e.target.closest('#subjects-toggle')) {
                     e.preventDefault();
                     subjectsToggle.parentElement.classList.toggle('active');
+                }
+            });
+        }
+
+        // --- Retired Subjects Submenu Toggle ---
+        const retiredSubjectsToggle = document.getElementById('retired-subjects-toggle');
+        const retiredSubjectsSubmenu = document.getElementById('retired-subjects-submenu');
+
+        if (retiredSubjectsToggle) {
+            retiredSubjectsToggle.addEventListener('click', (e) => {
+                if (e.target === retiredSubjectsToggle || e.target.closest('#retired-subjects-toggle')) {
+                    e.preventDefault();
+                    retiredSubjectsToggle.parentElement.classList.toggle('active');
+                }
+            });
+        }
+
+        // Ensure retired subject links work properly
+        if (retiredSubjectsSubmenu) {
+            retiredSubjectsSubmenu.addEventListener('click', (e) => {
+                const link = e.target.closest('a');
+                if (link && link.href) {
+                    // Allow default navigation
+                    setTimeout(() => {
+                        if (sidebar && sidebar.classList.contains('open')) {
+                            toggleSidebar();
+                        }
+                    }, 100);
                 }
             });
         }
@@ -111,24 +87,53 @@ document.addEventListener('DOMContentLoaded',
             });
         }
 
-        // --- Dark Mode Logic ---
+        // --- Theme System (Color Scheme + Dark Mode) ---
         const themeToggle = document.getElementById('theme-toggle');
-        const currentTheme = localStorage.getItem('theme');
+        const schemeToggle = document.getElementById('scheme-toggle');
 
-        if (currentTheme === 'dark') {
-            document.body.classList.add('dark-mode');
-            if (themeToggle) themeToggle.checked = true;
+        // Load saved preferences
+        let currentScheme = localStorage.getItem('colorScheme') || 'default';
+        let currentMode = localStorage.getItem('theme') || 'light';
+
+        // Apply saved theme on load
+        function applyTheme(scheme, mode) {
+            // Remove all theme classes
+            document.body.classList.remove('toasty-mode', 'dark-mode');
+
+            // Apply scheme
+            if (scheme === 'toasty') {
+                document.body.classList.add('toasty-mode');
+            }
+
+            // Apply mode
+            if (mode === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+
+            // Update toggle states
+            if (themeToggle) themeToggle.checked = (mode === 'dark');
+            if (schemeToggle) schemeToggle.checked = (scheme === 'toasty');
         }
 
+        // Apply saved theme
+        applyTheme(currentScheme, currentMode);
+
+        // Dark mode toggle handler
         if (themeToggle) {
             themeToggle.addEventListener('change', () => {
-                if (themeToggle.checked) {
-                    document.body.classList.add('dark-mode');
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    document.body.classList.remove('dark-mode');
-                    localStorage.setItem('theme', 'light');
-                }
+                currentMode = themeToggle.checked ? 'dark' : 'light';
+                localStorage.setItem('theme', currentMode);
+                applyTheme(currentScheme, currentMode);
+                updateTotalWeightIndicator();
+            });
+        }
+
+        // Color scheme toggle handler
+        if (schemeToggle) {
+            schemeToggle.addEventListener('change', () => {
+                currentScheme = schemeToggle.checked ? 'toasty' : 'default';
+                localStorage.setItem('colorScheme', currentScheme);
+                applyTheme(currentScheme, currentMode);
                 updateTotalWeightIndicator();
             });
         }
@@ -183,7 +188,7 @@ document.addEventListener('DOMContentLoaded',
             console.error('Error loading grade lock settings:', e);
             gradeLockBySubject = {};
         }
-        
+
         // Load grade lock preferences from server
         async function loadGradeLockFromServer() {
             try {
@@ -201,7 +206,7 @@ document.addEventListener('DOMContentLoaded',
                 console.error('Error loading grade lock from server:', e);
             }
         }
-        
+
         // Save grade lock preference to server
         async function saveGradeLockToServer(subject, gradeLock) {
             try {
@@ -215,7 +220,7 @@ document.addEventListener('DOMContentLoaded',
                         grade_lock: gradeLock
                     })
                 });
-                
+
                 if (!response.ok) {
                     console.error('Failed to save grade lock to server');
                 }
@@ -223,16 +228,16 @@ document.addEventListener('DOMContentLoaded',
                 console.error('Error saving grade lock to server:', e);
             }
         }
-        
+
         // Load preferences on page load
         loadGradeLockFromServer();
-        
+
         // Helper function to get grade lock state for a subject
         function getGradeLock(subject) {
             // Default to true if not set
             return gradeLockBySubject[subject] !== undefined ? gradeLockBySubject[subject] : true;
         }
-        
+
         // Helper function to set grade lock state for a subject
         function setGradeLock(subject, value) {
             gradeLockBySubject[subject] = value;
@@ -240,22 +245,27 @@ document.addEventListener('DOMContentLoaded',
             // Also save to server
             saveGradeLockToServer(subject, value);
         }
-        
+
         // Helper function to get the current active subject
         function getCurrentSubject() {
             // First try the visible dropdown (for home page with 'all subjects')
             if (subjectFilterVisible && subjectFilterVisible.value && subjectFilterVisible.value !== 'all') {
                 return subjectFilterVisible.value;
             }
-            
+
             // Try the hidden filter input (set on subject-specific pages)
             if (subjectFilterDropdown && subjectFilterDropdown.value && subjectFilterDropdown.value !== 'all') {
                 return subjectFilterDropdown.value;
             }
-            
+
             return 'all';
         }
-        
+
+        // Helper function to check if we're on the main dashboard (All Subjects view)
+        function isDashboard() {
+            return getCurrentSubject() === 'all';
+        }
+
         // Helper function to get current grade lock state based on active subject filter
         function getCurrentGradeLock() {
             const currentSubject = getCurrentSubject();
@@ -268,7 +278,7 @@ document.addEventListener('DOMContentLoaded',
             }
             return getGradeLock(currentSubject);
         }
-        
+
         let showPredictions = localStorage.getItem('showPredictions') === 'true';
 
         if (triggerSubjectPredictBtn) {
@@ -635,16 +645,16 @@ document.addEventListener('DOMContentLoaded',
         // Helper function to update grade lock button display
         function updateGradeLockButton() {
             if (!gradeLockBtn) return;
-            
+
             const currentSubject = getCurrentSubject();
             const isLocked = getCurrentGradeLock();
-            
+
             if (currentSubject === 'all') {
                 gradeLockBtn.textContent = 'Grade Lock (All)';
             } else {
                 gradeLockBtn.textContent = isLocked ? `Grade Lock (${currentSubject}): ON` : `Grade Lock (${currentSubject}): OFF`;
             }
-            
+
             gradeLockBtn.classList.toggle('lock-on', isLocked);
             gradeLockBtn.classList.toggle('lock-off', !isLocked);
         }
@@ -655,16 +665,16 @@ document.addEventListener('DOMContentLoaded',
 
             gradeLockBtn.addEventListener('click', function () {
                 const currentSubject = getCurrentSubject();
-                
+
                 if (currentSubject === 'all') {
                     showToast('Please select a specific subject to toggle grade lock', 'info');
                     return;
                 }
-                
+
                 const currentState = getGradeLock(currentSubject);
                 const newState = !currentState;
                 setGradeLock(currentSubject, newState);
-                
+
                 updateGradeLockButton();
 
                 // Remove forced styles if they were applied
@@ -675,21 +685,21 @@ document.addEventListener('DOMContentLoaded',
                 allGradeInputs.forEach(input => {
                     const row = input.closest('tr');
                     if (!row) return;
-                    
+
                     // Check if this row belongs to the current subject
                     const subjectCell = row.querySelector('td:nth-child(2)');
                     if (!subjectCell) return;
-                    
+
                     const rowSubject = subjectCell.textContent.trim();
                     if (rowSubject !== currentSubject) return;
-                    
+
                     if (newState) {
                         input.setAttribute('max', '100');
                     } else {
                         input.removeAttribute('max');
                     }
                 });
-                
+
                 showToast(`Grade Lock for ${currentSubject}: ${newState ? 'ON' : 'OFF'}`, 'success');
             });
         }
@@ -767,7 +777,7 @@ document.addEventListener('DOMContentLoaded',
                 const subjectSelect = row.querySelector('select[name="subject"]');
                 const subjectCell = row.querySelector('td:nth-child(2)');
                 const rowSubject = subjectSelect ? subjectSelect.value : (subjectCell ? subjectCell.textContent.trim() : null);
-                
+
                 if (rowSubject && getGradeLock(rowSubject)) {
                     const gradeValue = parseFloat(gradeInput.value);
                     if (gradeValue > 100) {
@@ -1116,6 +1126,7 @@ document.addEventListener('DOMContentLoaded',
 
         function renderAssignmentTable(assignments, summaryData, subject) {
             assignmentTableBody.innerHTML = '';
+            const onDashboard = isDashboard();
 
             // Update summary row in thead
             const table = assignmentTableBody.closest('table');
@@ -1139,7 +1150,7 @@ document.addEventListener('DOMContentLoaded',
                             <td>-</td>
                             <td>${summaryData.average_grade.toFixed(1)}% (avg)</td>
                             <td>${summaryData.total_weight.toFixed(2)}% (graded)</td>
-                            <td>-</td>
+                            ${onDashboard ? '' : '<td>-</td>'}
                         `;
 
                     thead.appendChild(summaryRow);
@@ -1160,11 +1171,17 @@ document.addEventListener('DOMContentLoaded',
                 }
 
                 // Build the row HTML based on whether it's a prediction
+                // On dashboard: show drag handle only. Otherwise: show drag handle + checkbox
+                const firstCellHtml = onDashboard
+                    ? `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span></td>`
+                    : `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${log.id}"></td>`;
+
                 if (log.is_prediction) {
                     // Create category dropdown for predictions
                     const categoryDropdownHtml = createCategoryDropdown(log.subject, log.category, log.id);
 
-                    row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td class="prediction-category-cell" data-id="${log.id}"></td><td><input type="number" name="study_time" class="prediction-input hours-input" data-id="${log.id}" value="${log.study_time || 0}" step="0.1" style="width: 80px;"> hours</td><td class="prediction-name-cell" contenteditable="true" data-id="${log.id}">${log.assignment_name}</td><td><input type="number" name="grade" class="prediction-input grade-input" data-id="${log.id}" value="${log.grade || ''}" step="1" style="width: 80px;">%</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`;
+                    const predictionActionsHtml = onDashboard ? '' : '<td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>';
+                    row.innerHTML = `${firstCellHtml}<td>${log.subject}</td><td class="prediction-category-cell" data-id="${log.id}"></td><td><input type="number" name="study_time" class="prediction-input hours-input" data-id="${log.id}" value="${log.study_time || 0}" step="0.1" style="width: 80px;"> hours</td><td class="prediction-name-cell" contenteditable="true" data-id="${log.id}">${log.assignment_name}</td><td><input type="number" name="grade" class="prediction-input grade-input" data-id="${log.id}" value="${log.grade || ''}" step="1" style="width: 80px;">%</td><td>${parseFloat(log.weight).toFixed(2)}%</td>${predictionActionsHtml}`;
 
                     // Insert the category dropdown
                     const categoryCell = row.querySelector('.prediction-category-cell');
@@ -1190,11 +1207,17 @@ document.addEventListener('DOMContentLoaded',
                         });
                     }
                 } else {
-                    row.innerHTML = `<td><input type="checkbox" class="select-assignment" data-id="${log.id}"></td><td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td><td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+                    const regularActionsHtml = onDashboard ? '' : '<td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>';
+                    row.innerHTML = `${firstCellHtml}<td>${log.subject}</td><td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> ${log.category}</span></td><td>${parseFloat(log.study_time).toFixed(1)} hours</td><td>${log.assignment_name}</td><td>${log.grade !== null ? log.grade + '%' : '-'}</td><td>${parseFloat(log.weight).toFixed(2)}%</td>${regularActionsHtml}`;
                 }
 
                 assignmentTableBody.appendChild(row);
             });
+
+            // Update delete button state after rendering (clears stale selection counts)
+            if (typeof updateDeleteButton === 'function') {
+                updateDeleteButton();
+            }
         }
 
         function applyPredictorWeightPreview(subject, category) {
@@ -1243,7 +1266,15 @@ document.addEventListener('DOMContentLoaded',
         async function handleAssignmentSave(row, suppressToast = false, forceAssignment = false) {
             // --- FIX: Do not revert the preview if validation fails ---
             if (!validateRow(row)) return;
-            revertWeightPreview(); // Only revert on successful validation
+            
+            // Determine if this is a prediction row
+            const isPredictionRow = row.dataset.isPrediction === 'true' || row.classList.contains('prediction-row');
+            
+            // Only revert weight preview when saving actual assignments (not predictions)
+            // Predictions don't trigger weight recalculation, so previews should stay
+            if (!isPredictionRow || forceAssignment) {
+                revertWeightPreview();
+            }
 
             const logId = row.dataset.id;
             const isNew = !logId;
@@ -1342,6 +1373,10 @@ document.addEventListener('DOMContentLoaded',
                 if (!suppressToast) {
                     showToast(result.message, 'success');
                 }
+                
+                // Clear old weight preview state before re-render (DOM elements will be replaced)
+                weightPreviewState.clear();
+                
                 renderAssignmentTable(result.updated_assignments, result.summary, currentSubjectFilter);
                 if (typeof ensureDragHandles === 'function') {
                     ensureDragHandles();
@@ -1349,6 +1384,20 @@ document.addEventListener('DOMContentLoaded',
                 if (isNew) {
                     updateCategoryTableRow(result.log.subject, result.log.category);
                 }
+                
+                // Re-apply weight preview if this was a prediction save (not converting to assignment)
+                // This keeps the preview showing for other rows in the same category
+                if (isPrediction && !forceAssignment) {
+                    // Find the newly saved prediction row and re-apply preview
+                    const newPredictionRow = assignmentTableBody.querySelector(`tr[data-id="${result.log.id}"]`);
+                    if (newPredictionRow) {
+                        const subject = result.log.subject;
+                        const category = result.log.category;
+                        // Pass isEditing=true so it doesn't add +1 (the row is already saved and counted)
+                        applyWeightPreview(newPredictionRow, true, subject, category);
+                    }
+                }
+                
                 // Update subject prediction (remaining weight)
                 updateSubjectPrediction(null);
             } catch (error) {
@@ -1438,15 +1487,89 @@ document.addEventListener('DOMContentLoaded',
 
         // REMOVED: Duplicate handleAssignmentSave (missing weight extraction logic)
 
-        async function handleCategorySave(row) {
-            if (!validateRow(row)) return;
+        // Store pending category save data for naming update modal
+        let pendingCategorySave = null;
+
+        async function handleCategorySave(row, updateAssignments = null) {
+            console.log('handleCategorySave called', row, updateAssignments);
+            if (!validateRow(row)) {
+                console.log('validateRow returned false');
+                return;
+            }
+            console.log('validateRow passed');
             const catId = row.dataset.id;
             const isNew = !catId;
+            console.log('catId:', catId, 'isNew:', isNew);
+
+            // Get the new default_name value
+            const defaultNameInput = row.querySelector('input[name="default_name"]');
+            const newDefaultName = defaultNameInput ? defaultNameInput.value : '';
+            console.log('newDefaultName:', newDefaultName);
+
+            // For existing categories, check if default_name changed (only if updateAssignments not already decided)
+            if (!isNew && updateAssignments === null && newDefaultName) {
+                console.log('Checking if default_name changed...');
+                try {
+                    // Fetch the current category to compare default_name
+                    console.log('Fetching category:', `/category/get/${catId}`);
+                    const catResponse = await fetch(`/category/get/${catId}`);
+                    console.log('catResponse.ok:', catResponse.ok);
+                    if (catResponse.ok) {
+                        const catResult = await catResponse.json();
+                        console.log('catResult:', catResult);
+
+                        if (catResult.status === 'success' && catResult.category) {
+                            const oldDefaultName = catResult.category.default_name || '';
+                            console.log('oldDefaultName:', oldDefaultName, 'newDefaultName:', newDefaultName);
+
+                            // If default_name changed and both old and new have values, show the modal
+                            if (oldDefaultName && oldDefaultName !== newDefaultName) {
+                                console.log('Names are different, showing modal');
+                                // Store the pending save data
+                                pendingCategorySave = { row, catId, oldDefaultName, newDefaultName };
+
+                                // Show the naming update modal
+                                const updateNamingModal = document.getElementById('update-naming-modal');
+                                const updateNamingExample = document.getElementById('update-naming-example');
+                                console.log('updateNamingModal:', updateNamingModal);
+
+                                if (updateNamingModal) {
+                                    // Create an example of the change (number goes exactly where # is)
+                                    const oldExample = oldDefaultName.replace('#', '1');
+                                    const newExample = newDefaultName.replace('#', '1');
+                                    updateNamingExample.textContent = `Example: "${oldExample}" → "${newExample}"`;
+                                    updateNamingModal.classList.add('active');
+                                    console.log('Modal should be visible now');
+                                    return; // Wait for modal response
+                                }
+                            } else {
+                                console.log('Names are the same or old is empty, proceeding with save');
+                            }
+                        }
+                    } else {
+                        console.log('catResponse not ok, status:', catResponse.status);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch category for comparison:', error);
+                    // Continue with save without the naming update option
+                }
+            } else {
+                console.log('Skipping default_name check. isNew:', isNew, 'updateAssignments:', updateAssignments, 'newDefaultName:', newDefaultName);
+            }
+
+            console.log('Proceeding with the save...');
+            // Proceed with the save
             const url = isNew ? '/category/add' : `/category/update/${catId}`;
             const formData = new FormData();
             row.querySelectorAll('input').forEach(input => formData.append(input.name, input.value));
             const subject = subjectFilterDropdown.value;
             formData.append('subject', subject);
+
+            // Add the update_assignments flag if specified
+            if (updateAssignments !== null) {
+                formData.append('update_assignments', updateAssignments ? 'true' : 'false');
+            }
+
             try {
                 const response = await fetch(url, {
                     method: 'POST',
@@ -1464,6 +1587,31 @@ document.addEventListener('DOMContentLoaded',
                 console.error('Category save failed:', error);
                 showToast('A network error occurred.', 'error');
             }
+        }
+
+        // Handle naming update modal buttons
+        const updateNamingModal = document.getElementById('update-naming-modal');
+        const updateNamingYes = document.getElementById('update-naming-yes');
+        const updateNamingNo = document.getElementById('update-naming-no');
+
+        if (updateNamingYes) {
+            updateNamingYes.addEventListener('click', function () {
+                if (updateNamingModal) updateNamingModal.classList.remove('active');
+                if (pendingCategorySave) {
+                    handleCategorySave(pendingCategorySave.row, true);
+                    pendingCategorySave = null;
+                }
+            });
+        }
+
+        if (updateNamingNo) {
+            updateNamingNo.addEventListener('click', function () {
+                if (updateNamingModal) updateNamingModal.classList.remove('active');
+                if (pendingCategorySave) {
+                    handleCategorySave(pendingCategorySave.row, false);
+                    pendingCategorySave = null;
+                }
+            });
         }
 
         if (confirmNoBtn) {
@@ -1488,6 +1636,10 @@ document.addEventListener('DOMContentLoaded',
                         // Update weight indicator if deleting a category row
                         if (type === 'category') {
                             updateTotalWeightIndicator();
+                        }
+                        // Update delete button state after removing row
+                        if (type === 'assignment' && typeof updateDeleteButton === 'function') {
+                            updateDeleteButton();
                         }
                         return;
                     }
@@ -1532,8 +1684,13 @@ document.addEventListener('DOMContentLoaded',
 
         if (categoryTableBody) {
             categoryTableBody.addEventListener('click', async function (event) {
+                console.log('Category table clicked', event.target);
                 const button = event.target.closest('.action-btn');
-                if (!button) return;
+                if (!button) {
+                    console.log('No action button found');
+                    return;
+                }
+                console.log('Button found:', button.className);
                 const row = button.closest('tr');
                 if (button.classList.contains('edit-btn')) {
                     button.textContent = 'Save';
@@ -1544,6 +1701,7 @@ document.addEventListener('DOMContentLoaded',
                     cells[1].innerHTML = `<input type="number" name="total_weight" value="${parseInt(cells[1].textContent, 10) || 0}" min="0" max="100" required>`;
                     cells[4].innerHTML = `<input type="text" name="default_name" value="${cells[4].textContent.trim() === '-' ? '' : cells[4].textContent.trim()}" placeholder="e.g., Quiz #">`;
                 } else if (button.classList.contains('save-btn')) {
+                    console.log('Save button clicked, calling handleCategorySave');
                     await handleCategorySave(row);
                 } else if (button.classList.contains('delete-btn')) {
                     showConfirmation("Delete this category definition? This cannot be undone.", row, 'category');
@@ -1578,6 +1736,69 @@ document.addEventListener('DOMContentLoaded',
             const isGradeLockOn = currentSubject !== 'all' ? getGradeLock(currentSubject) : true;
             const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
 
+            // Get current subject filter
+            const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
+            const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
+            const allSubjects = Object.keys(weightCategoriesMap);
+
+            // Create subject select
+            const subjectSelect = document.createElement('select');
+            subjectSelect.name = 'subject';
+            subjectSelect.required = true;
+            subjectSelect.setAttribute('autocomplete', 'off');
+
+            if (isSubjectFiltered) {
+                // If filtered, only show the filtered subject
+                const option = document.createElement('option');
+                option.value = currentSubjectFilter;
+                option.textContent = currentSubjectFilter;
+                option.selected = true;
+                subjectSelect.appendChild(option);
+            } else {
+                // Show all subjects
+                allSubjects.forEach(subj => {
+                    const option = document.createElement('option');
+                    option.value = subj;
+                    option.textContent = subj;
+                    subjectSelect.appendChild(option);
+                });
+            }
+
+            // Create category select
+            const categorySelect = document.createElement('select');
+            categorySelect.name = 'category';
+            categorySelect.required = true;
+            categorySelect.setAttribute('autocomplete', 'off');
+
+            // Populate categories based on selected subject
+            const selectedSubject = isSubjectFiltered ? currentSubjectFilter : (allSubjects[0] || '');
+            const categories = weightCategoriesMap[selectedSubject] || [];
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.name;
+                option.textContent = cat.name;
+                categorySelect.appendChild(option);
+            });
+
+            // Add change handler for subject to update categories
+            subjectSelect.addEventListener('change', function () {
+                const newSubject = this.value;
+                const newCategories = weightCategoriesMap[newSubject] || [];
+                categorySelect.innerHTML = '';
+                newCategories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.name;
+                    option.textContent = cat.name;
+                    categorySelect.appendChild(option);
+                });
+            });
+
+            // Create TD elements
+            const subjectTd = document.createElement('td');
+            subjectTd.appendChild(subjectSelect);
+
+            const categoryTd = document.createElement('td');
+            categoryTd.appendChild(categorySelect);
 
             newRow.appendChild(document.createElement('td')); // Checkbox
             newRow.appendChild(subjectTd);
@@ -1614,6 +1835,52 @@ document.addEventListener('DOMContentLoaded',
             // If subject is filtered, trigger change event to populate categories and potentially default name
             if (isSubjectFiltered) {
                 subjectSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            // Autofill name and weight for both regular and prediction rows
+            if (categorySelect.value) {
+                const subject = subjectSelect.value;
+                const categoryName = categorySelect.value;
+                const categoryData = (weightCategoriesMap[subject] || []).find(c => c.name === categoryName);
+                
+                if (categoryData) {
+                    // Count existing assignments in this category
+                    const existingCount = Array.from(assignmentTableBody.querySelectorAll('tr[data-id]')).filter(r => {
+                        const rCells = r.querySelectorAll('td');
+                        if (rCells.length < 2) return false;
+                        const rSubject = rCells[1].textContent.trim();
+                        if (rSubject !== subject) return false;
+                        const categoryTag = rCells[2].querySelector('.category-tag');
+                        if (categoryTag) {
+                            return categoryTag.lastChild.textContent.trim() === categoryName;
+                        }
+                        const predSelect = rCells[2].querySelector('.prediction-category-select');
+                        if (predSelect) {
+                            return predSelect.value === categoryName;
+                        }
+                        return false;
+                    }).length;
+
+                    // Fill in weight display
+                    const weightCell = cells[6];
+                    if (weightCell) {
+                        const newWeight = categoryData.total_weight / (existingCount + 1);
+                        weightCell.innerHTML = `<em>${newWeight.toFixed(2)}%</em>`;
+                    }
+
+                    // Fill in assignment name
+                    const assignmentNameInput = newRow.querySelector('input[name="assignment_name"]');
+                    if (assignmentNameInput && categoryData.default_name) {
+                        if (categoryData.default_name.includes('#')) {
+                            assignmentNameInput.value = categoryData.default_name.replace('#', existingCount + 1);
+                        } else {
+                            assignmentNameInput.value = categoryData.default_name;
+                        }
+                    }
+
+                    // Apply weight preview for existing rows in this category
+                    applyWeightPreview(newRow, false);
+                }
             }
 
             // --- NEW: Mutual Exclusivity for Prediction Row Inputs ---
@@ -1681,7 +1948,7 @@ document.addEventListener('DOMContentLoaded',
                     // Adjust indices: cells[0] is checkbox, cells[1] is subject, cells[2] is category, etc.
                     const subjectText = cells[1].textContent.trim();
                     const categoryText = cells[2].querySelector('.category-tag').lastChild.textContent.trim();
-                    
+
                     // Store original category on the row for weight preview calculations
                     row.dataset.originalCategory = categoryText;
                     const studyTimeText = cells[3].textContent.trim();
@@ -1689,7 +1956,7 @@ document.addEventListener('DOMContentLoaded',
                     const assignmentNameText = cells[4].textContent.trim();
                     const gradeText = cells[5].textContent.trim();
                     const gradeValue = gradeText === '-' ? '' : parseInt(gradeText, 10);
-                    
+
                     // Get grade lock state for this row's subject
                     const rowGradeLock = getGradeLock(subjectText);
                     const gradeAttributes = rowGradeLock ? 'min="0" max="100"' : 'min="0"';
@@ -1773,9 +2040,11 @@ document.addEventListener('DOMContentLoaded',
                 } else if (button.classList.contains('save-btn')) {
                     await handleAssignmentSave(row);
                 } else if (button.classList.contains('delete-btn')) {
-                    showConfirmation("Are you sure you want to delete this assignment?", row, 'assignment');
+                    showConfirmation("Are you sure you want to delete this assessment?", row, 'assignment');
                 } else if (button.classList.contains('add-prediction-btn')) {
-                    // Convert prediction to assignment
+                    // Convert prediction to assignment - clear the grade first
+                    const gradeInput = row.querySelector('.grade-input');
+                    if (gradeInput) gradeInput.value = '';
                     // suppressToast=false, forceAssignment=true
                     await handleAssignmentSave(row, false, true);
                 } else if (button.classList.contains('predict-btn')) {
@@ -1803,14 +2072,39 @@ document.addEventListener('DOMContentLoaded',
                         return;
                     }
 
-                    const subject = row.querySelector('td:nth-child(2)').textContent.trim();
-                    const categoryTag = row.querySelector('td:nth-child(3) .category-tag');
-                    const category = categoryTag ? categoryTag.lastChild.textContent.trim() : row.querySelector('td:nth-child(3)').textContent.trim();
+                    // Get subject - check for select element first (new row), then text content
+                    const subjectCell = row.querySelector('td:nth-child(2)');
+                    const subjectSelect = subjectCell.querySelector('select');
+                    const subject = subjectSelect ? subjectSelect.value : subjectCell.textContent.trim();
+                    
+                    // Get category - check for any select element first (prediction dropdown or new row select)
+                    const categoryCell = row.querySelector('td:nth-child(3)');
+                    const categorySelect = categoryCell.querySelector('select');  // Any select in the category cell
+                    let category;
+                    if (categorySelect) {
+                        category = categorySelect.value;
+                    } else {
+                        const categoryTag = categoryCell.querySelector('.category-tag');
+                        if (categoryTag) {
+                            // Get only the text node, not child elements
+                            const textNodes = Array.from(categoryTag.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+                            category = textNodes.map(n => n.textContent).join('').trim();
+                        } else {
+                            category = categoryCell.textContent.trim();
+                        }
+                    }
 
                     const formData = new FormData();
                     formData.append('subject', subject);
                     formData.append('weight', weight);
                     formData.append('grade_lock', getGradeLock(subject) ? 'true' : 'false');
+                    formData.append('category', category);
+                    
+                    // Pass the row ID if it exists, so the prediction excludes this row from history
+                    const rowId = row.dataset.id;
+                    if (rowId) {
+                        formData.append('exclude_id', rowId);
+                    }
 
                     if (hours) formData.append('hours', hours);
                     if (grade) formData.append('target_grade', grade);
@@ -2511,6 +2805,92 @@ document.addEventListener('DOMContentLoaded',
                 });
             }
 
+            // --- Retire Subject Button Handler ---
+            const retireSubjectBtn = document.getElementById('retire-subject-btn');
+            const retireSubjectModal = document.getElementById('retire-subject-modal');
+            const retireSubjectMessage = document.getElementById('retire-subject-message');
+            const retireSubjectConfirm = document.getElementById('retire-subject-confirm');
+            const retireSubjectCancel = document.getElementById('retire-subject-cancel');
+
+            if (retireSubjectBtn && retireSubjectModal) {
+                let subjectToRetire = '';
+
+                retireSubjectBtn.addEventListener('click', function () {
+                    subjectToRetire = this.dataset.subject;
+                    retireSubjectMessage.textContent = `Are you sure you want to retire "${subjectToRetire}"?\n\nRetired subjects won't appear in the main subjects list, but you can still access them from "Retired Subjects" in the menu.`;
+                    retireSubjectModal.style.display = 'flex';
+                });
+
+                retireSubjectCancel.addEventListener('click', function () {
+                    retireSubjectModal.style.display = 'none';
+                });
+
+                retireSubjectConfirm.addEventListener('click', function () {
+                    retireSubjectModal.style.display = 'none';
+                    fetch('/retire_subject', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ subject_name: subjectToRetire })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                showToast(data.message, 'success');
+                                // Reload page to update sidebar
+                                setTimeout(() => window.location.reload(), 1000);
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error retiring subject: ' + error.message, 'error');
+                        });
+                });
+            }
+
+            // --- Restore Subject Button Handler ---
+            const restoreSubjectBtn = document.getElementById('restore-subject-btn');
+            const restoreSubjectModal = document.getElementById('restore-subject-modal');
+            const restoreSubjectMessage = document.getElementById('restore-subject-message');
+            const restoreSubjectConfirm = document.getElementById('restore-subject-confirm');
+            const restoreSubjectCancel = document.getElementById('restore-subject-cancel');
+
+            if (restoreSubjectBtn && restoreSubjectModal) {
+                let subjectToRestore = '';
+
+                restoreSubjectBtn.addEventListener('click', function () {
+                    subjectToRestore = this.dataset.subject;
+                    restoreSubjectMessage.textContent = `Restore "${subjectToRestore}" to active subjects?`;
+                    restoreSubjectModal.style.display = 'flex';
+                });
+
+                restoreSubjectCancel.addEventListener('click', function () {
+                    restoreSubjectModal.style.display = 'none';
+                });
+
+                restoreSubjectConfirm.addEventListener('click', function () {
+                    restoreSubjectModal.style.display = 'none';
+                    fetch('/unretire_subject', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ subject_name: subjectToRestore })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                showToast(data.message, 'success');
+                                // Reload page to update sidebar
+                                setTimeout(() => window.location.reload(), 1000);
+                            } else {
+                                showToast(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showToast('Error restoring subject: ' + error.message, 'error');
+                        });
+                });
+            }
+
             // --- Delete Subject Button Handler with Double Confirmation ---
             const deleteSubjectBtn = document.getElementById('delete-subject-btn');
             const deleteSubjectModal = document.getElementById('delete-subject-modal');
@@ -2528,7 +2908,7 @@ document.addEventListener('DOMContentLoaded',
 
                 deleteSubjectBtn.addEventListener('click', function () {
                     subjectToDelete = this.dataset.subject;
-                    deleteSubjectMessage.textContent = `Are you sure you want to delete the subject "${subjectToDelete}"?\n\nThis will delete ALL assignments and categories for this subject.`;
+                    deleteSubjectMessage.textContent = `Are you sure you want to delete the subject "${subjectToDelete}"?\n\nThis will delete ALL assessments and categories for this subject.`;
                     deleteSubjectModal.style.display = 'flex';
                 });
 
@@ -2694,7 +3074,7 @@ document.addEventListener('DOMContentLoaded',
                     const modalConfirmNo = document.getElementById('modal-confirm-no');
 
                     if (confirmModal && modalMessage) {
-                        modalMessage.textContent = `Are you sure you want to delete ${ids.length} assignment${ids.length > 1 ? 's' : ''}? This cannot be undone.`;
+                        modalMessage.textContent = `Are you sure you want to delete ${ids.length} assessment${ids.length > 1 ? 's' : ''}? This cannot be undone.`;
                         confirmModal.style.display = 'flex';
 
                         // Remove old listeners and add new ones
@@ -2762,7 +3142,7 @@ document.addEventListener('DOMContentLoaded',
                     if (subjectFilterDropdown) {
                         subjectFilterDropdown.value = selectedSubject;
                     }
-                    
+
                     // Update grade lock button for new subject
                     updateGradeLockButton();
 
@@ -3038,11 +3418,11 @@ document.addEventListener('DOMContentLoaded',
             }
 
             function rowHTML(row) {
-                const firstCell = `
-        <td>
-            <span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span>
-             <input type="checkbox" class="select-assignment" data-id="${row.id}">
-        </td>`;
+                const onDashboard = isDashboard();
+                // On dashboard: show drag handle only. Otherwise: show drag handle + checkbox
+                const firstCell = onDashboard
+                    ? `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span></td>`
+                    : `<td><span class="drag-handle" title="Drag" aria-label="Drag to reorder" draggable="true">⋮⋮</span><input type="checkbox" class="select-assignment" data-id="${row.id}"></td>`;
 
                 // keep your prediction/non-prediction cells exactly like the Jinja template
                 const studyTd = row.is_prediction
@@ -3053,9 +3433,9 @@ document.addEventListener('DOMContentLoaded',
                     ? `<td><input type="number" class="prediction-input grade-input" data-id="${row.id}" value="${row.grade}" step="1" min="0" style="width: 80px;">%</td>`
                     : `<td>${row.grade != null ? row.grade + '%' : '-'}</td>`;
 
-                const actionsTd = row.is_prediction
+                const actionsTd = onDashboard ? '' : (row.is_prediction
                     ? `<td><button class="action-btn predict-btn">Predict</button><button class="action-btn add-prediction-btn">Add</button><button class="action-btn delete-btn">Delete</button></td>`
-                    : `<td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`;
+                    : `<td><button class="action-btn edit-btn">Edit</button><button class="action-btn delete-btn">Delete</button></td>`);
 
                 return `
         <tr data-id="${row.id}" class="assignment-row${row.is_prediction ? ' prediction-row' : ''}">

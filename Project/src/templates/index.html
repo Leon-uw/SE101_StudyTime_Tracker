@@ -13,52 +13,30 @@
     data-subject-categories='{{ subject_categories_map_json|safe }}'
     data-weight-categories='{{ weight_categories_json|safe }}'>
 
-    <!-- Sidebar -->
+    <!-- Sidebar (hidden - using top nav) -->
     <div id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <h3>Menu</h3>
-            <button id="close-sidebar-btn" class="close-btn">&times;</button>
-        </div>
-        <ul class="sidebar-menu">
-            <li><a href="{{ url_for('display_table') }}">Home</a></li>
-            <li class="has-submenu">
-                <a href="#" id="subjects-toggle">Subjects <span class="arrow">&#9662;</span></a>
-                <ul class="submenu" id="subjects-submenu">
-                    {% for subject in subjects %}
-                    <li><a href="{{ url_for('display_subject', subject_name=subject) }}">{{ subject }}</a></li>
-                    {% endfor %}
-                    <li><a href="#" id="add-subject-link" class="add-subject-link">+ Add Subject</a></li>
-                </ul>
-            </li>
-            <li><a href="{{ url_for('about') }}">About</a></li>
-            <li><a href="{{ url_for('stats') }}">Stats</a></li>
-            <li class="theme-toggle-item">
-                <span>Dark Mode</span>
-                <label class="switch">
-                    <input type="checkbox" id="theme-toggle">
-                    <span class="slider"></span>
-                </label>
-            </li>
-            <li><a href="{{ url_for('logout') }}">Log Out</a></li>
-        </ul>
     </div>
 
     <!-- Overlay -->
     <div id="overlay" class="overlay"></div>
 
     <!-- Main Content -->
-    <div class="main-wrapper">
+    <div class="main-wrapper{% if is_dashboard %} dashboard-view{% endif %}">
         <!-- Top Navigation Bar -->
         <header class="top-nav">
             <div class="nav-left">
-                <button id="menu-btn" class="menu-btn">
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                    <div class="bar"></div>
-                </button>
+                <a href="{{ url_for('display_table') }}" class="logo-link">
+                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo"
+                        class="logo-img">
+                    <span class="logo-text">Snowmark</span>
+                </a>
             </div>
             <div class="nav-center">
                 <h1>{{ page_title }}
+                    {% if is_retired_subject %}
+                    <span
+                        style="font-size: 0.6em; background-color: var(--text-secondary); color: white; padding: 2px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">RETIRED</span>
+                    {% endif %}
                     {% if selected_subject and selected_subject != 'all' %}
                     <button id="rename-subject-btn" class="icon-btn" title="Rename Subject"
                         style="background: none; border: none; cursor: pointer; color: var(--text-color); margin-left: 10px;">
@@ -72,11 +50,64 @@
                 </h1>
             </div>
             <div class="nav-right">
-                <a href="{{ url_for('display_table') }}" class="logo-link">
-                    <div class="logo-placeholder">Logo</div>
-                </a>
+                <span class="user-greeting">{{ current_user.username }}</span>
             </div>
         </header>
+
+        <!-- Secondary Navigation Bar -->
+        <nav class="secondary-nav">
+            <div class="nav-links">
+                <a href="{{ url_for('display_table') }}"
+                    class="nav-link {% if is_dashboard %}active{% endif %}">Dashboard</a>
+
+                <div class="nav-dropdown">
+                    <button
+                        class="nav-link dropdown-toggle {% if selected_subject and selected_subject != 'all' %}active{% endif %}">
+                        {% if selected_subject and selected_subject != 'all' %}
+                        {{ selected_subject }} <span class="arrow">▼</span>
+                        {% else %}
+                        Subjects <span class="arrow">▼</span>
+                        {% endif %}
+                    </button>
+                    <div class="dropdown-menu">
+                        {% for subject in subjects %}
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{
+                            subject }}</a>
+                        {% endfor %}
+                        <div class="dropdown-divider"></div>
+                        <a href="#" id="add-subject-link" class="dropdown-item add-subject-item">+ Add Subject</a>
+                    </div>
+                </div>
+
+                {% if retired_subjects %}
+                <div class="nav-dropdown">
+                    <button class="nav-link dropdown-toggle">
+                        Retired <span class="arrow">▼</span>
+                    </button>
+                    <div class="dropdown-menu">
+                        {% for subject in retired_subjects %}
+                        <a href="{{ url_for('display_subject', subject_name=subject) }}" class="dropdown-item">{{
+                            subject }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('stats') }}" class="nav-link">Stats</a>
+                <a href="{{ url_for('about') }}" class="nav-link">About</a>
+            </div>
+            <div class="nav-actions">
+                <label class="switch icon-switch scheme-switch nav-switch" title="Toggle Color Scheme (Frosty/Toasty)">
+                    <input type="checkbox" id="scheme-toggle">
+                    <span class="slider"></span>
+                </label>
+                <label class="switch icon-switch theme-switch nav-switch" title="Toggle Dark Mode">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider"></span>
+                </label>
+                <a href="{{ url_for('logout') }}" class="nav-link logout-link">Log Out</a>
+            </div>
+        </nav>
 
         <div class="content-container">
             <div class="toast-container">{% with messages = get_flashed_messages(with_categories=true) %}{% if messages
@@ -89,7 +120,7 @@
             <div class="main-container">
                 <div class="full-width-panel">
 
-                    <div class="action-bar">
+                    <div class="action-bar animate-enter">
                         <!-- Hidden form for compatibility with existing JS that might look for these inputs -->
                         <form id="filter-form" style="display:none;">
                             <input type="hidden" name="subject" id="subject-filter" value="{{ selected_subject }}">
@@ -134,22 +165,30 @@
                         </div>
                     </div>
 
-                    <h2>Assignments</h2>
-                    <div class="table-wrapper">
+                    <h2 style="margin-top: 30px;" class="animate-enter delay-1">Assessments</h2>
+                    <div class="table-wrapper animate-enter delay-2">
                         <table>
                             <thead>
                                 <tr>
+                                    {% if is_dashboard %}
+                                    <th style="white-space:nowrap; width: 30px;">
+                                        <span class="drag-col-hint" title="Drag rows">⇅</span>
+                                    </th>
+                                    {% else %}
                                     <th style="white-space:nowrap; width: 56px;">
                                         <span class="drag-col-hint" title="Drag rows">⇅</span>
                                         <input type="checkbox" id="selectAll">
                                     </th>
+                                    {% endif %}
                                     <th>Subject</th>
                                     <th>Category</th>
                                     <th>Study Time</th>
-                                    <th>Assignment Name</th>
+                                    <th>Assessment Name</th>
                                     <th>Grade</th>
                                     <th>Weight</th>
+                                    {% if not is_dashboard %}
                                     <th>Actions</th>
+                                    {% endif %}
                                 </tr>
                                 {% if summary_data %}
                                 <tr class="summary-row">
@@ -160,7 +199,9 @@
                                     <td>-</td>
                                     <td>{{ "%.1f"|format(summary_data.average_grade) }}% (avg)</td>
                                     <td>{{ "%.2f"|format(summary_data.total_weight) }}% (graded)</td>
+                                    {% if not is_dashboard %}
                                     <td>-</td>
+                                    {% endif %}
                                 </tr>
                                 {% endif %}
                             </thead>
@@ -169,10 +210,16 @@
                                 {% for row in data %}
                                 <tr data-id="{{ row.id }}"
                                     class="assignment-row {% if row.is_prediction %}prediction-row{% endif %}">
+                                    {% if is_dashboard %}
+                                    <td>
+                                        <span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span>
+                                    </td>
+                                    {% else %}
                                     <td>
                                         <span class="drag-handle" title="Drag" aria-label="Drag to reorder">⋮⋮</span>
                                         <input type="checkbox" class="select-assignment" data-id="{{ row.id }}">
                                     </td>
+                                    {% endif %}
                                     <td>{{ row.subject }}</td>
                                     <td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -187,7 +234,8 @@
                                             data-id="{{ row.id }}" value="{{ row.study_time }}" step="0.1" min="0"
                                             style="width: 80px;"> hours
                                     </td>
-                                    <td class="prediction-name-cell" contenteditable="true" data-id="{{ row.id }}">{{ row.assignment_name }}</td>
+                                    <td class="prediction-name-cell" contenteditable="true" data-id="{{ row.id }}">{{
+                                        row.assignment_name }}</td>
                                     <td><input type="number" name="grade" class="prediction-input grade-input"
                                             data-id="{{ row.id }}" value="{{ row.grade }}" step="1" min="0"
                                             style="width: 80px;">%</td>
@@ -197,6 +245,7 @@
                                     <td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td>
                                     {% endif %}
                                     <td>{{ "%.2f"|format(row.weight) }}%</td>
+                                    {% if not is_dashboard %}
                                     <td>
                                         {% if row.is_prediction %}
                                         <button class="action-btn predict-btn">Predict</button>
@@ -207,12 +256,13 @@
                                         <button class="action-btn delete-btn">Delete</button>
                                         {% endif %}
                                     </td>
+                                    {% endif %}
                                 </tr>{% endfor %}
                             </tbody>
                         </table>
                     </div>
                     <!-- Combined Control Bar -->
-                    <div class="control-bar"
+                    <div class="control-bar animate-enter delay-3"
                         style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 20px; align-items: center; margin-top: 15px; padding: 15px; background-color: var(--surface-color); border: 1px solid var(--border-light); border-radius: 8px; box-shadow: var(--shadow);">
 
                         <!-- Standard Buttons -->
@@ -220,7 +270,7 @@
                             {% if selected_subject and selected_subject != 'all' %}
                             <button id="addRowBtn"
                                 style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">Add
-                                Assignment</button>
+                                Assessment</button>
                             <button id="addPredictionBtn"
                                 style="padding: 8px 12px; font-size: 0.85em; background-color: var(--accent-color); white-space: nowrap;">Add
                                 Prediction</button>
@@ -269,8 +319,7 @@
                                     </div>
                                     <div style="text-align: center;">
                                         <div style="font-size: 0.8em; color: var(--text-secondary);">Avg Needed</div>
-                                        <div id="predictor-avg-needed"
-                                            style="font-weight: bold; font-size: 1.1em; color: var(--primary-color);">-
+                                        <div id="predictor-avg-needed" style="font-weight: bold; font-size: 1.1em;">-
                                         </div>
                                     </div>
                                 </div>
@@ -280,8 +329,8 @@
                 </div>
 
                 {% if selected_subject and selected_subject != 'all' %}
-                <div class="category-section" style="margin-top: 30px;">
-                    <h2>Category Definitions for {{ selected_subject }}</h2>
+                <div class="category-section animate-enter delay-4" style="margin-top: 30px;">
+                    <h2>Grading Scheme Categories for {{ selected_subject }}</h2>
                     <table>
                         <thead>
                             <tr>
@@ -314,7 +363,7 @@
                         style="margin-top: 1em; padding: 10px; border-radius: 4px; font-weight: bold;">
                         Total Weight: <span id="total-weight-value">0</span>% / 100%
                     </div>
-                    <button id="addCategoryBtn" style="margin-top: 1em;">Add Category Definition</button>
+                    <button id="addCategoryBtn" style="margin-top: 1em;">Add Grading Scheme Category</button>
                 </div>
                 {% endif %}
             </div>
@@ -322,8 +371,21 @@
         </div>
 
         {% if selected_subject and selected_subject != 'all' %}
-        <div class="delete-subject-bar"
-            style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-light); width: 100%; text-align: center;">
+        <div class="subject-actions-bar animate-enter delay-5"
+            style="margin-top: 40px; margin-bottom: 40px; padding-top: 20px; border-top: 2px solid var(--border-light); width: 100%; text-align: center;">
+            {% if is_retired_subject %}
+            <button type="button" id="restore-subject-btn" class="subject-action-btn"
+                style="padding: 10px 20px; font-size: 1em; background-color: var(--success-color); color: white; margin-right: 15px;"
+                data-subject="{{ selected_subject }}">
+                Restore Subject {{ selected_subject }}
+            </button>
+            {% else %}
+            <button type="button" id="retire-subject-btn" class="subject-action-btn"
+                style="padding: 10px 20px; font-size: 1em; background-color: var(--text-secondary); color: white; margin-right: 15px;"
+                data-subject="{{ selected_subject }}">
+                Retire Subject {{ selected_subject }}
+            </button>
+            {% endif %}
             <button type="button" id="delete-subject-btn" class="subject-action-btn delete-subject-btn"
                 style="padding: 10px 20px; font-size: 1em;" data-subject="{{ selected_subject }}">Delete Subject {{
                 selected_subject }}</button>
@@ -388,6 +450,45 @@
                     style="background-color: var(--primary-color); color: white;">Rename</button>
                 <button id="rename-subject-cancel"
                     style="background-color: var(--text-secondary); color: white;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="retire-subject-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--text-secondary);">Retire Subject</h3>
+            <p id="retire-subject-message"></p>
+            <div class="modal-buttons">
+                <button id="retire-subject-confirm" style="background-color: var(--text-secondary); color: white;">Yes,
+                    Retire</button>
+                <button id="retire-subject-cancel" style="background-color: #6c757d; color: white;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="restore-subject-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--success-color);">Restore Subject</h3>
+            <p id="restore-subject-message"></p>
+            <div class="modal-buttons">
+                <button id="restore-subject-confirm" style="background-color: var(--success-color); color: white;">Yes,
+                    Restore</button>
+                <button id="restore-subject-cancel" style="background-color: #6c757d; color: white;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="update-naming-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--primary-color);">Update Assignment Names?</h3>
+            <p id="update-naming-message">You've changed the naming scheme. Would you like to update all existing
+                assignment names in this category to match the new pattern?</p>
+            <p id="update-naming-example" style="font-style: italic; color: var(--text-secondary);"></p>
+            <div class="modal-buttons">
+                <button id="update-naming-yes" style="background-color: var(--primary-color); color: white;">Yes, Update
+                    Names</button>
+                <button id="update-naming-no" style="background-color: #6c757d; color: white;">No, Keep Old
+                    Names</button>
             </div>
         </div>
     </div>
