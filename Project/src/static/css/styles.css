@@ -536,18 +536,18 @@ body.dark-mode .switch.scheme-switch input:checked+.slider:before {
     gap: 5px;
     position: relative;
     margin-right: 3px;
-    /* Folder tab shape using clip-path */
-    clip-path: polygon(8px 0%,
-            /* top-left with angle */
-            calc(100% - 8px) 0%,
-            /* top-right with angle */
-            100% 100%,
-            /* bottom-right */
-            0% 100%
-            /* bottom-left */
-        );
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
+    /* Folder tab shape with rounded bottom corners */
+    clip-path: polygon(
+        8px 0%,
+        calc(100% - 8px) 0%,
+        100% calc(100% - 4px),
+        100% 100%,
+        calc(100% - 4px) 100%,
+        4px 100%,
+        0% 100%,
+        0% calc(100% - 4px)
+    );
+    border-radius: 4px;
 }
 
 .secondary-nav .logout-link {
@@ -615,8 +615,9 @@ body.dark-mode .switch.scheme-switch input:checked+.slider:before {
 /* Dropdown in secondary nav */
 .nav-dropdown {
     position: relative;
-    top: 1px;
-    padding-bottom: 5px;
+    display: flex;
+    align-items: flex-end;
+    height: 100%;
 }
 
 .nav-dropdown .dropdown-toggle .arrow {

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     Grade double NULL,
     Weight double NOT NULL,
     IsPrediction BOOLEAN DEFAULT FALSE,
+    PredictedGrade double NULL,
     Position INT NOT NULL DEFAULT 0,
     INDEX idx_user_subject_category (username, Subject, Category),
     INDEX idx_user_position (username, Position)
@@ -118,6 +119,7 @@ def init_db():
 
     ensure_position_column()
     ensure_retired_column()
+    ensure_predicted_grade_column()
 
     # Seed initial data if tables are empty
     seed_initial_data()
@@ -233,6 +235,28 @@ def ensure_position_column():
             if updates:
                 cur.executemany(f"UPDATE {TABLE_NAME} SET Position=%s WHERE id=%s", updates)
 
+            conn.commit()
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+def ensure_predicted_grade_column():
+    """Add PredictedGrade column if missing."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        # Check if PredictedGrade exists
+        cur.execute("""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='PredictedGrade'
+        """, (DB_NAME, TABLE_NAME))
+        has_col = cur.fetchone()[0] > 0
+
+        if not has_col:
+            cur.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN PredictedGrade DOUBLE NULL")
             conn.commit()
     finally:
         try:

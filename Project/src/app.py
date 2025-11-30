@@ -104,7 +104,7 @@ def calculate_summary(username, subject, include_predictions=False):
 
 
 
-def estimate_k(hours_list, grades_list, weights_list, max_grade=100):
+def estimate_k(hours_list, grades_list, weights_list, max_grade=100, debug=False):
     """
     Estimate learning efficiency from the relationship between study time and grades.
     Higher k = more efficient learner (gets better grades with less time)
@@ -116,31 +116,48 @@ def estimate_k(hours_list, grades_list, weights_list, max_grade=100):
     k_values = []
     
     for h, g, w in zip(hours_list, grades_list, weights_list):
-        # Skip extreme cases
-        if h <= 0 or g <= 0 or g >= (max_grade - 1):
+        # Skip invalid cases
+        if h <= 0 or g <= 0:
             continue
+        
+        # Cap grade at 99.5% of max to avoid log(0) - this includes near-perfect scores
+        g_capped = min(g, max_grade * 0.995)
             
         try:
             # Updated formula with weight in denominator and custom max_grade
             effective_difficulty = max(0.1, w * 10)
-            k_i = -math.log(1 - g/max_grade) * effective_difficulty / h
+            k_i = -math.log(1 - g_capped/max_grade) * effective_difficulty / h
             
             # Filter unrealistic k values
             if 0.01 < k_i < 100:
                 k_values.append(k_i)
+                if debug:
+                    print(f'    k_i={k_i:.4f} from h={h}, g={g}, w={w}')
         except (ValueError, ZeroDivisionError):
             continue
     
     if not k_values:
         return 0.3  # Default moderate efficiency
     
-    # Use median to reduce outlier impact
+    # Use trimmed mean: remove bottom 10% outliers, then average
+    # This allows high performers to pull predictions up while still filtering noise
     k_values.sort()
+    if debug:
+        print(f'    All k values (sorted): {[round(k, 4) for k in k_values]}')
+    
     n = len(k_values)
-    if n % 2 == 0:
-        return (k_values[n//2 - 1] + k_values[n//2]) / 2
+    if n <= 2:
+        # Too few values, just average them
+        result = sum(k_values) / n
     else:
-        return k_values[n//2]
+        # Remove bottom 20% (low performers might be outliers/bad days)
+        trim_count = max(1, n // 5)
+        trimmed = k_values[trim_count:]  # Remove lowest values
+        result = sum(trimmed) / len(trimmed)
+    
+    if debug:
+        print(f'    Final k (trimmed mean): {result:.4f}')
+    return result
 
 
 def predict_grade(hours, weight, k, max_grade=100):
@@ -163,6 +180,83 @@ def predict_grade(hours, weight, k, max_grade=100):
     predicted = max_grade * (1 - math.exp(-k * hours / effective_difficulty))
     
     return max(0, min(max_grade, predicted))
+
+
+def calculate_system_prediction(username, subject, category, study_time, weight, exclude_id=None):
+    """
+    Calculate what the system would predict for an assignment based on historical data.
+    This is used to measure prediction accuracy when actual grades are entered.
+    
+    Args:
+        username: The user's username
+        subject: Subject name
+        category: Category name
+        study_time: Hours studied
+        weight: Assignment weight (0-100)
+        exclude_id: Optional ID to exclude from historical data (for updates)
+    
+    Returns:
+        Predicted grade or None if insufficient data
+    """
+    if study_time is None or study_time <= 0:
+        return None
+    
+    # Fetch historical data (excluding the current assignment if updating)
+    all_grades = get_all_grades(username)
+    if exclude_id:
+        all_grades = [g for g in all_grades if g['id'] != exclude_id]
+    
+    # Filter to only graded, non-prediction entries
+    graded_data = [log for log in all_grades if log.get('grade') is not None and not log.get('is_prediction', False)]
+    
+    if not graded_data:
+        return None  # No historical data to base prediction on
+    
+    # Get subject and category specific data
+    subject_data = [log for log in graded_data if log['subject'] == subject]
+    category_data = [log for log in subject_data if log['category'] == category]
+    
+    n_all = len(graded_data)
+    n_subject = len(subject_data)
+    n_category = len(category_data)
+    
+    # Estimate k for each scope
+    def get_k(data, max_grade=100):
+        if len(data) < 1:
+            return 0.3
+        hours = [log['study_time'] for log in data]
+        grades = [log['grade'] for log in data]
+        weights = [log['weight'] / 100 for log in data]
+        return estimate_k(hours, grades, weights, max_grade)
+    
+    k_all = get_k(graded_data)
+    k_subject = get_k(subject_data) if n_subject >= 1 else k_all
+    k_category = get_k(category_data) if n_category >= 1 else k_subject
+    
+    # Blend k values based on data availability (same logic as /predict route)
+    SUBJECT_THRESHOLD = 5
+    CATEGORY_THRESHOLD = 5
+    
+    category_weight_factor = min(1.0, n_category / CATEGORY_THRESHOLD)
+    subject_weight_factor = min(1.0, n_subject / SUBJECT_THRESHOLD)
+    
+    if n_category >= 2:
+        k_blended_subject = (category_weight_factor * k_category) + ((1 - category_weight_factor) * k_subject)
+    elif n_subject >= 2:
+        k_blended_subject = k_subject
+    else:
+        k_blended_subject = k_all
+    
+    if n_subject >= 2:
+        k_final = (subject_weight_factor * k_blended_subject) + ((1 - subject_weight_factor) * k_all)
+    else:
+        k_final = k_all
+    
+    # Calculate prediction
+    weight_decimal = weight / 100
+    predicted = predict_grade(study_time, weight_decimal, k_final, max_grade=100)
+    
+    return round(predicted, 2)
 
 
 def required_hours(target_grade, weight, k, max_grade=100):
@@ -579,40 +673,34 @@ def calculate_stats(username):
         })
     stats['efficient_subjects'] = sorted(efficient_subjects, key=lambda x: x['efficiency'], reverse=True)[:3]
 
-    # Prediction accuracy: compare predictions to matching actuals by subject + assignment name
-    actual_grade_map = defaultdict(list)
-    for entry in graded_entries:
-        subject = entry.get('subject')
-        assignment = (entry.get('assignment_name') or '').strip().lower()
-        if subject and assignment:
-            actual_grade_map[(subject, assignment)].append(float(entry['grade']))
-
+    # Prediction accuracy: compare system's predicted grade to actual grade
+    # Only considers entries where we have both a predicted_grade and an actual grade
     errors = []
-    for pred in prediction_entries:
-        subject = pred.get('subject')
-        assignment = (pred.get('assignment_name') or '').strip().lower()
-        if not subject or not assignment:
-            continue
-        if pred.get('grade') is None:
-            continue
-        key = (subject, assignment)
-        if key not in actual_grade_map:
-            continue
-        actual_avg = sum(actual_grade_map[key]) / len(actual_grade_map[key])
-        error = abs(float(pred['grade']) - actual_avg)
-        errors.append(error)
+    for entry in graded_entries:
+        predicted = entry.get('predicted_grade')
+        actual = entry.get('grade')
+        
+        # Only include entries where system made a prediction and there's an actual grade
+        if predicted is not None and actual is not None:
+            error = abs(float(predicted) - float(actual))
+            errors.append({
+                'subject': entry.get('subject'),
+                'predicted': predicted,
+                'actual': actual,
+                'error': error
+            })
 
     if errors:
-        mae = sum(errors) / len(errors)
+        mae = sum(e['error'] for e in errors) / len(errors)
         # Accuracy as "how close on average" capped between 0 and 100
         accuracy = max(0, min(100, 100 - mae))
         stats['prediction_accuracy'] = {
             'matched': len(errors),
-            'mean_abs_error': mae,
-            'accuracy': accuracy
+            'mean_abs_error': round(mae, 2),
+            'accuracy': round(accuracy, 1)
         }
 
-        # --- add raw rows so charts can filter by subject ---
+    # --- add raw rows so charts can filter by subject ---
     # All graded items as {subject, score}
     stats["all_grades"] = [
         {"subject": e.get("subject"), "score": float(e["grade"])}
@@ -723,6 +811,27 @@ def add_log():
     
     username = current_user.username
 
+    # Calculate system prediction for accuracy tracking
+    # For predictions: store what the system predicted so we can compare later
+    # For actual grades: store the prediction at the time of entry
+    system_predicted_grade = None
+    if log_data['grade'] is not None:
+        # If this is a prediction row, the grade IS the prediction - store it
+        if log_data['is_prediction']:
+            system_predicted_grade = log_data['grade']
+            print(f'Storing prediction grade: {system_predicted_grade}')
+        else:
+            # For actual assignments, calculate what system would have predicted
+            system_predicted_grade = calculate_system_prediction(
+                username=username,
+                subject=log_data['subject'],
+                category=log_data['category'],
+                study_time=log_data['study_time'],
+                weight=log_data['weight']
+            )
+            if system_predicted_grade is not None:
+                print(f'System predicted: {system_predicted_grade}, Actual: {log_data["grade"]}')
+
     # Write to database
     try:
         db_id = add_grade(
@@ -733,15 +842,21 @@ def add_log():
             assignment_name=log_data['assignment_name'],
             grade=log_data['grade'],
             weight=log_data['weight'],  # Use the calculated weight from frontend
-            is_prediction=log_data['is_prediction']
+            is_prediction=log_data['is_prediction'],
+            predicted_grade=system_predicted_grade
         )
         print(f'Saved to database with weight: {log_data["weight"]}')
         log_data['id'] = db_id  # Use database-generated ID
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to add assessment: {str(e)}'}), 500
 
-    recalculate_weights(username, log_data['subject'], log_data['category'])
-    print('Weights recalculated')
+    # Only recalculate weights for actual assignments, not predictions
+    # This prevents prediction rows from affecting k estimation for subsequent predictions
+    if not log_data['is_prediction']:
+        recalculate_weights(username, log_data['subject'], log_data['category'])
+        print('Weights recalculated')
+    else:
+        print('Skipping weight recalculation for prediction row')
 
     summary = calculate_summary(username, request.form.get('current_filter'))
 
@@ -777,10 +892,42 @@ def update_log(log_id):
 
     old_subject = old_log['subject']
     old_category = old_log['category']
+    old_grade = old_log.get('grade')
 
     updated_data, error = process_form_data(request.form)
     if error: return jsonify({'status': 'error', 'message': error}), 400
     updated_data['id'] = log_id
+
+    # DEBUG: Log the update request
+    print(f'=== UPDATE REQUEST for ID {log_id} ===')
+    print(f'  old_grade: {old_grade} (type: {type(old_grade).__name__})')
+    print(f'  new_grade: {updated_data["grade"]} (type: {type(updated_data["grade"]).__name__ if updated_data["grade"] is not None else "None"})')
+    print(f'  old_predicted_grade: {old_log.get("predicted_grade")}')
+    print(f'  old_is_prediction: {old_log.get("is_prediction")}')
+    print(f'  new_is_prediction: {updated_data.get("is_prediction")}')
+
+    # Handle system prediction for accuracy tracking
+    # The predicted_grade is set when the prediction is created
+    # We preserve it through updates - it should NOT be recalculated
+    original_predicted_grade = old_log.get('predicted_grade')
+    
+    # Only calculate a new prediction if:
+    # 1. This is a brand new grade entry (old_grade was None, new grade is not None)
+    # 2. AND there's no stored prediction yet (wasn't a prediction row before)
+    if old_grade is None and updated_data['grade'] is not None and original_predicted_grade is None:
+        print(f'  --> No stored prediction, calculating fresh...')
+        original_predicted_grade = calculate_system_prediction(
+            username=username,
+            subject=updated_data['subject'],
+            category=updated_data['category'],
+            study_time=updated_data['study_time'],
+            weight=old_log.get('weight', 0),
+            exclude_id=log_id
+        )
+        if original_predicted_grade is not None:
+            print(f'  --> Calculated prediction: {original_predicted_grade}, Actual: {updated_data["grade"]}')
+    else:
+        print(f'  --> Using stored prediction: {original_predicted_grade}')
 
     # Update database
     try:
@@ -793,7 +940,8 @@ def update_log(log_id):
             assignment_name=updated_data['assignment_name'],
             grade=updated_data['grade'],
             weight=0,  # Weight will be recalculated
-            is_prediction=updated_data['is_prediction']
+            is_prediction=updated_data['is_prediction'],
+            predicted_grade=original_predicted_grade  # Keep or set the prediction
         )
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Failed to update assessment: {str(e)}'}), 500
@@ -1128,6 +1276,18 @@ def predict():
     target_grade = request.form.get('target_grade')
     grade_lock = request.form.get('grade_lock', 'true').lower() == 'true'
     max_grade = float(request.form.get('max_grade', 100)) if not grade_lock else 100
+    exclude_id = request.form.get('exclude_id')  # ID of current row to exclude
+    include_predictions = request.form.get('include_predictions', 'false').lower() == 'true'
+    
+    print(f'=== /PREDICT CALLED ===')
+    print(f'  subject: {subject}, category: {category}, hours: {hours}')
+    
+    # Convert exclude_id to int if provided
+    if exclude_id:
+        try:
+            exclude_id = int(exclude_id)
+        except (ValueError, TypeError):
+            exclude_id = None
     
     # Validate negative inputs
     if (hours and float(hours) < 0) or (target_grade and float(target_grade) < 0):
@@ -1140,7 +1300,18 @@ def predict():
     # Fetch from database
     username = current_user.username
     all_grades = get_all_grades(username)
-    graded_data = [log for log in all_grades if log.get('grade') is not None]
+    
+    # Exclude current row if specified (for re-predictions on same row)
+    if exclude_id:
+        all_grades = [g for g in all_grades if g['id'] != exclude_id]
+        print(f'  Excluding row ID {exclude_id}')
+    
+    # Filter to graded entries - include predictions only if include_predictions is True
+    # (used by subject predictor with "show predictions" enabled)
+    if include_predictions:
+        graded_data = [log for log in all_grades if log.get('grade') is not None]
+    else:
+        graded_data = [log for log in all_grades if log.get('grade') is not None and not log.get('is_prediction')]
 
     all_data = graded_data
     subject_data = [log for log in all_data if log['subject'] == subject]
@@ -1150,6 +1321,16 @@ def predict():
     n_subject = len(subject_data)
     n_category = len(category_data)
     
+    print(f'=== PREDICT DEBUG ===')
+    print(f'  exclude_id: {exclude_id}, include_predictions: {include_predictions}')
+    print(f'  n_all: {n_all}, n_subject: {n_subject}, n_category: {n_category}')
+    print(f'  category_data IDs: {[d["id"] for d in category_data]}')
+    
+    # Debug: show actual data being used
+    print(f'  category_data details:')
+    for d in category_data:
+        print(f'    ID {d["id"]}: hours={d["study_time"]}, grade={d["grade"]}, weight={d["weight"]}')
+    
     # Check for minimum data required
     # if n_all < 2:
     #     return jsonify({
@@ -1158,18 +1339,20 @@ def predict():
     #     }), 400
 
     # --- 2. Estimate k for each scope ---
-    def get_k_and_data(data):
+    def get_k_and_data(data, debug=False):
         if len(data) < 1:
             return 0.3, [], [], []
         hours = [log['study_time'] for log in data]
         grades = [log['grade'] for log in data]
+        # Use weight/100 to get decimal form (e.g., 2.73% -> 0.0273)
         weights = [log['weight'] / 100 for log in data]
-        k_val = estimate_k(hours, grades, weights, max_grade)
+        k_val = estimate_k(hours, grades, weights, max_grade, debug=debug)
         return k_val, hours, grades, weights
 
     k_all, _, _, _ = get_k_and_data(all_data)
     k_subject, _, _, _ = get_k_and_data(subject_data)
-    k_category, past_hours, past_grades, past_weights = get_k_and_data(category_data)
+    print(f'  Computing k for category data:')
+    k_category, past_hours, past_grades, past_weights = get_k_and_data(category_data, debug=True)
 
     # --- 3. Determine Blended k using confidence-based weighting ---
     
@@ -1244,6 +1427,9 @@ def predict():
     if hours and not target_grade:
         hours = float(hours)
         predicted_grade = predict_grade(hours, weight_decimal, k, max_grade)
+        
+        print(f'  PREDICTION CALC: hours={hours}, weight={weight}, weight_decimal={weight_decimal}, k={k}, max_grade={max_grade}')
+        print(f'  PREDICTION RESULT: {predicted_grade}')
         
         # Calculate confidence based on data points and similarity (using the best available data)
         base_confidence = calculate_confidence(data_for_context, hours, weight)
@@ -1493,9 +1679,11 @@ def predict_subject():
     all_grades = get_all_grades(username)
     subject_data = [log for log in all_grades if log['subject'] == subject]
     
-    # IMPORTANT: For k estimation, we ONLY want actual past performance, NOT predictions
-    # So we explicitly filter out predictions even if use_predictions is True for the summary
-    graded_items = [log for log in subject_data if log.get('grade') is not None and not log.get('is_prediction')]
+    # Include predictions in k estimation ONLY if use_predictions is True (subject predictor with "Show Predictions" on)
+    if use_predictions:
+        graded_items = [log for log in subject_data if log.get('grade') is not None]
+    else:
+        graded_items = [log for log in subject_data if log.get('grade') is not None and not log.get('is_prediction')]
 
     # Estimate k for the subject
     def get_k(data):
@@ -1508,8 +1696,11 @@ def predict_subject():
     if len(graded_items) >= 2:
         k = get_k(graded_items)
     else:
-        # Fallback to all data (excluding predictions)
-        all_graded = [log for log in all_grades if log.get('grade') is not None and not log.get('is_prediction')]
+        # Fallback to all data
+        if use_predictions:
+            all_graded = [log for log in all_grades if log.get('grade') is not None]
+        else:
+            all_graded = [log for log in all_grades if log.get('grade') is not None and not log.get('is_prediction')]
         k = get_k(all_graded)
 
     response_data = {

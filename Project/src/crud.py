@@ -156,7 +156,7 @@ def get_all_grades(username):
         curs = conn.cursor(dictionary=True)
         curs.execute(
             f"""SELECT id, Subject, Category, StudyTime, AssignmentName,
-                    Grade, Weight, IsPrediction, Position
+                    Grade, Weight, IsPrediction, PredictedGrade, Position
                 FROM {TABLE_NAME}
                 WHERE username = %s
                 ORDER BY Position ASC, id ASC""",
@@ -175,6 +175,7 @@ def get_all_grades(username):
                 'grade': row['Grade'],
                 'weight': row['Weight'],
                 'is_prediction': bool(row['IsPrediction']) if 'IsPrediction' in row else False,
+                'predicted_grade': row.get('PredictedGrade'),
                 'position': row['Position'],
             }
             for row in results
@@ -248,7 +249,7 @@ def get_categories_as_dict(username):
 
     return result
 
-def add_grade(username, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
+def add_grade(username, subject, category, study_time, assignment_name, grade, weight, is_prediction=False, predicted_grade=None):
     """Add a new assignment to the database for a user"""
     conn = _connect()
     try:
@@ -259,10 +260,10 @@ def add_grade(username, subject, category, study_time, assignment_name, grade, w
 
         query = f"""
         INSERT INTO {TABLE_NAME}
-            (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction, Position)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (username, Subject, Category, StudyTime, AssignmentName, Grade, Weight, IsPrediction, PredictedGrade, Position)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-        curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction, next_pos))
+        curs.execute(query, (username, subject, category, study_time, assignment_name, grade, weight, is_prediction, predicted_grade, next_pos))
         conn.commit()
         return curs.lastrowid  # Return the ID of the inserted record
     except Exception as e:
@@ -272,7 +273,7 @@ def add_grade(username, subject, category, study_time, assignment_name, grade, w
         curs.close()
         conn.close()
 
-def update_grade(username, grade_id, subject, category, study_time, assignment_name, grade, weight, is_prediction=False):
+def update_grade(username, grade_id, subject, category, study_time, assignment_name, grade, weight, is_prediction=False, predicted_grade=None):
     """Update an existing grade for a user"""
     conn = _connect()
     try:
@@ -280,10 +281,10 @@ def update_grade(username, grade_id, subject, category, study_time, assignment_n
         # Ensure we only update if it belongs to the user
         query = f"""
         UPDATE {TABLE_NAME}
-        SET Subject = %s, Category = %s, StudyTime = %s, AssignmentName = %s, Grade = %s, Weight = %s, IsPrediction = %s
+        SET Subject = %s, Category = %s, StudyTime = %s, AssignmentName = %s, Grade = %s, Weight = %s, IsPrediction = %s, PredictedGrade = %s
         WHERE id = %s AND username = %s
         """
-        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, grade_id, username))
+        curs.execute(query, (subject, category, study_time, assignment_name, grade, weight, is_prediction, predicted_grade, grade_id, username))
         conn.commit()
         return curs.rowcount
     except Exception as e:

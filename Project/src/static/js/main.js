@@ -1266,7 +1266,15 @@ document.addEventListener('DOMContentLoaded',
         async function handleAssignmentSave(row, suppressToast = false, forceAssignment = false) {
             // --- FIX: Do not revert the preview if validation fails ---
             if (!validateRow(row)) return;
-            revertWeightPreview(); // Only revert on successful validation
+            
+            // Determine if this is a prediction row
+            const isPredictionRow = row.dataset.isPrediction === 'true' || row.classList.contains('prediction-row');
+            
+            // Only revert weight preview when saving actual assignments (not predictions)
+            // Predictions don't trigger weight recalculation, so previews should stay
+            if (!isPredictionRow || forceAssignment) {
+                revertWeightPreview();
+            }
 
             const logId = row.dataset.id;
             const isNew = !logId;
@@ -1365,6 +1373,10 @@ document.addEventListener('DOMContentLoaded',
                 if (!suppressToast) {
                     showToast(result.message, 'success');
                 }
+                
+                // Clear old weight preview state before re-render (DOM elements will be replaced)
+                weightPreviewState.clear();
+                
                 renderAssignmentTable(result.updated_assignments, result.summary, currentSubjectFilter);
                 if (typeof ensureDragHandles === 'function') {
                     ensureDragHandles();
@@ -1372,6 +1384,20 @@ document.addEventListener('DOMContentLoaded',
                 if (isNew) {
                     updateCategoryTableRow(result.log.subject, result.log.category);
                 }
+                
+                // Re-apply weight preview if this was a prediction save (not converting to assignment)
+                // This keeps the preview showing for other rows in the same category
+                if (isPrediction && !forceAssignment) {
+                    // Find the newly saved prediction row and re-apply preview
+                    const newPredictionRow = assignmentTableBody.querySelector(`tr[data-id="${result.log.id}"]`);
+                    if (newPredictionRow) {
+                        const subject = result.log.subject;
+                        const category = result.log.category;
+                        // Pass isEditing=true so it doesn't add +1 (the row is already saved and counted)
+                        applyWeightPreview(newPredictionRow, true, subject, category);
+                    }
+                }
+                
                 // Update subject prediction (remaining weight)
                 updateSubjectPrediction(null);
             } catch (error) {
@@ -1811,6 +1837,52 @@ document.addEventListener('DOMContentLoaded',
                 subjectSelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
+            // Autofill name and weight for both regular and prediction rows
+            if (categorySelect.value) {
+                const subject = subjectSelect.value;
+                const categoryName = categorySelect.value;
+                const categoryData = (weightCategoriesMap[subject] || []).find(c => c.name === categoryName);
+                
+                if (categoryData) {
+                    // Count existing assignments in this category
+                    const existingCount = Array.from(assignmentTableBody.querySelectorAll('tr[data-id]')).filter(r => {
+                        const rCells = r.querySelectorAll('td');
+                        if (rCells.length < 2) return false;
+                        const rSubject = rCells[1].textContent.trim();
+                        if (rSubject !== subject) return false;
+                        const categoryTag = rCells[2].querySelector('.category-tag');
+                        if (categoryTag) {
+                            return categoryTag.lastChild.textContent.trim() === categoryName;
+                        }
+                        const predSelect = rCells[2].querySelector('.prediction-category-select');
+                        if (predSelect) {
+                            return predSelect.value === categoryName;
+                        }
+                        return false;
+                    }).length;
+
+                    // Fill in weight display
+                    const weightCell = cells[6];
+                    if (weightCell) {
+                        const newWeight = categoryData.total_weight / (existingCount + 1);
+                        weightCell.innerHTML = `<em>${newWeight.toFixed(2)}%</em>`;
+                    }
+
+                    // Fill in assignment name
+                    const assignmentNameInput = newRow.querySelector('input[name="assignment_name"]');
+                    if (assignmentNameInput && categoryData.default_name) {
+                        if (categoryData.default_name.includes('#')) {
+                            assignmentNameInput.value = categoryData.default_name.replace('#', existingCount + 1);
+                        } else {
+                            assignmentNameInput.value = categoryData.default_name;
+                        }
+                    }
+
+                    // Apply weight preview for existing rows in this category
+                    applyWeightPreview(newRow, false);
+                }
+            }
+
             // --- NEW: Mutual Exclusivity for Prediction Row Inputs ---
             if (isPrediction) {
                 const hoursInput = newRow.querySelector('.hours-input');
@@ -1970,7 +2042,9 @@ document.addEventListener('DOMContentLoaded',
                 } else if (button.classList.contains('delete-btn')) {
                     showConfirmation("Are you sure you want to delete this assessment?", row, 'assignment');
                 } else if (button.classList.contains('add-prediction-btn')) {
-                    // Convert prediction to assignment
+                    // Convert prediction to assignment - clear the grade first
+                    const gradeInput = row.querySelector('.grade-input');
+                    if (gradeInput) gradeInput.value = '';
                     // suppressToast=false, forceAssignment=true
                     await handleAssignmentSave(row, false, true);
                 } else if (button.classList.contains('predict-btn')) {
@@ -1998,14 +2072,39 @@ document.addEventListener('DOMContentLoaded',
                         return;
                     }
 
-                    const subject = row.querySelector('td:nth-child(2)').textContent.trim();
-                    const categoryTag = row.querySelector('td:nth-child(3) .category-tag');
-                    const category = categoryTag ? categoryTag.lastChild.textContent.trim() : row.querySelector('td:nth-child(3)').textContent.trim();
+                    // Get subject - check for select element first (new row), then text content
+                    const subjectCell = row.querySelector('td:nth-child(2)');
+                    const subjectSelect = subjectCell.querySelector('select');
+                    const subject = subjectSelect ? subjectSelect.value : subjectCell.textContent.trim();
+                    
+                    // Get category - check for any select element first (prediction dropdown or new row select)
+                    const categoryCell = row.querySelector('td:nth-child(3)');
+                    const categorySelect = categoryCell.querySelector('select');  // Any select in the category cell
+                    let category;
+                    if (categorySelect) {
+                        category = categorySelect.value;
+                    } else {
+                        const categoryTag = categoryCell.querySelector('.category-tag');
+                        if (categoryTag) {
+                            // Get only the text node, not child elements
+                            const textNodes = Array.from(categoryTag.childNodes).filter(n => n.nodeType === Node.TEXT_NODE);
+                            category = textNodes.map(n => n.textContent).join('').trim();
+                        } else {
+                            category = categoryCell.textContent.trim();
+                        }
+                    }
 
                     const formData = new FormData();
                     formData.append('subject', subject);
                     formData.append('weight', weight);
                     formData.append('grade_lock', getGradeLock(subject) ? 'true' : 'false');
+                    formData.append('category', category);
+                    
+                    // Pass the row ID if it exists, so the prediction excludes this row from history
+                    const rowId = row.dataset.id;
+                    if (rowId) {
+                        formData.append('exclude_id', rowId);
+                    }
 
                     if (hours) formData.append('hours', hours);
                     if (grade) formData.append('target_grade', grade);

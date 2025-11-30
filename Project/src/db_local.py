@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
     Grade REAL,
     Weight REAL NOT NULL,
     IsPrediction INTEGER DEFAULT 0,
+    PredictedGrade REAL,
     Position INTEGER NOT NULL DEFAULT 0
 );
 """
@@ -149,6 +150,24 @@ def ensure_retired_column():
         cur.close()
         conn.close()
 
+def ensure_predicted_grade_column():
+    """Add PredictedGrade column to grades table if it doesn't exist (SQLite)."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        # Check if column exists
+        cur.execute(f"PRAGMA table_info({TABLE_NAME})")
+        columns = [row[1] for row in cur.cursor.fetchall()]
+        if 'PredictedGrade' not in columns:
+            cur.execute(f"ALTER TABLE {TABLE_NAME} ADD COLUMN PredictedGrade REAL")
+            conn.commit()
+            print(f"Added PredictedGrade column to {TABLE_NAME}")
+    except Exception as e:
+        print(f"Warning: Could not add PredictedGrade column: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
 def init_db():
     """Create database and tables if they don't exist."""
     conn = _connect()
@@ -165,6 +184,7 @@ def init_db():
         conn.close()
     
     ensure_retired_column()
+    ensure_predicted_grade_column()
     seed_initial_data()
 
 def seed_initial_data():
