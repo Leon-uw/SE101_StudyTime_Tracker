@@ -5,27 +5,12 @@
       "src": "src/app.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb"
+        "maxLambdaSize": "15mb",
+        "includeFiles": "src/**"
       }
     }
   ],
   "routes": [
-    {
-      "src": "/static/(.*)",
-      "dest": "/src/static/$1"
-    },
-    {
-      "src": "/subject/(.*)",
-      "dest": "/src/app.py"
-    },
-    {
-      "src": "/category/(.*)",
-      "dest": "/src/app.py"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/src/app.py"
-    },
     {
       "src": "/(.*)",
       "dest": "/src/app.py"

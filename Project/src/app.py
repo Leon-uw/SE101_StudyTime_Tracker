@@ -1904,6 +1904,11 @@ def set_grade_lock_preference():
         }), 500
 
 
+# --- Static file serving for Vercel ---
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve static files - needed for Vercel serverless deployment."""
+    return app.send_static_file(filename)
 
 
 # --- Bootstrap DB once (Flask 3.x compatible) ---
