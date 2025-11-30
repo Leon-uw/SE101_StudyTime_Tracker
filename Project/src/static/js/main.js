@@ -1755,7 +1755,7 @@ document.addEventListener('DOMContentLoaded',
             });
 
             // Add change handler for subject to update categories
-            subjectSelect.addEventListener('change', function() {
+            subjectSelect.addEventListener('change', function () {
                 const newSubject = this.value;
                 const newCategories = weightCategoriesMap[newSubject] || [];
                 categorySelect.innerHTML = '';
@@ -1968,7 +1968,7 @@ document.addEventListener('DOMContentLoaded',
                 } else if (button.classList.contains('save-btn')) {
                     await handleAssignmentSave(row);
                 } else if (button.classList.contains('delete-btn')) {
-                    showConfirmation("Are you sure you want to delete this assignment?", row, 'assignment');
+                    showConfirmation("Are you sure you want to delete this assessment?", row, 'assignment');
                 } else if (button.classList.contains('add-prediction-btn')) {
                     // Convert prediction to assignment
                     // suppressToast=false, forceAssignment=true
@@ -2809,7 +2809,7 @@ document.addEventListener('DOMContentLoaded',
 
                 deleteSubjectBtn.addEventListener('click', function () {
                     subjectToDelete = this.dataset.subject;
-                    deleteSubjectMessage.textContent = `Are you sure you want to delete the subject "${subjectToDelete}"?\n\nThis will delete ALL assignments and categories for this subject.`;
+                    deleteSubjectMessage.textContent = `Are you sure you want to delete the subject "${subjectToDelete}"?\n\nThis will delete ALL assessments and categories for this subject.`;
                     deleteSubjectModal.style.display = 'flex';
                 });
 
@@ -2975,7 +2975,7 @@ document.addEventListener('DOMContentLoaded',
                     const modalConfirmNo = document.getElementById('modal-confirm-no');
 
                     if (confirmModal && modalMessage) {
-                        modalMessage.textContent = `Are you sure you want to delete ${ids.length} assignment${ids.length > 1 ? 's' : ''}? This cannot be undone.`;
+                        modalMessage.textContent = `Are you sure you want to delete ${ids.length} assessment${ids.length > 1 ? 's' : ''}? This cannot be undone.`;
                         confirmModal.style.display = 'flex';
 
                         // Remove old listeners and add new ones
