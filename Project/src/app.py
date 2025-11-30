@@ -1926,6 +1926,10 @@ def _bootstrap_db_once():
         app.logger.exception("DB bootstrap failed: %s", e)
     _bootstrapped = True
 
+# Vercel serverless handler - expose the Flask app
+# Vercel looks for 'app' or 'handler' at module level
+handler = app
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))

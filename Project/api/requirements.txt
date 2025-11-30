@@ -1,0 +1,7 @@
+# Flask dependencies for Vercel
+flask>=2.3.0
+flask-login>=0.6.3
+pymysql>=1.1.0
+mysql-connector-python>=8.1.0
+cryptography>=41.0.0
+python-dotenv>=1.0.0

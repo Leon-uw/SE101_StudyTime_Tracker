@@ -24,6 +24,7 @@
     --chart-strong: #61dc9b;
     --chart-needs-work: #ff5959;
     --chart-other: #93dbff;
+    --chart-border: #555555;
 }
 
 body.dark-mode {
@@ -50,6 +51,7 @@ body.dark-mode {
     --chart-strong: #25A762;
     --chart-needs-work: #CC0000;
     --chart-other: #0081a7;
+    --chart-border: #d6f8ff;
 }
 
 /* Toasty Light Mode */
@@ -76,6 +78,7 @@ body.toasty-mode {
     --chart-strong: #FFFA75;
     --chart-needs-work: #bd0600;
     --chart-other: #f7a08e;
+    --chart-border: #555555;
 }
 
 /* Toasty Dark Mode */
@@ -102,6 +105,7 @@ body.toasty-mode.dark-mode {
     --chart-strong: #FFFA75;
     --chart-needs-work: #ff6b6b;
     --chart-other: #f7a08e;
+    --chart-border: #fdeae7;
 }
 
 /* Toasty Theme Component Overrides */
