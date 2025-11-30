@@ -3,7 +3,11 @@ import json
 import math
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Get the directory where app.py is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BASE_DIR)
+
 from collections import Counter, defaultdict
 from dotenv import load_dotenv
 load_dotenv()
@@ -26,8 +30,11 @@ from crud import (get_all_grades, get_all_categories, get_categories_as_dict, ad
                   get_category_by_id, update_assignment_names_for_category,
                   create_user, verify_user, user_exists, TABLE_NAME, ensure_schema)
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'a-very-secret-key'
+# Initialize Flask with explicit template and static paths for Vercel compatibility
+app = Flask(__name__, 
+            template_folder=os.path.join(BASE_DIR, 'templates'),
+            static_folder=os.path.join(BASE_DIR, 'static'))
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-very-secret-key')
 
 
 login_manager = LoginManager()

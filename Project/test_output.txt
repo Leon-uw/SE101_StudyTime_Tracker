@@ -1,0 +1,198 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0 -- /Library/Developer/CommandLineTools/usr/bin/python3
+cachedir: .pytest_cache
+metadata: {'Python': '3.9.6', 'Platform': 'macOS-15.6.1-arm64-arm-64bit', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'mock': '3.15.1', 'html': '4.1.1', 'timeout': '2.4.0', 'metadata': '3.1.1', 'anyio': '4.10.0', 'cov': '7.0.0'}}
+rootdir: /Users/jalenlocke/project_team_21/Project
+plugins: mock-3.15.1, html-4.1.1, timeout-2.4.0, metadata-3.1.1, anyio-4.10.0, cov-7.0.0
+collecting ... collected 136 items
+
+tests/test_assessments.py::TestAssessmentCreation::test_asmnt_001_create_valid_assessment PASSED [  0%]
+tests/test_assessments.py::TestAssessmentCreation::test_asmnt_002_create_assessment_without_grade PASSED [  1%]
+tests/test_assessments.py::TestAssessmentCreation::test_asmnt_003_create_prediction_assessment PASSED [  2%]
+tests/test_assessments.py::TestAssessmentCreation::test_asmnt_004_create_with_zero_study_time PASSED [  2%]
+tests/test_assessments.py::TestAssessmentCreation::test_asmnt_005_create_with_100_percent_grade PASSED [  3%]
+tests/test_assessments.py::TestAssessmentUpdate::test_asmnt_006_update_grade_value PASSED [  4%]
+tests/test_assessments.py::TestAssessmentUpdate::test_asmnt_007_update_study_time PASSED [  5%]
+tests/test_assessments.py::TestAssessmentUpdate::test_asmnt_008_update_assignment_name PASSED [  5%]
+tests/test_assessments.py::TestAssessmentUpdate::test_asmnt_009_update_nonexistent_assessment PASSED [  6%]
+tests/test_assessments.py::TestAssessmentUpdate::test_asmnt_010_convert_prediction_to_actual PASSED [  7%]
+tests/test_assessments.py::TestAssessmentDeletion::test_asmnt_011_delete_single_assessment PASSED [  8%]
+tests/test_assessments.py::TestAssessmentDeletion::test_asmnt_012_delete_nonexistent_assessment PASSED [  8%]
+tests/test_assessments.py::TestAssessmentDeletion::test_asmnt_013_bulk_delete_assessments PASSED [  9%]
+tests/test_assessments.py::TestAssessmentDeletion::test_asmnt_014_bulk_delete_partial PASSED [ 10%]
+tests/test_assessments.py::TestAssessmentDeletion::test_asmnt_015_bulk_delete_empty_list PASSED [ 11%]
+tests/test_assessments.py::TestWeightPreview::test_weight_preview_new_assignment PASSED [ 11%]
+tests/test_assessments.py::TestWeightPreview::test_weight_preview_second_assignment PASSED [ 12%]
+tests/test_assessments.py::TestWeightPreview::test_weight_preview_after_delete PASSED [ 13%]
+tests/test_assessments.py::TestAssessmentPosition::test_position_increments PASSED [ 13%]
+tests/test_assessments.py::TestAssessmentPosition::test_order_preserved_after_delete PASSED [ 14%]
+tests/test_authentication.py::TestUserRegistration::test_auth_001_valid_registration PASSED [ 15%]
+tests/test_authentication.py::TestUserRegistration::test_auth_002_duplicate_username PASSED [ 16%]
+tests/test_authentication.py::TestUserRegistration::test_auth_003_short_username PASSED [ 16%]
+tests/test_authentication.py::TestUserRegistration::test_auth_004_password_hashing PASSED [ 17%]
+tests/test_authentication.py::TestUserLogin::test_auth_005_valid_login PASSED [ 18%]
+tests/test_authentication.py::TestUserLogin::test_auth_006_wrong_password PASSED [ 19%]
+tests/test_authentication.py::TestUserLogin::test_auth_007_wrong_username PASSED [ 19%]
+tests/test_authentication.py::TestUserLogin::test_auth_008_case_sensitivity PASSED [ 20%]
+tests/test_authentication.py::TestUserIsolation::test_auth_012_subject_isolation PASSED [ 21%]
+tests/test_authentication.py::TestUserIsolation::test_auth_013_grade_isolation PASSED [ 22%]
+tests/test_authentication.py::TestUserIsolation::test_auth_014_same_subject_name_different_users PASSED [ 22%]
+tests/test_authentication.py::TestPasswordSecurity::test_password_verification_timing PASSED [ 23%]
+tests/test_authentication.py::TestPasswordSecurity::test_special_characters_in_password PASSED [ 24%]
+tests/test_authentication.py::TestPasswordSecurity::test_unicode_in_password PASSED [ 25%]
+tests/test_authentication.py::TestPasswordSecurity::test_empty_password_handling PASSED [ 25%]
+tests/test_categories.py::TestCategoryCreation::test_cat_001_create_valid_category PASSED [ 26%]
+tests/test_categories.py::TestCategoryCreation::test_cat_002_create_category_with_default_name PASSED [ 27%]
+tests/test_categories.py::TestCategoryCreation::test_cat_003_create_duplicate_category PASSED [ 27%]
+tests/test_categories.py::TestCategoryCreation::test_cat_004_same_category_name_different_subjects PASSED [ 28%]
+tests/test_categories.py::TestCategoryWeights::test_cat_005_total_weight_calculation PASSED [ 29%]
+tests/test_categories.py::TestCategoryWeights::test_cat_006_weight_excluding_category PASSED [ 30%]
+tests/test_categories.py::TestCategoryWeights::test_cat_007_weight_recalculation_single_assignment PASSED [ 30%]
+tests/test_categories.py::TestCategoryWeights::test_cat_008_weight_recalculation_multiple_assignments PASSED [ 31%]
+tests/test_categories.py::TestCategoryWeights::test_weight_recalculation_with_predictions PASSED [ 32%]
+tests/test_categories.py::TestCategoryUpdate::test_cat_009_update_category_weight PASSED [ 33%]
+tests/test_categories.py::TestCategoryUpdate::test_cat_010_update_category_name PASSED [ 33%]
+tests/test_categories.py::TestCategoryUpdate::test_update_assignment_names_pattern PASSED [ 34%]
+tests/test_categories.py::TestCategoryDeletion::test_delete_empty_category PASSED [ 35%]
+tests/test_categories.py::TestCategoryDeletion::test_delete_nonexistent_category PASSED [ 36%]
+tests/test_categories.py::TestCategoriesAsDict::test_categories_as_dict_structure PASSED [ 36%]
+tests/test_categories.py::TestCategoriesAsDict::test_categories_as_dict_content PASSED [ 37%]
+tests/test_code.py::Test_connection::test_connection_success PASSED      [ 38%]
+tests/test_code.py::Test_connection::test_connection_creating_cursor PASSED [ 38%]
+tests/test_code.py::Test_connection::test_connection_close PASSED        [ 39%]
+tests/test_code.py::Test_connection::test_connection_failure PASSED      [ 40%]
+tests/test_code.py::Test_CRUD_Operations::test_add_grade_success FAILED  [ 41%]
+tests/test_code.py::Test_CRUD_Operations::test_add_grade_with_null_grade FAILED [ 41%]
+tests/test_code.py::Test_CRUD_Operations::test_add_grade_database_error FAILED [ 42%]
+tests/test_code.py::Test_CRUD_Operations::test_update_grade_success FAILED [ 43%]
+tests/test_code.py::Test_CRUD_Operations::test_update_grade_nonexistent_id FAILED [ 44%]
+tests/test_code.py::Test_CRUD_Operations::test_update_grade_database_error FAILED [ 44%]
+tests/test_code.py::Test_CRUD_Operations::test_get_all_grades FAILED     [ 45%]
+tests/test_code.py::Test_CRUD_Operations::test_delete_grade_success FAILED [ 46%]
+tests/test_code.py::Test_CRUD_Operations::test_delete_grade_nonexistent_id FAILED [ 47%]
+tests/test_code.py::Test_CRUD_Operations::test_delete_grade_database_error FAILED [ 47%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_edge_zero_grade PASSED [ 48%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_edge_100_grade PASSED [ 49%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_edge_zero_study_time PASSED [ 50%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_edge_very_high_study_time PASSED [ 50%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_edge_decimal_grade PASSED [ 51%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_edge_decimal_study_time PASSED [ 52%]
+tests/test_edge_cases.py::TestSpecialCharacters::test_special_chars_in_subject_name PASSED [ 52%]
+tests/test_edge_cases.py::TestSpecialCharacters::test_special_chars_in_assignment_name PASSED [ 53%]
+tests/test_edge_cases.py::TestSpecialCharacters::test_unicode_in_names PASSED [ 54%]
+tests/test_edge_cases.py::TestWeightBoundaries::test_weight_single_100_category PASSED [ 55%]
+tests/test_edge_cases.py::TestWeightBoundaries::test_weight_many_small_categories PASSED [ 55%]
+tests/test_edge_cases.py::TestWeightBoundaries::test_weight_uneven_distribution PASSED [ 56%]
+tests/test_edge_cases.py::TestPredictionEdgeCases::test_prediction_with_single_datapoint PASSED [ 57%]
+tests/test_edge_cases.py::TestPredictionEdgeCases::test_prediction_with_extreme_k PASSED [ 58%]
+tests/test_edge_cases.py::TestPredictionEdgeCases::test_prediction_near_zero_weight PASSED [ 58%]
+tests/test_edge_cases.py::TestPredictionEdgeCases::test_required_hours_near_max PASSED [ 59%]
+tests/test_edge_cases.py::TestEmptyStateHandling::test_empty_subjects_list PASSED [ 60%]
+tests/test_edge_cases.py::TestEmptyStateHandling::test_empty_grades_list PASSED [ 61%]
+tests/test_edge_cases.py::TestEmptyStateHandling::test_empty_categories_list PASSED [ 61%]
+tests/test_edge_cases.py::TestLargeDataHandling::test_many_assignments PASSED [ 62%]
+tests/test_edge_cases.py::TestLargeDataHandling::test_many_subjects PASSED [ 63%]
+tests/test_integration.py::TestFullUserJourney::test_complete_user_workflow PASSED [ 63%]
+tests/test_integration.py::TestMultiSubjectWorkflow::test_multiple_subjects_independent PASSED [ 64%]
+tests/test_integration.py::TestPredictionWorkflow::test_prediction_to_actual_conversion PASSED [ 65%]
+tests/test_integration.py::TestSubjectRenameWorkflow::test_rename_cascades_to_all_data PASSED [ 66%]
+tests/test_integration.py::TestDeleteCascadeWorkflow::test_delete_subject_cascades PASSED [ 66%]
+tests/test_integration.py::TestWeightRecalculationWorkflow::test_weights_rebalance_on_add PASSED [ 67%]
+tests/test_integration.py::TestWeightRecalculationWorkflow::test_weights_rebalance_on_delete PASSED [ 68%]
+tests/test_predictions.py::TestEstimateK::test_pred_001_estimate_k_basic PASSED [ 69%]
+tests/test_predictions.py::TestEstimateK::test_pred_002_estimate_k_empty_data PASSED [ 69%]
+tests/test_predictions.py::TestEstimateK::test_pred_003_estimate_k_filters_invalid PASSED [ 70%]
+tests/test_predictions.py::TestEstimateK::test_pred_004_estimate_k_handles_100_percent PASSED [ 71%]
+tests/test_predictions.py::TestEstimateK::test_estimate_k_single_datapoint PASSED [ 72%]
+tests/test_predictions.py::TestEstimateK::test_estimate_k_uses_trimmed_mean PASSED [ 72%]
+tests/test_predictions.py::TestEstimateK::test_estimate_k_high_performer_increases_k PASSED [ 73%]
+tests/test_predictions.py::TestPredictGrade::test_pred_005_predict_grade_basic PASSED [ 74%]
+tests/test_predictions.py::TestPredictGrade::test_pred_006_predict_grade_zero_hours PASSED [ 75%]
+tests/test_predictions.py::TestPredictGrade::test_pred_007_predict_grade_increases_with_hours PASSED [ 75%]
+tests/test_predictions.py::TestPredictGrade::test_pred_008_predict_grade_weight_affects_prediction PASSED [ 76%]
+tests/test_predictions.py::TestPredictGrade::test_predict_grade_custom_max PASSED [ 77%]
+tests/test_predictions.py::TestPredictGrade::test_predict_grade_approaches_max PASSED [ 77%]
+tests/test_predictions.py::TestRequiredHours::test_pred_009_required_hours_basic PASSED [ 78%]
+tests/test_predictions.py::TestRequiredHours::test_pred_010_required_hours_zero_target PASSED [ 79%]
+tests/test_predictions.py::TestRequiredHours::test_pred_011_required_hours_impossible_target PASSED [ 80%]
+tests/test_predictions.py::TestRequiredHours::test_pred_012_required_hours_increases_with_difficulty PASSED [ 80%]
+tests/test_predictions.py::TestRequiredHours::test_required_hours_roundtrip PASSED [ 81%]
+tests/test_predictions.py::TestSystemPrediction::test_system_prediction_with_history PASSED [ 82%]
+tests/test_predictions.py::TestSystemPrediction::test_system_prediction_excludes_self PASSED [ 83%]
+tests/test_predictions.py::TestSystemPrediction::test_system_prediction_zero_hours_returns_none PASSED [ 83%]
+tests/test_predictions.py::TestSystemPrediction::test_system_prediction_no_history PASSED [ 84%]
+tests/test_predictions.py::TestPredictionConsistency::test_same_inputs_same_k PASSED [ 85%]
+tests/test_predictions.py::TestPredictionConsistency::test_same_inputs_same_prediction PASSED [ 86%]
+tests/test_predictions.py::TestPredictionConsistency::test_same_inputs_same_required_hours PASSED [ 86%]
+tests/test_predictions.py::TestPredictionAccuracy::test_prediction_stored_with_assignment PASSED [ 87%]
+tests/test_predictions.py::TestPredictionAccuracy::test_prediction_accuracy_calculable PASSED [ 88%]
+tests/test_subjects.py::TestSubjectCreation::test_subj_001_create_valid_subject PASSED [ 88%]
+tests/test_subjects.py::TestSubjectCreation::test_subj_002_create_duplicate_subject PASSED [ 89%]
+tests/test_subjects.py::TestSubjectCreation::test_subj_003_subject_appears_immediately PASSED [ 90%]
+tests/test_subjects.py::TestSubjectCreation::test_subj_004_subject_with_special_characters PASSED [ 91%]
+tests/test_subjects.py::TestSubjectRetrieval::test_subj_005_get_all_subjects PASSED [ 91%]
+tests/test_subjects.py::TestSubjectRetrieval::test_subj_006_get_subject_by_name PASSED [ 92%]
+tests/test_subjects.py::TestSubjectRetrieval::test_subj_007_get_nonexistent_subject PASSED [ 93%]
+tests/test_subjects.py::TestSubjectRetrieval::test_subj_subjects_sorted_alphabetically PASSED [ 94%]
+tests/test_subjects.py::TestSubjectDeletion::test_subj_008_delete_empty_subject PASSED [ 94%]
+tests/test_subjects.py::TestSubjectDeletion::test_subj_009_delete_subject_with_data PASSED [ 95%]
+tests/test_subjects.py::TestSubjectDeletion::test_subj_010_delete_nonexistent_subject PASSED [ 96%]
+tests/test_subjects.py::TestSubjectRename::test_subj_011_rename_subject PASSED [ 97%]
+tests/test_subjects.py::TestSubjectRename::test_subj_012_rename_to_existing_name PASSED [ 97%]
+tests/test_subjects.py::TestSubjectRetire::test_retire_subject PASSED    [ 98%]
+tests/test_subjects.py::TestSubjectRetire::test_unretire_subject PASSED  [ 99%]
+tests/test_subjects.py::TestSubjectRetire::test_retired_subject_data_preserved PASSED [100%]
+
+=================================== FAILURES ===================================
+_________________ Test_CRUD_Operations.test_add_grade_success __________________
+tests/test_code.py:89: in test_add_grade_success
+    grade_id = crud.add_grade(subject, study_time, assignment_name, grade, weight)
+E   TypeError: add_grade() missing 2 required positional arguments: 'grade' and 'weight'
+_____________ Test_CRUD_Operations.test_add_grade_with_null_grade ______________
+tests/test_code.py:124: in test_add_grade_with_null_grade
+    grade_id = crud.add_grade(subject, study_time, assignment_name, grade, weight)
+E   TypeError: add_grade() missing 2 required positional arguments: 'grade' and 'weight'
+______________ Test_CRUD_Operations.test_add_grade_database_error ______________
+tests/test_code.py:152: in test_add_grade_database_error
+    crud.add_grade("TEST_Subject", 1.0, "Test", 90, 10)
+E   TypeError: add_grade() missing 2 required positional arguments: 'grade' and 'weight'
+________________ Test_CRUD_Operations.test_update_grade_success ________________
+tests/test_code.py:165: in test_update_grade_success
+    grade_id = crud.add_grade(original_subject, original_study_time,
+E   TypeError: add_grade() missing 2 required positional arguments: 'grade' and 'weight'
+____________ Test_CRUD_Operations.test_update_grade_nonexistent_id _____________
+tests/test_code.py:203: in test_update_grade_nonexistent_id
+    rows_affected = crud.update_grade(99999, "TEST_Subject", 1.0, "Test", 90, 10)
+E   TypeError: update_grade() missing 2 required positional arguments: 'grade' and 'weight'
+____________ Test_CRUD_Operations.test_update_grade_database_error _____________
+tests/test_code.py:218: in test_update_grade_database_error
+    crud.update_grade(1, "TEST_Subject", 1.0, "Test", 90, 10)
+E   TypeError: update_grade() missing 2 required positional arguments: 'grade' and 'weight'
+___________________ Test_CRUD_Operations.test_get_all_grades ___________________
+tests/test_code.py:225: in test_get_all_grades
+    grade_id_1 = crud.add_grade("TEST_Math", 2.0, "Test 1", 85, 10)
+E   TypeError: add_grade() missing 2 required positional arguments: 'grade' and 'weight'
+________________ Test_CRUD_Operations.test_delete_grade_success ________________
+tests/test_code.py:258: in test_delete_grade_success
+    grade_id = crud.add_grade(subject, study_time, assignment_name, grade, weight)
+E   TypeError: add_grade() missing 2 required positional arguments: 'grade' and 'weight'
+____________ Test_CRUD_Operations.test_delete_grade_nonexistent_id _____________
+tests/test_code.py:295: in test_delete_grade_nonexistent_id
+    rows_deleted = crud.delete_grade(nonexistent_id)
+E   TypeError: delete_grade() missing 1 required positional argument: 'grade_id'
+____________ Test_CRUD_Operations.test_delete_grade_database_error _____________
+tests/test_code.py:310: in test_delete_grade_database_error
+    crud.delete_grade(1)
+E   TypeError: delete_grade() missing 1 required positional argument: 'grade_id'
+=========================== short test summary info ============================
+FAILED tests/test_code.py::Test_CRUD_Operations::test_add_grade_success - Typ...
+FAILED tests/test_code.py::Test_CRUD_Operations::test_add_grade_with_null_grade
+FAILED tests/test_code.py::Test_CRUD_Operations::test_add_grade_database_error
+FAILED tests/test_code.py::Test_CRUD_Operations::test_update_grade_success - ...
+FAILED tests/test_code.py::Test_CRUD_Operations::test_update_grade_nonexistent_id
+FAILED tests/test_code.py::Test_CRUD_Operations::test_update_grade_database_error
+FAILED tests/test_code.py::Test_CRUD_Operations::test_get_all_grades - TypeEr...
+FAILED tests/test_code.py::Test_CRUD_Operations::test_delete_grade_success - ...
+FAILED tests/test_code.py::Test_CRUD_Operations::test_delete_grade_nonexistent_id
+FAILED tests/test_code.py::Test_CRUD_Operations::test_delete_grade_database_error
+================== 10 failed, 126 passed in 64.92s (0:01:04) ===================
