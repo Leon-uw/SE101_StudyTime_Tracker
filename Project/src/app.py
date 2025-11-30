@@ -253,6 +253,13 @@ def inject_subjects():
 
 
 @app.route('/')
+def landing():
+    """Landing page for anonymous users, redirect authenticated users to home."""
+    if current_user.is_authenticated:
+        return redirect(url_for('display_table'))
+    return render_template('landing.html')
+
+@app.route('/home')
 @login_required
 def display_table():
     """Main page - All Subjects view or filtered by subject."""
@@ -350,8 +357,18 @@ def render_subject_view(filter_subject, is_retired_subject=False):
     )
 
 @app.route('/about')
-@login_required
 def about():
+    # Allow both logged-in and anonymous users
+    if current_user.is_authenticated:
+        # Get subject data for navigation
+        all_subjects = get_all_subjects(current_user.username, include_retired=False)
+        unique_subjects = sorted(set(s['name'] for s in all_subjects))
+        retired = get_retired_subjects(current_user.username)
+        retired_subjects = sorted([s['name'] for s in retired])
+        return render_template('about.html', 
+                               page_title="About",
+                               subjects=unique_subjects,
+                               retired_subjects=retired_subjects)
     return render_template('about.html', page_title="About")
 
 def calculate_stats(username):
@@ -1078,7 +1095,8 @@ def logout():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if 'user' in session: return redirect(url_for('display_table'))
+    if current_user.is_authenticated:
+        return redirect(url_for('display_table'))
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()

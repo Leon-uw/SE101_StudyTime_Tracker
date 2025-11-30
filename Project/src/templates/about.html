@@ -4,12 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - Study Log Dashboard</title>
+    <title>About - Snowmark</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    {% if not current_user.is_authenticated %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    {% endif %}
 </head>
 
 <body>
-
+    {% if current_user.is_authenticated %}
     <!-- Sidebar (hidden - using top nav) -->
     <div id="sidebar" class="sidebar">
     </div>
@@ -77,6 +82,22 @@
                 <a href="{{ url_for('logout') }}" class="nav-link logout-link">Log Out</a>
             </div>
         </nav>
+    {% else %}
+    <!-- Public About Page Navigation - matches landing page header -->
+    <header class="landing-header scrolled">
+        <div class="landing-header-left">
+            <a href="{{ url_for('landing') }}" class="landing-logo-link">
+                <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo" class="landing-header-logo">
+                <span class="landing-header-title">Snowmark</span>
+            </a>
+        </div>
+        <div class="landing-header-right">
+            <a href="{{ url_for('login') }}" class="landing-header-link">Log In</a>
+            <a href="{{ url_for('register') }}" class="landing-header-btn">Sign Up</a>
+        </div>
+    </header>
+    <div class="main-wrapper landing-about">
+    {% endif %}
 
         <div class="content-container">
             <div class="main-container">
@@ -116,6 +137,7 @@
         </div>
     </div>
 
+    {% if current_user.is_authenticated %}
     <div id="add-subject-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-top: 0;">Add New Subject</h3>
@@ -129,6 +151,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    {% endif %}
 </body>
 
 </html>

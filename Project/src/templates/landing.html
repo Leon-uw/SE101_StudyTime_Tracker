@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snowmark - Track Your Grades</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="landing-page">
+    <!-- Fixed Header -->
+    <header class="landing-header">
+        <div class="landing-header-left">
+            <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo" class="landing-header-logo">
+            <span class="landing-header-title">Snowmark</span>
+        </div>
+        <div class="landing-header-right">
+            <a href="{{ url_for('login') }}" class="landing-header-link">Log In</a>
+            <a href="{{ url_for('register') }}" class="landing-header-btn">Sign Up</a>
+        </div>
+    </header>
+
+    <!-- Vertical Scroll Container -->
+    <div class="vertical-scroll-container">
+        <!-- Section 1: Hero -->
+        <section class="scroll-section hero-section" id="section-0">
+            <div class="hero-content">
+                <div class="hero-logo">
+                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo" class="hero-logo-img">
+                    <h1 class="hero-title">Snowmark</h1>
+                </div>
+                <p class="hero-tagline">Your grades, visualized. Track assignments, predict outcomes, and stay on top of your academic goals.</p>
+                <div class="hero-buttons">
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Get Started</a>
+                    <a href="{{ url_for('about') }}" class="btn btn-secondary btn-large">Learn More</a>
+                </div>
+                <div class="scroll-hint">
+                    <span>Scroll to explore</span>
+                    <div class="scroll-arrow">↓</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Demo Video -->
+        <section class="scroll-section demo-section" id="section-1">
+            <div class="demo-container">
+                <h2 class="demo-title">See Snowmark in Action</h2>
+                <div class="demo-video-wrapper">
+                    <div class="demo-video-placeholder">
+                        <div class="play-icon">▶</div>
+                        <p>Demo video coming soon</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Features -->
+        <section class="scroll-section features-section" id="section-2">
+            <div class="features-container">
+                <h2 class="features-title">Why Snowmark?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Grade Tracking</h3>
+                        <p>Easily log and organize all your assignments, exams, and projects in one place.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Weight Management</h3>
+                        <p>Assign weights to categories and see how each assignment impacts your final grade.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <h3>Grade Prediction</h3>
+                        <p>Predict what you need on future assignments to reach your target grade.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Grade Lock</h3>
+                        <p>Lock in your current grade to plan ahead and track progress towards goals.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📚</div>
+                        <h3>Multiple Subjects</h3>
+                        <p>Manage all your courses in one dashboard with easy subject switching.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🌙</div>
+                        <h3>Dark Mode</h3>
+                        <p>Easy on the eyes with a beautiful dark theme for late-night study sessions.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Call to Action -->
+        <section class="scroll-section cta-section" id="section-3">
+            <div class="cta-container">
+                <h2>Ready to take control of your grades?</h2>
+                <p>Join Snowmark today and start tracking your academic success.</p>
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Create Free Account</a>
+                <p class="cta-login">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+                <div class="footer-logo">
+                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark" class="footer-logo-img">
+                    <span>Snowmark</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Navigation Dots -->
+    <div class="scroll-nav-dots">
+        <button class="nav-dot active" data-section="0" title="Home"></button>
+        <button class="nav-dot" data-section="1" title="Demo"></button>
+        <button class="nav-dot" data-section="2" title="Features"></button>
+        <button class="nav-dot" data-section="3" title="Get Started"></button>
+    </div>
+
+    <!-- Scroll Progress Bar -->
+    <div class="scroll-progress-container">
+        <div class="scroll-progress-bar"></div>
+    </div>
+
+    <script>
+        // Smooth scroll to section on dot click
+        const dots = document.querySelectorAll('.nav-dot');
+        const sections = document.querySelectorAll('.scroll-section');
+        const progressBar = document.querySelector('.scroll-progress-bar');
+        const header = document.querySelector('.landing-header');
+
+        // Click on dots to scroll to section
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => {
+                const section = document.getElementById(`section-${index}`);
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Scroll reveal animation
+        function revealOnScroll() {
+            const revealElements = document.querySelectorAll('.feature-card, .demo-container, .cta-container');
+            const windowHeight = window.innerHeight;
+            
+            revealElements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const revealPoint = 150;
+                
+                if (elementTop < windowHeight - revealPoint) {
+                    element.classList.add('visible');
+                }
+            });
+        }
+
+        // Update active dot and progress bar on scroll
+        function updateScrollIndicators() {
+            const scrollTop = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = (scrollTop / docHeight) * 100;
+            
+            // Update progress bar
+            progressBar.style.width = `${scrollPercent}%`;
+            
+            // Update header background on scroll
+            if (scrollTop > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+            
+            // Update active dot based on which section is most visible
+            let currentSection = 0;
+            sections.forEach((section, index) => {
+                const rect = section.getBoundingClientRect();
+                const sectionMiddle = rect.top + rect.height / 2;
+                if (sectionMiddle < window.innerHeight * 0.6) {
+                    currentSection = index;
+                }
+            });
+            
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSection);
+            });
+            
+            // Trigger reveal animations
+            revealOnScroll();
+        }
+
+        window.addEventListener('scroll', updateScrollIndicators);
+        
+        // Initial calls
+        updateScrollIndicators();
+        revealOnScroll();
+        
+        // Also check on page load after a small delay for any visible elements
+        setTimeout(revealOnScroll, 100);
+    </script>
+</body>
+</html>
