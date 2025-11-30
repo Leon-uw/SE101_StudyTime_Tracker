@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
 </head>
 
 <body class="landing-page">
@@ -30,18 +30,19 @@
         <!-- Section 1: Hero -->
         <section class="scroll-section hero-section" id="section-0">
             <div class="hero-content">
-                <div class="hero-logo">
+                <div class="hero-logo animate-enter">
                     <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo"
                         class="hero-logo-img">
                     <h1 class="hero-title">Snowmark</h1>
                 </div>
-                <p class="hero-tagline">Your grades, visualized. Track assessments, predict outcomes, and stay on top of
+                <p class="hero-tagline animate-enter delay-1">Your grades, visualized. Track assessments, predict
+                    outcomes, and stay on top of
                     your academic goals.</p>
-                <div class="hero-buttons">
+                <div class="hero-buttons animate-enter delay-2">
                     <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Get Started</a>
                     <a href="{{ url_for('about') }}" class="btn btn-secondary btn-large">Learn More</a>
                 </div>
-                <div class="scroll-hint">
+                <div class="scroll-hint animate-enter delay-3">
                     <span>Scroll to explore</span>
                     <div class="scroll-arrow">↓</div>
                 </div>

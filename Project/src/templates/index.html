@@ -120,7 +120,7 @@
             <div class="main-container">
                 <div class="full-width-panel">
 
-                    <div class="action-bar">
+                    <div class="action-bar animate-enter">
                         <!-- Hidden form for compatibility with existing JS that might look for these inputs -->
                         <form id="filter-form" style="display:none;">
                             <input type="hidden" name="subject" id="subject-filter" value="{{ selected_subject }}">
@@ -165,8 +165,8 @@
                         </div>
                     </div>
 
-                    <h2 style="margin-top: 30px;">Assessments</h2>
-                    <div class="table-wrapper">
+                    <h2 style="margin-top: 30px;" class="animate-enter delay-1">Assessments</h2>
+                    <div class="table-wrapper animate-enter delay-2">
                         <table>
                             <thead>
                                 <tr>
@@ -262,7 +262,7 @@
                         </table>
                     </div>
                     <!-- Combined Control Bar -->
-                    <div class="control-bar"
+                    <div class="control-bar animate-enter delay-3"
                         style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 20px; align-items: center; margin-top: 15px; padding: 15px; background-color: var(--surface-color); border: 1px solid var(--border-light); border-radius: 8px; box-shadow: var(--shadow);">
 
                         <!-- Standard Buttons -->
@@ -329,7 +329,7 @@
                 </div>
 
                 {% if selected_subject and selected_subject != 'all' %}
-                <div class="category-section" style="margin-top: 30px;">
+                <div class="category-section animate-enter delay-4" style="margin-top: 30px;">
                     <h2>Grading Scheme Categories for {{ selected_subject }}</h2>
                     <table>
                         <thead>
@@ -371,7 +371,7 @@
         </div>
 
         {% if selected_subject and selected_subject != 'all' %}
-        <div class="subject-actions-bar"
+        <div class="subject-actions-bar animate-enter delay-5"
             style="margin-top: 40px; margin-bottom: 40px; padding-top: 20px; border-top: 2px solid var(--border-light); width: 100%; text-align: center;">
             {% if is_retired_subject %}
             <button type="button" id="restore-subject-btn" class="subject-action-btn"

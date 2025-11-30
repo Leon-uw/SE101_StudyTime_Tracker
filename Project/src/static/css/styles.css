@@ -1740,7 +1740,7 @@ html:has(.landing-page)::-webkit-scrollbar {
     margin: 0;
     padding: 0;
     color: #ffffff;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Merriweather', serif;
     overflow-x: hidden;
     background: #1a1a2e;
     /* Hide scrollbar but allow scrolling */
@@ -1774,7 +1774,7 @@ html:has(.landing-page)::-webkit-scrollbar {
     z-index: 1000;
     background: transparent;
     transition: background 0.3s ease, box-shadow 0.3s ease;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Merriweather', serif;
 }
 
 .landing-header.scrolled {
@@ -2659,7 +2659,7 @@ html:has(.landing-page)::-webkit-scrollbar {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     min-height: 100vh;
     padding-top: 70px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Merriweather', serif;
 }
 
 .landing-about .content-container {
@@ -2707,4 +2707,47 @@ html:has(.landing-page)::-webkit-scrollbar {
     display: flex;
     gap: 12px;
     align-items: center;
+}
+
+/* --- Staggered Entrance Animations --- */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 20px, 0);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+.animate-enter {
+    animation: fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    opacity: 0;
+    /* Start hidden */
+}
+
+.delay-1 {
+    animation-delay: 0.1s;
+}
+
+.delay-2 {
+    animation-delay: 0.2s;
+}
+
+.delay-3 {
+    animation-delay: 0.3s;
+}
+
+.delay-4 {
+    animation-delay: 0.4s;
+}
+
+.delay-5 {
+    animation-delay: 0.5s;
+}
+
+.delay-6 {
+    animation-delay: 0.6s;
 }
