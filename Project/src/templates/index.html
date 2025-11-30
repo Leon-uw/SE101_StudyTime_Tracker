@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 
-<body id="main-menu" data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}'
+<body data-chart-labels='{{ chart_labels|safe }}' data-chart-values='{{ chart_values|safe }}'
     data-subject-categories='{{ subject_categories_map_json|safe }}'
     data-weight-categories='{{ weight_categories_json|safe }}'>
 
@@ -170,28 +170,16 @@
                         <table>
                             <thead>
                                 <tr>
-<<<<<<< HEAD
-<<<<<<< HEAD
-                                    {% if selected_subject and selected_subject != 'all' %}
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    {% endif %}
-=======
-=======
                                     {% if is_dashboard %}
                                     <th style="white-space:nowrap; width: 30px;">
                                         <span class="drag-col-hint" title="Drag rows">⇅</span>
                                     </th>
                                     {% else %}
->>>>>>> upstream/main
                                     <th style="white-space:nowrap; width: 56px;">
                                         <span class="drag-col-hint" title="Drag rows">⇅</span>
                                         <input type="checkbox" id="selectAll">
                                     </th>
-<<<<<<< HEAD
->>>>>>> upstream/main
-=======
                                     {% endif %}
->>>>>>> upstream/main
                                     <th>Subject</th>
                                     <th>Category</th>
                                     <th>Study Time</th>
@@ -220,12 +208,6 @@
 
                             <tbody id="study-table-body">
                                 {% for row in data %}
-<<<<<<< HEAD
-                                    {% if not (selected_subject is not defined or selected_subject == 'all') or row.grade is none %}
-                                    <tr data-id="{{ row.id }}" class="{% if row.is_prediction %}prediction-row{% endif %}">
-                                        {% if selected_subject and selected_subject != 'all' %}
-                                        <td><input type="checkbox" class="select-assignment" data-id="{{ row.id }}"></td>
-=======
                                 <tr data-id="{{ row.id }}"
                                     class="assignment-row {% if row.is_prediction %}prediction-row{% endif %}">
                                     {% if is_dashboard %}
@@ -272,49 +254,10 @@
                                         {% else %}
                                         <button class="action-btn edit-btn">Edit</button>
                                         <button class="action-btn delete-btn">Delete</button>
->>>>>>> upstream/main
                                         {% endif %}
-<<<<<<< HEAD
-                                        <td>{{ row.subject }}</td>
-                                        <td><span class="category-tag"><svg xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-linecap="round" stroke-linejoin="round">
-                                                    <path
-                                                        d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z">
-                                                    </path>
-                                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                                                </svg> {{ row.category }}</span></td>
-                                        {% if row.is_prediction %}
-                                        <td><input type="number" class="prediction-input hours-input" data-id="{{ row.id }}"
-                                                value="{{ row.study_time }}" step="0.1" min="0" style="width: 80px;"> hours
-                                        </td>
-                                        <td>{{ row.assignment_name }}</td>
-                                        <td><input type="number" class="prediction-input grade-input" data-id="{{ row.id }}"
-                                                value="{{ row.grade }}" step="1" min="0" style="width: 80px;">%</td>
-                                        {% else %}
-                                        <td>{{ "%.1f"|format(row.study_time) }} hours</td>
-                                        <td>{{ row.assignment_name }}</td>
-                                        <td>{% if row.grade is not none %}{{ row.grade }}%{% else %}-{% endif %}</td>
-                                        {% endif %}
-                                        <td>{{ "%.2f"|format(row.weight) }}%</td>
-                                        <td>
-                                            {% if row.is_prediction %}
-                                            <button class="action-btn predict-btn">Predict</button>
-                                            <button class="action-btn add-prediction-btn">Add</button>
-                                            <button class="action-btn delete-btn">Delete</button>
-                                            {% else %}
-                                            <button class="action-btn edit-btn">Edit</button>
-                                            <button class="action-btn delete-btn">Delete</button>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                {% endfor %}
-=======
                                     </td>
                                     {% endif %}
                                 </tr>{% endfor %}
->>>>>>> upstream/main
                             </tbody>
                         </table>
                     </div>
@@ -552,12 +495,8 @@
     </div>
     </div>
 
-<<<<<<< HEAD
-    <script src="{{ url_for('static', filename='js/main.v2.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-=======
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <!-- <script src="{{ url_for('static', filename='js/menu-fix.js') }}?v={{ range(1, 10000) | random }}" defer></script> -->
->>>>>>> upstream/main
 </body>
 
 </html>
