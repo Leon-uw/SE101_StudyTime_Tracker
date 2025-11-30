@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,11 +10,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body class="landing-page">
     <!-- Fixed Header -->
     <header class="landing-header">
         <div class="landing-header-left">
-            <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo" class="landing-header-logo">
+            <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo"
+                class="landing-header-logo">
             <span class="landing-header-title">Snowmark</span>
         </div>
         <div class="landing-header-right">
@@ -28,10 +31,12 @@
         <section class="scroll-section hero-section" id="section-0">
             <div class="hero-content">
                 <div class="hero-logo">
-                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo" class="hero-logo-img">
+                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark Logo"
+                        class="hero-logo-img">
                     <h1 class="hero-title">Snowmark</h1>
                 </div>
-                <p class="hero-tagline">Your grades, visualized. Track assignments, predict outcomes, and stay on top of your academic goals.</p>
+                <p class="hero-tagline">Your grades, visualized. Track assessments, predict outcomes, and stay on top of
+                    your academic goals.</p>
                 <div class="hero-buttons">
                     <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Get Started</a>
                     <a href="{{ url_for('about') }}" class="btn btn-secondary btn-large">Learn More</a>
@@ -64,17 +69,17 @@
                     <div class="feature-card">
                         <div class="feature-icon">📊</div>
                         <h3>Grade Tracking</h3>
-                        <p>Easily log and organize all your assignments, exams, and projects in one place.</p>
+                        <p>Easily log and organize all your assessments, exams, and projects in one place.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🎯</div>
                         <h3>Weight Management</h3>
-                        <p>Assign weights to categories and see how each assignment impacts your final grade.</p>
+                        <p>Assign weights to categories and see how each assessment impacts your final grade.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">📈</div>
                         <h3>Grade Prediction</h3>
-                        <p>Predict what you need on future assignments to reach your target grade.</p>
+                        <p>Predict what you need on future assessments to reach your target grade.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🔒</div>
@@ -103,7 +108,8 @@
                 <a href="{{ url_for('register') }}" class="btn btn-primary btn-large">Create Free Account</a>
                 <p class="cta-login">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
                 <div class="footer-logo">
-                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark" class="footer-logo-img">
+                    <img src="{{ url_for('static', filename='images/snowmark-logo.png') }}" alt="Snowmark"
+                        class="footer-logo-img">
                     <span>Snowmark</span>
                 </div>
             </div>
@@ -144,11 +150,11 @@
         function revealOnScroll() {
             const revealElements = document.querySelectorAll('.feature-card, .demo-container, .cta-container');
             const windowHeight = window.innerHeight;
-            
+
             revealElements.forEach(element => {
                 const elementTop = element.getBoundingClientRect().top;
                 const revealPoint = 150;
-                
+
                 if (elementTop < windowHeight - revealPoint) {
                     element.classList.add('visible');
                 }
@@ -160,17 +166,17 @@
             const scrollTop = window.scrollY;
             const docHeight = document.documentElement.scrollHeight - window.innerHeight;
             const scrollPercent = (scrollTop / docHeight) * 100;
-            
+
             // Update progress bar
             progressBar.style.width = `${scrollPercent}%`;
-            
+
             // Update header background on scroll
             if (scrollTop > 50) {
                 header.classList.add('scrolled');
             } else {
                 header.classList.remove('scrolled');
             }
-            
+
             // Update active dot based on which section is most visible
             let currentSection = 0;
             sections.forEach((section, index) => {
@@ -180,23 +186,24 @@
                     currentSection = index;
                 }
             });
-            
+
             dots.forEach((dot, index) => {
                 dot.classList.toggle('active', index === currentSection);
             });
-            
+
             // Trigger reveal animations
             revealOnScroll();
         }
 
         window.addEventListener('scroll', updateScrollIndicators);
-        
+
         // Initial calls
         updateScrollIndicators();
         revealOnScroll();
-        
+
         // Also check on page load after a small delay for any visible elements
         setTimeout(revealOnScroll, 100);
     </script>
 </body>
+
 </html>

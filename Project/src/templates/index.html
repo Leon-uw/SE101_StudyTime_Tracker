@@ -61,8 +61,13 @@
                     class="nav-link {% if is_dashboard %}active{% endif %}">Dashboard</a>
 
                 <div class="nav-dropdown">
-                    <button class="nav-link dropdown-toggle">
+                    <button
+                        class="nav-link dropdown-toggle {% if selected_subject and selected_subject != 'all' %}active{% endif %}">
+                        {% if selected_subject and selected_subject != 'all' %}
+                        {{ selected_subject }} <span class="arrow">▼</span>
+                        {% else %}
                         Subjects <span class="arrow">▼</span>
+                        {% endif %}
                     </button>
                     <div class="dropdown-menu">
                         {% for subject in subjects %}
@@ -160,7 +165,7 @@
                         </div>
                     </div>
 
-                    <h2>Assignments</h2>
+                    <h2 style="margin-top: 30px;">Assessments</h2>
                     <div class="table-wrapper">
                         <table>
                             <thead>
@@ -178,7 +183,7 @@
                                     <th>Subject</th>
                                     <th>Category</th>
                                     <th>Study Time</th>
-                                    <th>Assignment Name</th>
+                                    <th>Assessment Name</th>
                                     <th>Grade</th>
                                     <th>Weight</th>
                                     {% if not is_dashboard %}
@@ -265,7 +270,7 @@
                             {% if selected_subject and selected_subject != 'all' %}
                             <button id="addRowBtn"
                                 style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">Add
-                                Assignment</button>
+                                Assessment</button>
                             <button id="addPredictionBtn"
                                 style="padding: 8px 12px; font-size: 0.85em; background-color: var(--accent-color); white-space: nowrap;">Add
                                 Prediction</button>
@@ -314,8 +319,7 @@
                                     </div>
                                     <div style="text-align: center;">
                                         <div style="font-size: 0.8em; color: var(--text-secondary);">Avg Needed</div>
-                                        <div id="predictor-avg-needed"
-                                            style="font-weight: bold; font-size: 1.1em;">-
+                                        <div id="predictor-avg-needed" style="font-weight: bold; font-size: 1.1em;">-
                                         </div>
                                     </div>
                                 </div>
@@ -326,7 +330,7 @@
 
                 {% if selected_subject and selected_subject != 'all' %}
                 <div class="category-section" style="margin-top: 30px;">
-                    <h2>Category Definitions for {{ selected_subject }}</h2>
+                    <h2>Grading Scheme Categories for {{ selected_subject }}</h2>
                     <table>
                         <thead>
                             <tr>
@@ -359,7 +363,7 @@
                         style="margin-top: 1em; padding: 10px; border-radius: 4px; font-weight: bold;">
                         Total Weight: <span id="total-weight-value">0</span>% / 100%
                     </div>
-                    <button id="addCategoryBtn" style="margin-top: 1em;">Add Category Definition</button>
+                    <button id="addCategoryBtn" style="margin-top: 1em;">Add Grading Scheme Category</button>
                 </div>
                 {% endif %}
             </div>
@@ -368,7 +372,7 @@
 
         {% if selected_subject and selected_subject != 'all' %}
         <div class="subject-actions-bar"
-            style="margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border-light); width: 100%; text-align: center;">
+            style="margin-top: 40px; margin-bottom: 40px; padding-top: 20px; border-top: 2px solid var(--border-light); width: 100%; text-align: center;">
             {% if is_retired_subject %}
             <button type="button" id="restore-subject-btn" class="subject-action-btn"
                 style="padding: 10px 20px; font-size: 1em; background-color: var(--success-color); color: white; margin-right: 15px;"

@@ -115,7 +115,7 @@
                     {% if not stats.has_data %}
                     <div class="empty-state">
                         <h3>No data yet</h3>
-                        <p>Add a subject and log a few assignments or predictions to see your stats here.</p>
+                        <p>Add a subject and log a few assessments or predictions to see your stats here.</p>
                     </div>
                     {% else %}
                     <div class="stats-metrics-grid">
@@ -132,7 +132,7 @@
                         <div class="stats-card metric-card">
                             <p class="label">Total Study Hours</p>
                             <div class="metric-value">{{ "%.1f"|format(stats.overall.total_hours) }}h</div>
-                            <p class="stat-subtext">{{ stats.overall.assignment_count }} logged assignments</p>
+                            <p class="stat-subtext">{{ stats.overall.assignment_count }} logged assessments</p>
                         </div>
                         <div class="stats-card metric-card">
                             <p class="label">Grade / Hour</p>
@@ -256,7 +256,7 @@
                                 data-grade-percent="{{ stats.focus_subject.average }}">{{
                                 "%.1f"|format(stats.focus_subject.average) }}%</p>
                             <p class="muted">{{ "%.1f"|format(stats.focus_subject.hours) }}h across {{
-                                stats.focus_subject.assignments }} assignment(s)</p>
+                                stats.focus_subject.assignments }} assessment(s)</p>
                             <p class="hint">Spend a bit more time here to lift your average.</p>
                             {% else %}
                             <p class="muted">No graded subjects yet — add a grade to get guidance.</p>

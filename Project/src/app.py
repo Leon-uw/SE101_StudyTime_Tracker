@@ -661,7 +661,7 @@ def process_form_data(form):
     # Relax validation for predictions
     if not is_prediction:
         required_fields = ['category', 'assignment_name', 'study_time']
-        if not all([form.get(key) for key in required_fields]): return None, "Category, Assignment, and Time are required."
+        if not all([form.get(key) for key in required_fields]): return None, "Category, Assessment, and Time are required."
     else:
         # For predictions, only category is required
         if not form.get('category'):
@@ -738,7 +738,7 @@ def add_log():
         print(f'Saved to database with weight: {log_data["weight"]}')
         log_data['id'] = db_id  # Use database-generated ID
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f'Failed to add assignment: {str(e)}'}), 500
+        return jsonify({'status': 'error', 'message': f'Failed to add assessment: {str(e)}'}), 500
 
     recalculate_weights(username, log_data['subject'], log_data['category'])
     print('Weights recalculated')
@@ -761,7 +761,7 @@ def add_log():
     if new_prediction:
         print(f'New prediction weight after recalculation: {new_prediction["weight"]}')
 
-    message = 'Prediction added!' if log_data['is_prediction'] else 'Assignment added!'
+    message = 'Prediction added!' if log_data['is_prediction'] else 'Assessment added!'
     return jsonify({'status': 'success', 'message': message, 'log': log_data, 'summary': summary, 'updated_assignments': assignments_to_return})
 
 @app.route('/update/<int:log_id>', methods=['POST'])
@@ -773,7 +773,7 @@ def update_log(log_id):
     old_log = next((log for log in all_assignments if log['id'] == log_id), None)
 
     if not old_log:
-        return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
+        return jsonify({'status': 'error', 'message': 'Assessment not found.'}), 404
 
     old_subject = old_log['subject']
     old_category = old_log['category']
@@ -796,7 +796,7 @@ def update_log(log_id):
             is_prediction=updated_data['is_prediction']
         )
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f'Failed to update assignment: {str(e)}'}), 500
+        return jsonify({'status': 'error', 'message': f'Failed to update assessment: {str(e)}'}), 500
 
     if old_subject != updated_data['subject'] or old_category != updated_data['category']:
         recalculate_weights(username, old_subject, old_category)
@@ -809,7 +809,7 @@ def update_log(log_id):
     if current_subject_filter and current_subject_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_subject_filter]
 
-    return jsonify({'status': 'success', 'message': 'Assignment updated!', 'log': updated_data, 'summary': summary, 'updated_assignments': assignments_to_return})
+    return jsonify({'status': 'success', 'message': 'Assessment updated!', 'log': updated_data, 'summary': summary, 'updated_assignments': assignments_to_return})
 
 @app.route('/delete/<int:log_id>', methods=['POST'])
 @login_required
@@ -822,7 +822,7 @@ def delete_log(log_id):
     log_to_delete = next((log for log in all_assignments if log['id'] == log_id), None)
 
     if not log_to_delete:
-        return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
+        return jsonify({'status': 'error', 'message': 'Assessment not found.'}), 404
 
     subject, category = log_to_delete['subject'], log_to_delete['category']
     is_prediction = log_to_delete.get('is_prediction', False)
@@ -831,7 +831,7 @@ def delete_log(log_id):
     try:
         delete_grade(username, log_id)
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f'Failed to delete assignment: {str(e)}'}), 500
+        return jsonify({'status': 'error', 'message': f'Failed to delete assessment: {str(e)}'}), 500
 
     recalculate_weights(username, subject, category)
     summary = calculate_summary(username, current_filter)
@@ -841,7 +841,7 @@ def delete_log(log_id):
     if current_filter and current_filter != 'all':
         assignments_to_return = [log for log in assignments_to_return if log['subject'] == current_filter]
 
-    message = 'Prediction deleted!' if is_prediction else 'Assignment deleted!'
+    message = 'Prediction deleted!' if is_prediction else 'Assessment deleted!'
     return jsonify({'status': 'success', 'message': message, 'summary': summary, 'updated_assignments': assignments_to_return})
 
 @app.route('/convert_prediction', methods=['POST'])
@@ -853,19 +853,19 @@ def convert_prediction():
     username = current_user.username
     
     if not assignment_id:
-        return jsonify({'status': 'error', 'message': 'Assignment ID is required.'}), 400
+        return jsonify({'status': 'error', 'message': 'Assessment ID is required.'}), 400
     
     try:
         assignment_id = int(assignment_id)
     except ValueError:
-        return jsonify({'status': 'error', 'message': 'Invalid assignment ID.'}), 400
+        return jsonify({'status': 'error', 'message': 'Invalid assessment ID.'}), 400
     
     # Get the assignment from database
     all_assignments = get_all_grades(username)
     assignment = next((a for a in all_assignments if a['id'] == assignment_id), None)
     
     if not assignment:
-        return jsonify({'status': 'error', 'message': 'Assignment not found.'}), 404
+        return jsonify({'status': 'error', 'message': 'Assessment not found.'}), 404
     
     if not assignment.get('is_prediction'):
         return jsonify({'status': 'error', 'message': 'This is not a prediction.'}), 400
@@ -898,7 +898,7 @@ def convert_prediction():
     
     return jsonify({
         'status': 'success',
-        'message': 'Prediction converted to assignment!',
+        'message': 'Prediction converted to assessment!',
         'summary': summary,
         'updated_assignments': assignments_to_return
     })
@@ -912,7 +912,7 @@ def delete_multiple():
     username = current_user.username
 
     if not ids_to_delete:
-        return jsonify({'status': 'error', 'message': 'No assignments selected.'}), 400
+        return jsonify({'status': 'error', 'message': 'No assessments selected.'}), 400
 
     # Get assignments that will be deleted to track subjects/categories for weight recalc
     all_assignments = get_all_grades(username)
@@ -923,7 +923,7 @@ def delete_multiple():
     try:
         deleted_count = delete_grades_bulk(username, ids_to_delete)
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f'Failed to delete assignments: {str(e)}'}), 500
+        return jsonify({'status': 'error', 'message': f'Failed to delete assessments: {str(e)}'}), 500
 
     # Fetch fresh data from database instead of using in-memory dict
     assignments_to_return = get_all_grades(username)
@@ -941,7 +941,7 @@ def delete_multiple():
 
     return jsonify({
         'status': 'success',
-        'message': f'{deleted_count} assignment(s) deleted!',
+        'message': f'{deleted_count} assessment(s) deleted!',
         'summary': summary,
         'updated_assignments': assignments_to_return
     })
@@ -1032,7 +1032,7 @@ def update_category_route(cat_id):
         updated_category = {"id": cat_id, "name": category_name, "total_weight": new_weight, "default_name": default_name}
         message = 'Category updated!'
         if assignments_updated > 0:
-            message += f' {assignments_updated} assignment(s) renamed.'
+            message += f' {assignments_updated} assessment(s) renamed.'
         return jsonify({'status': 'success', 'message': message, 'category': updated_category, 'subject': subject, 'assignments_updated': assignments_updated})
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Invalid data. Weight must be a number.'}), 400
