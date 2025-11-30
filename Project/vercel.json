@@ -2,30 +2,30 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
+      "src": "src/app.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "15mb",
-        "includeFiles": "src/**"
+        "includeFiles": "src/**/*"
       }
     }
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
       "src": "/subject/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/src/app.py"
     },
     {
       "src": "/category/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/src/app.py"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/src/app.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/src/app.py"
     }
   ],
   "env": {

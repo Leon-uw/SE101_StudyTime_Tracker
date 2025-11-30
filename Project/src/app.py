@@ -10,10 +10,21 @@ sys.path.insert(0, BASE_DIR)
 
 from collections import Counter, defaultdict
 from dotenv import load_dotenv
-load_dotenv()
 
-# Database imports
-from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
+# Load .env file if it exists
+env_path = os.path.join(BASE_DIR, '.env')
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    load_dotenv()
+
+# Database imports - wrapped in try/except for better error messages
+try:
+    from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
+except Exception as e:
+    print(f"Error importing db module: {e}")
+    raise
+
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 
 _schema_ready = False
@@ -21,14 +32,18 @@ _schema_ready = False
 # Add current directory to path for imports
 
 # Import database functions
-from crud import (get_all_grades, get_all_categories, get_categories_as_dict, add_grade, update_grade,
-                  delete_grade, delete_grades_bulk, recalculate_and_update_weights, add_category,
-                  update_category, delete_category, get_total_weight_for_subject,
-                  get_all_subjects, add_subject as crud_add_subject, delete_subject as crud_delete_subject,
-                  rename_subject as crud_rename_subject,
-                  get_subject_by_name, get_retired_subjects,
-                  get_category_by_id, update_assignment_names_for_category,
-                  create_user, verify_user, user_exists, TABLE_NAME, ensure_schema)
+try:
+    from crud import (get_all_grades, get_all_categories, get_categories_as_dict, add_grade, update_grade,
+                      delete_grade, delete_grades_bulk, recalculate_and_update_weights, add_category,
+                      update_category, delete_category, get_total_weight_for_subject,
+                      get_all_subjects, add_subject as crud_add_subject, delete_subject as crud_delete_subject,
+                      rename_subject as crud_rename_subject,
+                      get_subject_by_name, get_retired_subjects,
+                      get_category_by_id, update_assignment_names_for_category,
+                      create_user, verify_user, user_exists, TABLE_NAME, ensure_schema)
+except Exception as e:
+    print(f"Error importing crud module: {e}")
+    raise
 
 # Initialize Flask with explicit template and static paths for Vercel compatibility
 app = Flask(__name__, 
@@ -1908,7 +1923,20 @@ def set_grade_lock_preference():
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     """Serve static files - needed for Vercel serverless deployment."""
-    return app.send_static_file(filename)
+    import mimetypes
+    from flask import send_from_directory
+    
+    # Get the full path to the static file
+    static_folder = app.static_folder
+    
+    # Determine the MIME type
+    mimetype, _ = mimetypes.guess_type(filename)
+    
+    try:
+        return send_from_directory(static_folder, filename, mimetype=mimetype)
+    except Exception as e:
+        app.logger.error(f"Error serving static file {filename}: {e}")
+        return f"File not found: {filename}", 404
 
 
 # --- Bootstrap DB once (Flask 3.x compatible) ---
