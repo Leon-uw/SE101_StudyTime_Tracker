@@ -1,4 +1,4 @@
-import mysql.connector
+import pymysql
 import os
 import dotenv
 
@@ -6,7 +6,7 @@ dotenv.load_dotenv()
 
 def connection():
     #establish connection by using the connector and adding the necessary things in .env
-    dbconnection = mysql.connector.connect(
+    dbconnection = pymysql.connect(
         user = os.getenv('Userid'),
         password = os.getenv('Password'),
         host = 'riku.shoshin.uwaterloo.ca',

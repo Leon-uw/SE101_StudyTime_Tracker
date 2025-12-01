@@ -1,6 +1,6 @@
 # src/db.py
 import os
-import mysql.connector
+import pymysql
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -88,14 +88,14 @@ CREATE TABLE IF NOT EXISTS {USER_PREFERENCES_TABLE} (
 """
 
 def _connect(db=None):
-    return mysql.connector.connect(
+    return pymysql.connect(
         host=DB_HOST, user=DB_USER, password=DB_PASS, database=db or DB_NAME
     )
 
 def init_db():
     """Create database and tables if they don't exist."""
     # Create DB if missing
-    admin = mysql.connector.connect(host=DB_HOST, user=DB_USER, password=DB_PASS)
+    admin = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASS)
     admin.autocommit = True
     cur = admin.cursor()
     cur.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME} DEFAULT CHARSET utf8mb4")

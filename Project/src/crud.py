@@ -10,11 +10,23 @@ if os.getenv("USE_LOCAL_DB", "").lower() == "true":
     from db_local import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
     # SQLite uses different placeholder syntax
     PARAM_PLACEHOLDER = "?"
+    DICT_CURSOR = None  # SQLite doesn't use DictCursor
 else:
     from db import init_db, _connect, TABLE_NAME, CATEGORIES_TABLE, SUBJECTS_TABLE, USERS_TABLE
-    import mysql.connector
+    import pymysql
+    from pymysql.cursors import DictCursor as DICT_CURSOR
     PARAM_PLACEHOLDER = "%s"
 from werkzeug.security import generate_password_hash, check_password_hash
+
+
+def _get_dict_cursor(conn):
+    """Get a dictionary cursor compatible with both PyMySQL and SQLite."""
+    if DICT_CURSOR:
+        return conn.cursor(DICT_CURSOR)
+    else:
+        # For SQLite, use row_factory
+        conn.row_factory = lambda c, r: dict(zip([col[0] for col in c.description], r))
+        return conn.cursor()
 
 
 def _column_exists(conn, table, col):
@@ -49,7 +61,7 @@ def ensure_schema():
 
 def _backfill_positions(conn):
     """For each username, set Position = 0..n-1 using current id order (stable)."""
-    cur = conn.cursor(dictionary=True)
+    cur = _get_dict_cursor(conn)
 
     # Find distinct users
     cur.execute(f"SELECT DISTINCT username FROM {TABLE_NAME}")
@@ -124,7 +136,7 @@ def verify_user(username, password):
     """Verify username and password against database."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
         query = f"SELECT password_hash FROM {USERS_TABLE} WHERE username = %s"
         curs.execute(query, (username,))
         result = curs.fetchone()
@@ -171,7 +183,7 @@ def get_all_grades(username):
     """Get all grade records for a specific user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
         curs.execute(
             f"""SELECT id, Subject, Category, StudyTime, AssignmentName,
                     Grade, Weight, IsPrediction, PredictedGrade, Position
@@ -206,7 +218,7 @@ def get_all_categories(username, subject=None):
     """Get all category definitions for a user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
 
         if subject:
             curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} WHERE username = %s AND Subject = %s ORDER BY CategoryName", (username, subject))
@@ -234,7 +246,7 @@ def get_category_by_id(username, category_id):
     """Get a single category by ID for a user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
         curs.execute(f"SELECT * FROM {CATEGORIES_TABLE} WHERE id = %s AND username = %s", (category_id, username))
         row = curs.fetchone()
         if row:
@@ -355,7 +367,7 @@ def recalculate_and_update_weights(username, subject, category_name):
     """Recalculate weights for all assignments in a category for a user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
 
         # Get category definition to get total_weight
         curs.execute(
@@ -452,7 +464,7 @@ def update_assignment_names_for_category(username, subject, category_name, old_p
     conn = _connect()
     try:
         # Get all assignments for this category
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
         curs.execute(
             f"""SELECT id, AssignmentName FROM {TABLE_NAME} 
                 WHERE username = %s AND Subject = %s AND Category = %s""",
@@ -530,7 +542,7 @@ def get_total_weight_for_subject(username, subject, exclude_category_id=None):
     """Calculate total weight of all categories for a subject for a user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
 
         if exclude_category_id:
             query = f"""
@@ -561,7 +573,7 @@ def get_all_subjects(username, include_retired=False):
     """Get all subjects for a user. By default excludes retired subjects."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
         if include_retired:
             curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s ORDER BY name", (username,))
         else:
@@ -586,7 +598,7 @@ def get_retired_subjects(username):
     """Get all retired subjects for a user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
         curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND is_retired = TRUE ORDER BY name", (username,))
         results = curs.fetchall()
 
@@ -626,7 +638,7 @@ def delete_subject(username, subject_id):
     """Delete a subject for a user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
 
         # First get the subject name, ensuring it belongs to the user
         curs.execute(f"SELECT name FROM {SUBJECTS_TABLE} WHERE id = %s AND username = %s", (subject_id, username))
@@ -659,7 +671,7 @@ def get_subject_by_name(username, name):
     """Get a subject by name for a user."""
     conn = _connect()
     try:
-        curs = conn.cursor(dictionary=True)
+        curs = _get_dict_cursor(conn)
         curs.execute(f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND name = %s", (username, name))
         result = curs.fetchone()
 
