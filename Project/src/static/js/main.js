@@ -29,6 +29,18 @@ document.addEventListener('DOMContentLoaded',
             });
         });
 
+        // Allow dropdown items to navigate normally (don't prevent default)
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                // Don't prevent default - let the link work
+                // Just close the dropdown
+                const dropdown = this.closest('.nav-dropdown');
+                if (dropdown) {
+                    dropdown.classList.remove('open');
+                }
+            });
+        });
+
         // Legacy sidebar elements (kept for compatibility but not used)
         const subjectsToggle = document.getElementById('subjects-toggle');
         const subjectsSubmenu = document.getElementById('subjects-submenu');
