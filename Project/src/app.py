@@ -1940,23 +1940,25 @@ def serve_static(filename):
 
 
 # --- Bootstrap DB once (Flask 3.x compatible) ---
-_bootstrapped = False
+_schema_initialized = False
 
-@app.before_request
-def _bootstrap_db_once():
-    global _bootstrapped
-    if _bootstrapped:
+def _ensure_schema():
+    """Ensure database schema is initialized (idempotent)."""
+    global _schema_initialized
+    if _schema_initialized:
         return
     try:
         init_db()                 # creates DB/tables if missing
         ensure_position_column()  # adds Position + index, backfills
+        _schema_initialized = True
     except Exception as e:
         app.logger.exception("DB bootstrap failed: %s", e)
-    _bootstrapped = True
+        # Don't raise - let individual routes handle DB errors
 
-# Vercel serverless handler - expose the Flask app
-# Vercel looks for 'app' or 'handler' at module level
-handler = app
+@app.before_request
+def _bootstrap_db_once():
+    """Initialize database on first request (Vercel-compatible)."""
+    _ensure_schema()
 
 if __name__ == '__main__':
     import os
