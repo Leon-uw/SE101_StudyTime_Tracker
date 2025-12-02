@@ -2881,8 +2881,8 @@ document.addEventListener('DOMContentLoaded',
                         .then(response => response.json())
                         .then(data => {
                             if (data.status === 'success') {
-                                // Navigate to the new subject's filter page
-                                window.location.href = '/?subject=' + encodeURIComponent(data.subject);
+                                // Navigate to the new subject's page
+                                window.location.href = '/subject/' + encodeURIComponent(data.subject);
                             } else {
                                 showToast(data.message, 'error');
                             }
