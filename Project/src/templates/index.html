@@ -66,8 +66,8 @@
 
                 <div class="nav-dropdown">
                     <button
-                        class="nav-link dropdown-toggle {% if selected_subject and selected_subject != 'all' %}active{% endif %}">
-                        {% if selected_subject and selected_subject != 'all' %}
+                        class="nav-link dropdown-toggle {% if selected_subject and selected_subject != 'all' and not is_retired_subject %}active{% endif %}">
+                        {% if selected_subject and selected_subject != 'all' and not is_retired_subject %}
                         {{ selected_subject }} <span class="arrow">▼</span>
                         {% else %}
                         Subjects <span class="arrow">▼</span>
@@ -85,8 +85,12 @@
 
                 {% if retired_subjects %}
                 <div class="nav-dropdown">
-                    <button class="nav-link dropdown-toggle">
+                    <button class="nav-link dropdown-toggle {% if is_retired_subject %}active{% endif %}">
+                        {% if is_retired_subject and selected_subject %}
+                        {{ selected_subject }} <span class="arrow">▼</span>
+                        {% else %}
                         Retired <span class="arrow">▼</span>
+                        {% endif %}
                     </button>
                     <div class="dropdown-menu">
                         {% for subject in retired_subjects %}
@@ -193,7 +197,7 @@
                         </div>
                     </div>
 
-                    <h2 style="margin-top: 30px;" class="animate-enter delay-1">Assessments</h2>
+                    <h2 style="margin-top: 30px;" class="animate-enter delay-1">{% if is_dashboard %}Ungraded Assessments{% else %}Assessments{% endif %}</h2>
                     <div class="table-wrapper animate-enter delay-2">
                         <table>
                             <thead>
@@ -291,12 +295,12 @@
                         
                         <!-- Empty State -->
                         {% if not data %}
-                        <div class="empty-state">
+                        <div class="empty-state" id="empty-state-container">
                             <div class="empty-state-icon">📊</div>
                             <h3>No Assessments Yet</h3>
                             <p>{% if selected_subject and selected_subject != 'all' %}Add your first assessment to start tracking your grades for this subject.{% else %}Select a subject from the sidebar to view and manage your assessments.{% endif %}</p>
                             {% if selected_subject and selected_subject != 'all' %}
-                            <button onclick="document.getElementById('addRowBtn').click()" class="btn-primary" style="margin-top: 1rem;">
+                            <button onclick="document.getElementById('addRowBtn').click()" class="btn-primary" id="add-first-assessment-btn" style="margin-top: 1rem;">
                                 Add Your First Assessment
                             </button>
                             {% endif %}
