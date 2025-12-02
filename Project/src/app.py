@@ -20,7 +20,9 @@ else:
 
 # Database imports - wrapped in try/except for better error messages
 try:
-    from db import _connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column
+    from db import (_connect, SUBJECTS_TABLE, USERS_TABLE, init_db, ensure_position_column, 
+                    ensure_prediction_run_count_column, increment_prediction_run_count, get_prediction_run_count,
+                    ensure_subject_prediction_count_column, increment_subject_prediction_count, get_subject_prediction_counts)
 except Exception as e:
     print(f"Error importing db module: {e}")
     raise
@@ -463,6 +465,46 @@ def render_subject_view(filter_subject, is_retired_subject=False):
     page_title = "Dashboard" if filter_subject == 'all' else filter_subject
     is_dashboard = filter_subject == 'all'
 
+    # Dashboard overview stats (only for the all-subjects dashboard)
+    dashboard_stats = None
+    if is_dashboard:
+        # Total distinct subjects
+        total_subjects = len(unique_subjects)
+
+        # Total study hours across all subjects
+        total_study_hours = sum(log.get('study_time', 0) for log in study_data_db)
+
+        # Compute per-subject average grade (weighted by weight) where grades exist
+        subject_avg_grades = {}
+        for s in unique_subjects:
+            items = [log for log in study_data_db if log['subject'] == s and log.get('grade') is not None]
+            if not items:
+                continue
+            weighted_sum = sum(it['grade'] * it.get('weight', 0) for it in items)
+            total_w = sum(it.get('weight', 0) for it in items)
+            if total_w > 0:
+                subject_avg_grades[s] = weighted_sum / total_w
+
+        # Average GPA across subjects (treat average grade as percentage -> GPA mapping optional)
+        avg_grade = None
+        if subject_avg_grades:
+            avg_grade = sum(subject_avg_grades.values()) / len(subject_avg_grades)
+
+        # Best subject by average grade
+        best_subject = None
+        if subject_avg_grades:
+            best_subject = max(subject_avg_grades.items(), key=lambda kv: kv[1])[0]
+
+        total_assessments = len(study_data_db)
+
+        dashboard_stats = {
+            'total_subjects': total_subjects,
+            'total_assessments': total_assessments,
+            'avg_grade': round(avg_grade, 2) if avg_grade is not None else None,
+            'total_study_hours': round(total_study_hours, 1),
+            'best_subject': best_subject
+        }
+
     return render_template(
         'index.html',
         data=data_to_display,
@@ -479,7 +521,8 @@ def render_subject_view(filter_subject, is_retired_subject=False):
         page_title=page_title,
         username=username,
         is_retired_subject=is_retired_subject,
-        is_dashboard=is_dashboard
+    is_dashboard=is_dashboard,
+    dashboard_stats=dashboard_stats
     )
 
 @app.route('/about')
@@ -536,21 +579,32 @@ def calculate_stats(username):
     }
 
     if not study_data:
+        # Even with no study data, get prediction run count and per-subject counts
+        stats['predictions']['total'] = get_prediction_run_count(username)
+        # Get per-subject prediction counts from database
+        subject_pred_counts = get_subject_prediction_counts(username)
+        if subject_pred_counts:
+            top_subject = max(subject_pred_counts.items(), key=lambda x: x[1])
+            stats['predictions']['top_subject'] = {
+                'subject': top_subject[0],
+                'count': top_subject[1]
+            }
         return stats
 
     actual_entries = [row for row in study_data if not row.get('is_prediction')]
     prediction_entries = [row for row in study_data if row.get('is_prediction')]
 
     stats['overall']['assignment_count'] = len(actual_entries)
-    stats['predictions']['total'] = len(prediction_entries)
+    # Use actual prediction run count from database, not just open predictions
+    stats['predictions']['total'] = get_prediction_run_count(username)
 
-    # Prediction habits
-    prediction_counts = Counter(row['subject'] for row in prediction_entries if row.get('subject'))
-    if prediction_counts:
-        top_pred_subject, pred_count = prediction_counts.most_common(1)[0]
+    # Prediction habits - use stored per-subject prediction counts from database
+    subject_pred_counts = get_subject_prediction_counts(username)
+    if subject_pred_counts:
+        top_subject = max(subject_pred_counts.items(), key=lambda x: x[1])
         stats['predictions']['top_subject'] = {
-            'subject': top_pred_subject,
-            'count': pred_count
+            'subject': top_subject[0],
+            'count': top_subject[1]
         }
 
     if not actual_entries:
@@ -1314,6 +1368,15 @@ def predict():
     print(f'=== /PREDICT CALLED ===')
     print(f'  subject: {subject}, category: {category}, hours: {hours}')
     
+    # Increment prediction run counters (total and per-subject)
+    username = current_user.username
+    try:
+        increment_prediction_run_count(username)
+        if subject:
+            increment_subject_prediction_count(username, subject)
+    except Exception as e:
+        print(f"Warning: Failed to increment prediction count: {e}")
+    
     # Convert exclude_id to int if provided
     if exclude_id:
         try:
@@ -1683,6 +1746,14 @@ def predict_subject():
     study_time_str = request.form.get('study_time')
     username = current_user.username
     
+    # Increment prediction run counters (total and per-subject)
+    try:
+        increment_prediction_run_count(username)
+        if subject:
+            increment_subject_prediction_count(username, subject)
+    except Exception as e:
+        print(f"Warning: Failed to increment prediction count: {e}")
+    
     if not subject:
         return jsonify({'status': 'error', 'message': 'Subject is required.'}), 400
 
@@ -1960,6 +2031,8 @@ def _ensure_schema():
     try:
         init_db()                 # creates DB/tables if missing
         ensure_position_column()  # adds Position + index, backfills
+        ensure_prediction_run_count_column()  # adds prediction_run_count to users table
+        ensure_subject_prediction_count_column()  # adds prediction_count to user_preferences table
         _schema_initialized = True
     except Exception as e:
         app.logger.exception("DB bootstrap failed: %s", e)

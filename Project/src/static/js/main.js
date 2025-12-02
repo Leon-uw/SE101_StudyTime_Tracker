@@ -441,8 +441,10 @@ document.addEventListener('DOMContentLoaded',
 
         // --- Helper Functions ---
         function showToast(message, type = 'success') {
+            console.log('showToast called:', message, type);
             let container = document.querySelector('.toast-container');
             if (!container) {
+                console.log('Creating toast container');
                 container = document.createElement('div');
                 container.className = 'toast-container';
                 document.body.appendChild(container);
@@ -452,12 +454,14 @@ document.addEventListener('DOMContentLoaded',
             // Allow HTML content for lists
             toast.innerHTML = message;
             container.appendChild(toast);
+            console.log('Toast element created:', toast);
 
             // Trigger reflow
             void toast.offsetWidth;
 
             requestAnimationFrame(() => {
                 toast.classList.add('show');
+                console.log('Toast show class added');
             });
 
             setTimeout(() => {
@@ -467,12 +471,26 @@ document.addEventListener('DOMContentLoaded',
         }
 
         function showConfirmation(message, row, type) {
+            console.log('showConfirmation called:', message, type);
+            
+            if (!confirmationModal) {
+                console.error('Confirmation modal not found!');
+                // Fallback to browser confirm
+                if (confirm(message)) {
+                    itemToDelete = { row, type };
+                    if (confirmYesBtn) confirmYesBtn.click();
+                }
+                return;
+            }
+            
             itemToDelete = {
                 row,
                 type
             };
-            modalMsg.textContent = message;
+            if (modalMsg) modalMsg.textContent = message;
+            // Use both methods to ensure visibility
             confirmationModal.style.display = 'flex';
+            confirmationModal.classList.add('active');
         }
 
         function hideConfirmation() {
@@ -480,7 +498,10 @@ document.addEventListener('DOMContentLoaded',
                 row: null,
                 type: null
             };
-            confirmationModal.style.display = 'none';
+            if (confirmationModal) {
+                confirmationModal.style.display = 'none';
+                confirmationModal.classList.remove('active');
+            }
         }
 
         const weightCategoriesMap = JSON.parse(document.body.dataset.weightCategories || '{}');
@@ -1373,17 +1394,22 @@ document.addEventListener('DOMContentLoaded',
             }
             formData.append('is_prediction', isPrediction ? 'true' : 'false');
             try {
+                console.log('Sending save request to:', url);
                 const response = await fetch(url, {
                     method: 'POST',
                     body: formData
                 });
                 const result = await response.json();
+                console.log('Save response:', response.ok, result);
                 if (!response.ok) {
                     showToast(result.message, 'error');
                     return;
                 }
                 if (!suppressToast) {
+                    console.log('Calling showToast with:', result.message);
                     showToast(result.message, 'success');
+                } else {
+                    console.log('Toast suppressed');
                 }
                 
                 // Clear old weight preview state before re-render (DOM elements will be replaced)
@@ -2267,8 +2293,14 @@ document.addEventListener('DOMContentLoaded',
                     event.preventDefault();
                     showValidationAlert([]); // Clear old errors before trying to save all
                     const editedRows = assignmentTableBody.querySelectorAll('tr:has(.save-btn)');
+                    // Only suppress toast if there are multiple rows being saved
+                    const suppressToast = editedRows.length > 1;
                     for (const row of editedRows) {
-                        await handleAssignmentSave(row, true); // suppressToast = true
+                        await handleAssignmentSave(row, suppressToast);
+                    }
+                    // Show a single toast if multiple rows were saved
+                    if (editedRows.length > 1) {
+                        showToast(`${editedRows.length} assessments saved!`, 'success');
                     }
                 }
             });
@@ -3532,4 +3564,163 @@ document.addEventListener('DOMContentLoaded',
 
     });
 
+// ============================================
+// TOAST NOTIFICATION SYSTEM
+// ============================================
+window.showToast = function(message, type = 'info', duration = 4000) {
+    // Get or create toast container
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span class="toast-message">${message}</span>`;
+    
+    // Add to container
+    container.appendChild(toast);
+    
+    // Trigger animation
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+    
+    // Auto dismiss
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.addEventListener('transitionend', () => toast.remove());
+    }, duration);
+    
+    return toast;
+};
 
+// ============================================
+// CONFIRMATION MODAL SYSTEM
+// ============================================
+window.showConfirmModal = function(options) {
+    const {
+        title = 'Confirm Action',
+        message = 'Are you sure you want to proceed?',
+        confirmText = 'Confirm',
+        cancelText = 'Cancel',
+        type = 'warning', // 'warning', 'danger', 'info'
+        onConfirm = () => {},
+        onCancel = () => {}
+    } = options;
+    
+    // Create modal HTML
+    const modalHTML = `
+        <div class="modal-overlay" id="confirm-modal-overlay">
+            <div class="modal-content">
+                <div class="modal-icon ${type}">
+                    ${type === 'danger' ? '⚠️' : type === 'warning' ? '⚡' : 'ℹ️'}
+                </div>
+                <h3>${title}</h3>
+                <p>${message}</p>
+                <div class="modal-buttons">
+                    <button class="modal-btn modal-btn-cancel" id="modal-cancel-btn">${cancelText}</button>
+                    <button class="modal-btn ${type === 'danger' ? 'modal-btn-confirm' : 'modal-btn-primary'}" id="modal-confirm-btn">${confirmText}</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    const overlay = document.getElementById('confirm-modal-overlay');
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    
+    // Show modal
+    requestAnimationFrame(() => {
+        overlay.classList.add('active');
+    });
+    
+    // Handle confirm
+    confirmBtn.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.remove(), 300);
+        onConfirm();
+    });
+    
+    // Handle cancel
+    cancelBtn.addEventListener('click', () => {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.remove(), 300);
+        onCancel();
+    });
+    
+    // Handle overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+            onCancel();
+        }
+    });
+    
+    // Handle escape key
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+            onCancel();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+    
+    return overlay;
+};
+
+// ============================================
+// BUTTON LOADING STATE
+// ============================================
+window.setButtonLoading = function(button, loading = true) {
+    if (loading) {
+        button.classList.add('btn-loading');
+        button.disabled = true;
+        button.dataset.originalText = button.textContent;
+    } else {
+        button.classList.remove('btn-loading');
+        button.disabled = false;
+        if (button.dataset.originalText) {
+            button.textContent = button.dataset.originalText;
+        }
+    }
+};
+
+// ============================================
+// FORM VALIDATION HELPERS
+// ============================================
+window.validateInput = function(input, validator, errorMessage) {
+    const isValid = validator(input.value);
+    const validationIcon = input.parentElement.querySelector('.validation-icon');
+    const validationMsg = input.parentElement.querySelector('.validation-message');
+    
+    if (isValid) {
+        input.classList.remove('invalid');
+        input.classList.add('valid');
+        if (validationIcon) {
+            validationIcon.classList.remove('invalid');
+            validationIcon.classList.add('valid');
+        }
+    } else {
+        input.classList.remove('valid');
+        input.classList.add('invalid');
+        if (validationIcon) {
+            validationIcon.classList.remove('valid');
+            validationIcon.classList.add('invalid');
+        }
+        if (validationMsg) {
+            validationMsg.textContent = errorMessage;
+        }
+    }
+    
+    return isValid;
+};

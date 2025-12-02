@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statistics - Study Log Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
@@ -743,6 +747,71 @@
                     }, 50);
                 });
             }
+
+            // Animated counter effect for metric values
+            function animateCounter(element, target, suffix = '', decimals = 0) {
+                const duration = 1200;
+                const startTime = performance.now();
+                const startValue = 0;
+                
+                function update(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Easing function for smooth deceleration
+                    const easeOut = 1 - Math.pow(1 - progress, 3);
+                    const currentValue = startValue + (target - startValue) * easeOut;
+                    
+                    element.textContent = currentValue.toFixed(decimals) + suffix;
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(update);
+                    }
+                }
+                
+                requestAnimationFrame(update);
+            }
+
+            // Animate all metric values on page load
+            function initCounterAnimations() {
+                // Find all metric values and animate them
+                document.querySelectorAll('.metric-value').forEach(el => {
+                    const gradeSpan = el.querySelector('.stat-grade');
+                    const gradePerHourSpan = el.querySelector('.stat-grade-per-hour');
+                    
+                    if (gradeSpan) {
+                        const value = parseFloat(gradeSpan.dataset.gradePercent);
+                        if (!isNaN(value)) {
+                            animateCounter(gradeSpan, value, '%', 1);
+                        }
+                    } else if (gradePerHourSpan) {
+                        const value = parseFloat(gradePerHourSpan.dataset.gradePerHour);
+                        if (!isNaN(value)) {
+                            animateCounter(gradePerHourSpan, value, '%/h', 2);
+                        }
+                    } else {
+                        // Handle plain text metric values (like hours or prediction count)
+                        const text = el.textContent.trim();
+                        const hourMatch = text.match(/^([\d.]+)h$/);
+                        const numberMatch = text.match(/^(\d+)$/);
+                        const percentMatch = text.match(/^([\d.]+)%$/);
+                        
+                        if (hourMatch) {
+                            const value = parseFloat(hourMatch[1]);
+                            animateCounter(el, value, 'h', 1);
+                        } else if (percentMatch) {
+                            const value = parseFloat(percentMatch[1]);
+                            animateCounter(el, value, '%', 1);
+                        } else if (numberMatch) {
+                            const value = parseInt(numberMatch[1]);
+                            animateCounter(el, value, '', 0);
+                        }
+                    }
+                });
+            }
+
+            // Start counter animations after a short delay for page load
+            setTimeout(initCounterAnimations, 300);
         })();
     </script>
 
