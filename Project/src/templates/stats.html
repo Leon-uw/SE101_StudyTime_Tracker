@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Statistics - Study Log Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 
@@ -370,9 +374,6 @@
 
 
                     </div>
-                    <div class="threshold-action-row">
-                        <button id="apply-thresholds" class="pill-btn">Update thresholds</button>
-                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -562,6 +563,7 @@
                     const strongCount = Number(strong.count || 0);
                     const needsCount = Number(needs.count || 0);
                     const otherCount = Math.max(0, totalAssignments - strongCount - needsCount);
+                    const borderColor = styles.getPropertyValue('--chart-border').trim();
 
                     chartOut?.destroy();
                     chartOut = new Chart(document.getElementById('outcomesPie'), {
@@ -570,7 +572,9 @@
                             labels: ['Strong', 'Needs Work', 'Other'],
                             datasets: [{
                                 data: [strongCount, needsCount, otherCount],
-                                backgroundColor: [strongColor, needsWorkColor, otherColor]
+                                backgroundColor: [strongColor, needsWorkColor, otherColor],
+                                borderColor: borderColor,
+                                borderWidth: 2
                             }]
                         },
                         options: {
@@ -594,6 +598,8 @@
                     else otherCount++;
                 }
 
+                const borderColor = styles.getPropertyValue('--chart-border').trim();
+
                 chartOut?.destroy();
                 chartOut = new Chart(document.getElementById('outcomesPie'), {
                     type: 'doughnut',
@@ -601,7 +607,9 @@
                         labels: ['Strong', 'Needs Work', 'Other'],
                         datasets: [{
                             data: [strongCount, needsCount, otherCount],
-                            backgroundColor: [strongColor, needsWorkColor, otherColor]
+                            backgroundColor: [strongColor, needsWorkColor, otherColor],
+                            borderColor: borderColor,
+                            borderWidth: 2
                         }]
                     },
                     options: {
@@ -643,16 +651,68 @@
             const loInput = document.getElementById('low-threshold');
             const outcomesSelEl = document.getElementById('outcomesSelect');
 
-            function reRenderOutcomesFromUI() {
+            // Function to update all threshold-dependent displays
+            function updateAllThresholdDisplays() {
+                const { high, low } = getThresholds();
+                
+                // Recalculate High Scores card
+                let highCount = 0;
+                for (const r of allGrades) {
+                    const g = Number(r.score);
+                    if (isFinite(g) && g >= high) highCount++;
+                }
+                const highPct = totalAssignments > 0 ? (highCount / totalAssignments * 100) : null;
+                const highPctEl = document.getElementById('high-score-pct-display');
+                const highDescEl = document.getElementById('high-score-desc');
+                const highPillEl = document.getElementById('high-pill-text');
+                const highHintEl = document.getElementById('high-threshold-hint');
+                
+                if (highPctEl) {
+                    highPctEl.textContent = highPct !== null ? `${highPct.toFixed(1)}%` : 'N/A';
+                }
+                if (highDescEl && highPct !== null) {
+                    highDescEl.textContent = `${highCount} of ${totalAssignments} graded items cleared the high-score bar.`;
+                }
+                if (highPillEl) {
+                    highPillEl.textContent = `${high}%+ results`;
+                }
+                if (highHintEl) {
+                    highHintEl.textContent = `(${high}% / ${(high / 25).toFixed(2)} GPA)`;
+                }
+                
+                // Recalculate Needs Work card
+                let lowCount = 0;
+                for (const r of allGrades) {
+                    const g = Number(r.score);
+                    if (isFinite(g) && g < low) lowCount++;
+                }
+                const lowPct = totalAssignments > 0 ? (lowCount / totalAssignments * 100) : null;
+                const lowPctEl = document.getElementById('needs-work-pct-display');
+                const lowDescEl = document.getElementById('needs-work-desc');
+                const lowPillEl = document.getElementById('low-pill-text');
+                const lowHintEl = document.getElementById('low-threshold-hint');
+                
+                if (lowPctEl) {
+                    lowPctEl.textContent = lowPct !== null ? `${lowPct.toFixed(1)}%` : 'N/A';
+                }
+                if (lowDescEl && lowPct !== null) {
+                    lowDescEl.textContent = `${lowCount} of ${totalAssignments} graded items are under the target range.`;
+                }
+                if (lowPillEl) {
+                    lowPillEl.textContent = `Below ${low}%`;
+                }
+                if (lowHintEl) {
+                    lowHintEl.textContent = `(${low}% / ${(low / 25).toFixed(2)} GPA)`;
+                }
+                
+                // Re-render the outcomes pie chart
                 const sel = outcomesSelEl ? outcomesSelEl.value : 'ALL';
                 renderOutcomes(sel);
             }
 
-            hiInput?.addEventListener('input', reRenderOutcomesFromUI);
-            loInput?.addEventListener('input', reRenderOutcomesFromUI);
-
-            // If you also have an "Apply thresholds" button:
-            document.getElementById('apply-thresholds')?.addEventListener('click', reRenderOutcomesFromUI);
+            // Attach input listeners for automatic threshold updates
+            hiInput?.addEventListener('input', updateAllThresholdDisplays);
+            loInput?.addEventListener('input', updateAllThresholdDisplays);
 
             // Re-render charts when theme changes
             const themeToggle = document.getElementById('theme-toggle');
@@ -687,6 +747,71 @@
                     }, 50);
                 });
             }
+
+            // Animated counter effect for metric values
+            function animateCounter(element, target, suffix = '', decimals = 0) {
+                const duration = 1200;
+                const startTime = performance.now();
+                const startValue = 0;
+                
+                function update(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Easing function for smooth deceleration
+                    const easeOut = 1 - Math.pow(1 - progress, 3);
+                    const currentValue = startValue + (target - startValue) * easeOut;
+                    
+                    element.textContent = currentValue.toFixed(decimals) + suffix;
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(update);
+                    }
+                }
+                
+                requestAnimationFrame(update);
+            }
+
+            // Animate all metric values on page load
+            function initCounterAnimations() {
+                // Find all metric values and animate them
+                document.querySelectorAll('.metric-value').forEach(el => {
+                    const gradeSpan = el.querySelector('.stat-grade');
+                    const gradePerHourSpan = el.querySelector('.stat-grade-per-hour');
+                    
+                    if (gradeSpan) {
+                        const value = parseFloat(gradeSpan.dataset.gradePercent);
+                        if (!isNaN(value)) {
+                            animateCounter(gradeSpan, value, '%', 1);
+                        }
+                    } else if (gradePerHourSpan) {
+                        const value = parseFloat(gradePerHourSpan.dataset.gradePerHour);
+                        if (!isNaN(value)) {
+                            animateCounter(gradePerHourSpan, value, '%/h', 2);
+                        }
+                    } else {
+                        // Handle plain text metric values (like hours or prediction count)
+                        const text = el.textContent.trim();
+                        const hourMatch = text.match(/^([\d.]+)h$/);
+                        const numberMatch = text.match(/^(\d+)$/);
+                        const percentMatch = text.match(/^([\d.]+)%$/);
+                        
+                        if (hourMatch) {
+                            const value = parseFloat(hourMatch[1]);
+                            animateCounter(el, value, 'h', 1);
+                        } else if (percentMatch) {
+                            const value = parseFloat(percentMatch[1]);
+                            animateCounter(el, value, '%', 1);
+                        } else if (numberMatch) {
+                            const value = parseInt(numberMatch[1]);
+                            animateCounter(el, value, '', 0);
+                        }
+                    }
+                });
+            }
+
+            // Start counter animations after a short delay for page load
+            setTimeout(initCounterAnimations, 300);
         })();
     </script>
 

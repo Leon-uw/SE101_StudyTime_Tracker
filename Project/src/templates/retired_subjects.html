@@ -1,0 +1,101 @@
+{% extends "index.html" %}
+{% block content %}
+<div class="main-wrapper">
+    <header class="top-nav">
+        <div class="nav-center">
+            <h1>🎓 Retired Subjects</h1>
+        </div>
+    </header>
+    <div class="content-container">
+        <div class="main-container">
+            <div class="full-width-panel">
+                <p class="description-text">Subjects that have reached 100% of their total required weight, or those you have manually retired.</p>
+                
+                {% if retired_subjects %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Subject Name</th>
+                            <th>Average Grade</th>
+                            <th>Weight Completed</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subj in retired_subjects %}
+                        <tr>
+                            <td><strong>{{ subj.name }}</strong></td>
+                            <td>
+                                {% if subj.average_grade is not none %}
+                                    {{ '%.2f'|format(subj.average_grade) }}%
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {{ 'badge-success' if subj.completeness >= 99.9 else 'badge-warning' }}">
+                                    {{ '%.1f'|format(subj.completeness) }}%
+                                </span>
+                            </td>
+                            <td>
+                                {% if subj.is_retired %}
+                                    <span class="badge badge-secondary">Retired</span>
+                                {% else %}
+                                    <span class="badge badge-info">Candidate</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button 
+                                    class="btn btn-sm btn-{{ 'danger' if subj.is_retired else 'primary' }} retire-btn" 
+                                    data-subject-name="{{ subj.name }}" 
+                                    data-action="{{ 'unretire' if subj.is_retired else 'retire' }}"
+                                >
+                                    {{ 'Un-retire' if subj.is_retired else 'Retire Now' }}
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No retired subjects yet. Subjects will appear here when they reach 100% completion.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('.retire-btn').on('click', function() {
+        const subjectName = $(this).data('subject-name');
+        const action = $(this).data('action');
+        
+        if (!confirm(`Are you sure you want to ${action} subject: ${subjectName}?`)) {
+            return;
+        }
+
+        $.ajax({
+            url: '/retire_subject',
+            type: 'POST',
+            data: { 
+                subject_name: subjectName, 
+                action: action 
+            },
+            success: function(response) {
+                alert(response.message);
+                // Reload the page to reflect the updated status/list
+                window.location.reload(); 
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON ? xhr.responseJSON.message : "An error occurred.";
+                alert(`Error: ${error}`);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

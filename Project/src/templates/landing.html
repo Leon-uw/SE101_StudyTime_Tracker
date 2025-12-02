@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snowmark - Track Your Grades</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,6 +24,7 @@
             <span class="landing-header-title">Snowmark</span>
         </div>
         <div class="landing-header-right">
+            <a href="#" class="theme-toggle-link" id="header-theme-toggle">Try Toasty!</a>
             <a href="{{ url_for('login') }}" class="landing-header-link">Log In</a>
             <a href="{{ url_for('register') }}" class="landing-header-btn">Sign Up</a>
         </div>
@@ -54,10 +59,10 @@
             <div class="demo-container">
                 <h2 class="demo-title">See Snowmark in Action</h2>
                 <div class="demo-video-wrapper">
-                    <div class="demo-video-placeholder">
-                        <div class="play-icon">▶</div>
-                        <p>Demo video coming soon</p>
-                    </div>
+                    <video class="demo-video" controls playsinline>
+                        <source src="{{ url_for('static', filename='images/Snowmark Demo.mp4') }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
                 </div>
             </div>
         </section>
@@ -68,41 +73,75 @@
                 <h2 class="features-title">Why Snowmark?</h2>
                 <div class="features-grid">
                     <div class="feature-card">
-                        <div class="feature-icon">📊</div>
+                        <div class="feature-icon">
+                            <img class="icon-frosty" src="{{ url_for('static', filename='images/grade-tracking-frosty.png') }}" alt="Grade Tracking">
+                            <img class="icon-toasty" src="{{ url_for('static', filename='images/grade-tracking-toasty.png') }}" alt="Grade Tracking">
+                        </div>
                         <h3>Grade Tracking</h3>
                         <p>Easily log and organize all your assessments, exams, and projects in one place.</p>
                     </div>
                     <div class="feature-card">
-                        <div class="feature-icon">🎯</div>
-                        <h3>Weight Management</h3>
-                        <p>Assign weights to categories and see how each assessment impacts your final grade.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">📈</div>
+                        <div class="feature-icon">
+                            <img class="icon-frosty" src="{{ url_for('static', filename='images/grade-prediction-frosty.png') }}" alt="Grade Prediction">
+                            <img class="icon-toasty" src="{{ url_for('static', filename='images/grade-prediction-toasty.png') }}" alt="Grade Prediction">
+                        </div>
                         <h3>Grade Prediction</h3>
-                        <p>Predict what you need on future assessments to reach your target grade.</p>
+                        <p>Calculate personalized study time and grade predictions to help you plan and prioritize your studying.</p>
                     </div>
                     <div class="feature-card">
-                        <div class="feature-icon">🔒</div>
-                        <h3>Grade Lock</h3>
-                        <p>Lock in your current grade to plan ahead and track progress towards goals.</p>
+                        <div class="feature-icon">
+                            <img class="icon-frosty" src="{{ url_for('static', filename='images/personalized-stats-frosty.png') }}" alt="Personal Stats">
+                            <img class="icon-toasty" src="{{ url_for('static', filename='images/personalized-stats-toasty.png') }}" alt="Personal Stats">
+                        </div>
+                        <h3>Personal Stats</h3>
+                        <p>Identify your most efficient class and what needs work to prioritize and focus your efforts.</p>
                     </div>
                     <div class="feature-card">
-                        <div class="feature-icon">📚</div>
+                        <div class="feature-icon">
+                            <img class="icon-frosty" src="{{ url_for('static', filename='images/grade-calculation-frosty.png') }}" alt="Grade Calculation">
+                            <img class="icon-toasty" src="{{ url_for('static', filename='images/grade-calculation-toasty.png') }}" alt="Grade Calculation">
+                        </div>
+                        <h3>Grade Calculaton</h3>
+                        <p>Understand what grades you need to on future assessments to reach your target grade.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <img class="icon-frosty" src="{{ url_for('static', filename='images/multiple-subjects-frosty.png') }}" alt="Multiple Subjects">
+                            <img class="icon-toasty" src="{{ url_for('static', filename='images/multiple-subjects-toasty.png') }}" alt="Multiple Subjects">
+                        </div>
                         <h3>Multiple Subjects</h3>
                         <p>Manage all your courses in one dashboard with easy subject switching.</p>
                     </div>
                     <div class="feature-card">
-                        <div class="feature-icon">🌙</div>
-                        <h3>Dark Mode</h3>
-                        <p>Easy on the eyes with a beautiful dark theme for late-night study sessions.</p>
+                        <div class="feature-icon">
+                            <img class="icon-frosty" src="{{ url_for('static', filename='images/color-themes-frosty.png') }}" alt="Color Themes">
+                            <img class="icon-toasty" src="{{ url_for('static', filename='images/color-themes-toasty.png') }}" alt="Color Themes">
+                        </div>
+                        <h3>Color Themes</h3>
+                        <p>Switch between warm and cozy toasty themes and cool and focused frosty themes.</p>
+                        <a href="#" class="theme-toggle-link" id="theme-toggle-link">Try Toasty!</a>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Section 4: Call to Action -->
-        <section class="scroll-section cta-section" id="section-3">
+        <!-- Section 4: Prediction Preview -->
+        <section class="scroll-section prediction-preview-section" id="section-3">
+            <div class="prediction-preview-container">
+                <h2 class="prediction-preview-title">Predictions at a Click of a Button</h2>
+                <div class="prediction-video-wrapper">
+                    <video class="prediction-video" autoplay loop muted playsinline>
+                        <source src="{{ url_for('static', filename='images/Prediction Preview.mp4') }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <p class="prediction-preview-caption">Input your desired grade to predict how long you need to study!</p>
+                <p class="prediction-preview-caption">Or input your planned study time to predict what grade you'll get!</p>
+            </div>
+        </section>
+
+        <!-- Section 5: Call to Action -->
+        <section class="scroll-section cta-section" id="section-4">
             <div class="cta-container">
                 <h2>Ready to take control of your grades?</h2>
                 <p>Join Snowmark today and start tracking your academic success.</p>
@@ -122,7 +161,8 @@
         <button class="nav-dot active" data-section="0" title="Home"></button>
         <button class="nav-dot" data-section="1" title="Demo"></button>
         <button class="nav-dot" data-section="2" title="Features"></button>
-        <button class="nav-dot" data-section="3" title="Get Started"></button>
+        <button class="nav-dot" data-section="3" title="Predictions"></button>
+        <button class="nav-dot" data-section="4" title="Get Started"></button>
     </div>
 
     <!-- Scroll Progress Bar -->
@@ -204,6 +244,40 @@
 
         // Also check on page load after a small delay for any visible elements
         setTimeout(revealOnScroll, 100);
+
+        // Theme toggle functionality
+        const themeToggleLink = document.getElementById('theme-toggle-link');
+        const headerThemeToggle = document.getElementById('header-theme-toggle');
+        const body = document.body;
+        
+        function updateThemeLinks(isToasty) {
+            const text = isToasty ? 'Try Frosty!' : 'Try Toasty!';
+            if (themeToggleLink) themeToggleLink.textContent = text;
+            if (headerThemeToggle) headerThemeToggle.textContent = text;
+        }
+        
+        function toggleTheme(e) {
+            e.preventDefault();
+            if (body.classList.contains('landing-toasty')) {
+                body.classList.remove('landing-toasty');
+                localStorage.setItem('landingTheme', 'frosty');
+                updateThemeLinks(false);
+            } else {
+                body.classList.add('landing-toasty');
+                localStorage.setItem('landingTheme', 'toasty');
+                updateThemeLinks(true);
+            }
+        }
+        
+        // Check for saved landing theme preference
+        const savedLandingTheme = localStorage.getItem('landingTheme');
+        if (savedLandingTheme === 'toasty') {
+            body.classList.add('landing-toasty');
+            updateThemeLinks(true);
+        }
+        
+        if (themeToggleLink) themeToggleLink.addEventListener('click', toggleTheme);
+        if (headerThemeToggle) headerThemeToggle.addEventListener('click', toggleTheme);
     </script>
 </body>
 

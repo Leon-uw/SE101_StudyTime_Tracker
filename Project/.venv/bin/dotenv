@@ -1,4 +1,4 @@
-#!/home/okr/SE101projects/project_team_21/Project/.venv/bin/python3
+#!/Users/leon/SE101/project_team_21/Project/.venv/bin/python3.14
 import sys
 from dotenv.__main__ import cli
 if __name__ == '__main__':

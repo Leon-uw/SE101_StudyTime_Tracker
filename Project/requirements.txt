@@ -7,7 +7,6 @@ flask-login>=0.6.3
 
 # Database Connectors
 pymysql>=1.1.0
-mysql-connector-python>=8.1.0
 
 # Security & Encryption
 cryptography>=41.0.0
@@ -24,6 +23,3 @@ colorama>=0.4.6
 
 #WSGI Server for Production
 gunicorn>=21.2.0
-
-# Render-specific dependencies
-psycopg2-binary>=2.9.0

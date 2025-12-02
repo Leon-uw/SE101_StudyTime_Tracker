@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Log Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ range(1, 10000) | random }}">
 </head>
@@ -62,8 +66,8 @@
 
                 <div class="nav-dropdown">
                     <button
-                        class="nav-link dropdown-toggle {% if selected_subject and selected_subject != 'all' %}active{% endif %}">
-                        {% if selected_subject and selected_subject != 'all' %}
+                        class="nav-link dropdown-toggle {% if selected_subject and selected_subject != 'all' and not is_retired_subject %}active{% endif %}">
+                        {% if selected_subject and selected_subject != 'all' and not is_retired_subject %}
                         {{ selected_subject }} <span class="arrow">▼</span>
                         {% else %}
                         Subjects <span class="arrow">▼</span>
@@ -81,8 +85,12 @@
 
                 {% if retired_subjects %}
                 <div class="nav-dropdown">
-                    <button class="nav-link dropdown-toggle">
+                    <button class="nav-link dropdown-toggle {% if is_retired_subject %}active{% endif %}">
+                        {% if is_retired_subject and selected_subject %}
+                        {{ selected_subject }} <span class="arrow">▼</span>
+                        {% else %}
                         Retired <span class="arrow">▼</span>
+                        {% endif %}
                     </button>
                     <div class="dropdown-menu">
                         {% for subject in retired_subjects %}
@@ -120,7 +128,31 @@
             <div class="main-container">
                 <div class="full-width-panel">
 
-                    <div class="action-bar animate-enter">
+                    {% if is_dashboard %}
+                    <!-- Dashboard Overview Cards -->
+                    <div class="dashboard-cards animate-enter">
+                        <div class="dashboard-card">
+                            <p class="dashboard-card-value">{{ dashboard_stats.total_subjects if dashboard_stats else subjects|length }}</p>
+                            <p class="dashboard-card-label">Active Subjects <span class="dashboard-card-icon">📚</span></p>
+                        </div>
+                        <div class="dashboard-card">
+                            <p class="dashboard-card-value">{{ dashboard_stats.total_assessments if dashboard_stats else (data|length) }}</p>
+                            <p class="dashboard-card-label">Total Assessments <span class="dashboard-card-icon">📝</span></p>
+                        </div>
+                        <div class="dashboard-card">
+                            <p class="dashboard-card-value">{{ (dashboard_stats.total_study_hours|string + 'h') if dashboard_stats and dashboard_stats.total_study_hours is not none else '--' }}</p>
+                            <p class="dashboard-card-label">Total Study Hours <span class="dashboard-card-icon">⏱️</span></p>
+                        </div>
+                        <div class="dashboard-card">
+                            <p class="dashboard-card-value">
+                                {{ (dashboard_stats.avg_grade|string + '%') if dashboard_stats and dashboard_stats.avg_grade is not none else '--' }}
+                            </p>
+                            <p class="dashboard-card-label">Average Grade <span class="dashboard-card-icon">📈</span></p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="action-bar animate-enter{% if is_dashboard %} delay-1{% endif %}">
                         <!-- Hidden form for compatibility with existing JS that might look for these inputs -->
                         <form id="filter-form" style="display:none;">
                             <input type="hidden" name="subject" id="subject-filter" value="{{ selected_subject }}">
@@ -165,7 +197,7 @@
                         </div>
                     </div>
 
-                    <h2 style="margin-top: 30px;" class="animate-enter delay-1">Assessments</h2>
+                    <h2 style="margin-top: 30px;" class="animate-enter delay-1">{% if is_dashboard %}Ungraded Assessments{% else %}Assessments{% endif %}</h2>
                     <div class="table-wrapper animate-enter delay-2">
                         <table>
                             <thead>
@@ -260,6 +292,20 @@
                                 </tr>{% endfor %}
                             </tbody>
                         </table>
+                        
+                        <!-- Empty State -->
+                        {% if not data %}
+                        <div class="empty-state" id="empty-state-container">
+                            <div class="empty-state-icon">📊</div>
+                            <h3>No Assessments Yet</h3>
+                            <p>{% if selected_subject and selected_subject != 'all' %}Add your first assessment to start tracking your grades for this subject.{% else %}Select a subject from the sidebar to view and manage your assessments.{% endif %}</p>
+                            {% if selected_subject and selected_subject != 'all' %}
+                            <button onclick="document.getElementById('addRowBtn').click()" class="btn-primary" id="add-first-assessment-btn" style="margin-top: 1rem;">
+                                Add Your First Assessment
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
                     <!-- Combined Control Bar -->
                     <div class="control-bar animate-enter delay-3"

@@ -1,6 +1,7 @@
 # src/db.py
 import os
-import mysql.connector
+import pymysql
+from pymysql.cursors import DictCursor
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -88,14 +89,14 @@ CREATE TABLE IF NOT EXISTS {USER_PREFERENCES_TABLE} (
 """
 
 def _connect(db=None):
-    return mysql.connector.connect(
+    return pymysql.connect(
         host=DB_HOST, user=DB_USER, password=DB_PASS, database=db or DB_NAME
     )
 
 def init_db():
     """Create database and tables if they don't exist."""
     # Create DB if missing
-    admin = mysql.connector.connect(host=DB_HOST, user=DB_USER, password=DB_PASS)
+    admin = pymysql.connect(host=DB_HOST, user=DB_USER, password=DB_PASS)
     admin.autocommit = True
     cur = admin.cursor()
     cur.execute(f"CREATE DATABASE IF NOT EXISTS {DB_NAME} DEFAULT CHARSET utf8mb4")
@@ -221,7 +222,7 @@ def ensure_position_column():
 
             # Backfill positions per user in (username, id) order
             # We'll do it in Python to avoid multi-statement SQL hassles.
-            c2 = conn.cursor(dictionary=True)
+            c2 = conn.cursor(DictCursor)
             c2.execute(f"SELECT id, username FROM {TABLE_NAME} ORDER BY username, id")
             pos_by_user = {}
             updates = []
@@ -265,6 +266,111 @@ def ensure_predicted_grade_column():
             pass
         conn.close()
 
+def ensure_prediction_run_count_column():
+    """Add prediction_run_count column to users table if missing."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='prediction_run_count'
+        """, (DB_NAME, USERS_TABLE))
+        has_col = cur.fetchone()[0] > 0
+
+        if not has_col:
+            cur.execute(f"ALTER TABLE {USERS_TABLE} ADD COLUMN prediction_run_count INT DEFAULT 0")
+            conn.commit()
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+def increment_prediction_run_count(username):
+    """Increment the prediction run count for a user."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE {USERS_TABLE} SET prediction_run_count = COALESCE(prediction_run_count, 0) + 1 WHERE username = %s",
+            (username,)
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+def get_prediction_run_count(username):
+    """Get the prediction run count for a user."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT COALESCE(prediction_run_count, 0) FROM {USERS_TABLE} WHERE username = %s",
+            (username,)
+        )
+        result = cur.fetchone()
+        return result[0] if result else 0
+    finally:
+        cur.close()
+        conn.close()
+
+def ensure_subject_prediction_count_column():
+    """Add prediction_count column to user_preferences table if missing."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='prediction_count'
+        """, (DB_NAME, USER_PREFERENCES_TABLE))
+        has_col = cur.fetchone()[0] > 0
+
+        if not has_col:
+            cur.execute(f"ALTER TABLE {USER_PREFERENCES_TABLE} ADD COLUMN prediction_count INT DEFAULT 0")
+            conn.commit()
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+def increment_subject_prediction_count(username, subject):
+    """Increment the prediction count for a specific subject."""
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        # Use INSERT ... ON DUPLICATE KEY UPDATE to handle both new and existing rows
+        cur.execute(
+            f"""
+            INSERT INTO {USER_PREFERENCES_TABLE} (username, subject, prediction_count, grade_lock)
+            VALUES (%s, %s, 1, TRUE)
+            ON DUPLICATE KEY UPDATE prediction_count = COALESCE(prediction_count, 0) + 1
+            """,
+            (username, subject)
+        )
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+def get_subject_prediction_counts(username):
+    """Get prediction counts per subject for a user."""
+    conn = _connect()
+    try:
+        cur = conn.cursor(DictCursor)
+        cur.execute(
+            f"SELECT subject, COALESCE(prediction_count, 0) as count FROM {USER_PREFERENCES_TABLE} WHERE username = %s AND prediction_count > 0 ORDER BY prediction_count DESC",
+            (username,)
+        )
+        results = cur.fetchall()
+        return {row['subject']: row['count'] for row in results}
+    finally:
+        cur.close()
+        conn.close()
+
 def get_grade_lock_preferences(username):
     """
     Get all grade lock preferences for a user.
@@ -272,7 +378,7 @@ def get_grade_lock_preferences(username):
     """
     conn = _connect()
     try:
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(DictCursor)
         cur.execute(
             f"SELECT subject, grade_lock FROM {USER_PREFERENCES_TABLE} WHERE username = %s",
             (username,)
@@ -384,7 +490,7 @@ def get_retired_subjects(username):
     """Get all retired subjects for a user."""
     conn = _connect()
     try:
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(DictCursor)
         cur.execute(
             f"SELECT * FROM {SUBJECTS_TABLE} WHERE username = %s AND is_retired = TRUE ORDER BY name",
             (username,)
