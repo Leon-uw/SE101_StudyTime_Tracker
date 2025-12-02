@@ -125,8 +125,23 @@
             </div>
         </section>
 
-        <!-- Section 4: Call to Action -->
-        <section class="scroll-section cta-section" id="section-3">
+        <!-- Section 4: Prediction Preview -->
+        <section class="scroll-section prediction-preview-section" id="section-3">
+            <div class="prediction-preview-container">
+                <h2 class="prediction-preview-title">Predictions at a Click of a Button</h2>
+                <div class="prediction-video-wrapper">
+                    <video class="prediction-video" autoplay loop muted playsinline>
+                        <source src="{{ url_for('static', filename='images/Prediction Preview.mp4') }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <p class="prediction-preview-caption">Input your desired grade to predict how long you need to study!</p>
+                <p class="prediction-preview-caption">Or input your planned study time to predict what grade you'll get!</p>
+            </div>
+        </section>
+
+        <!-- Section 5: Call to Action -->
+        <section class="scroll-section cta-section" id="section-4">
             <div class="cta-container">
                 <h2>Ready to take control of your grades?</h2>
                 <p>Join Snowmark today and start tracking your academic success.</p>
@@ -146,7 +161,8 @@
         <button class="nav-dot active" data-section="0" title="Home"></button>
         <button class="nav-dot" data-section="1" title="Demo"></button>
         <button class="nav-dot" data-section="2" title="Features"></button>
-        <button class="nav-dot" data-section="3" title="Get Started"></button>
+        <button class="nav-dot" data-section="3" title="Predictions"></button>
+        <button class="nav-dot" data-section="4" title="Get Started"></button>
     </div>
 
     <!-- Scroll Progress Bar -->

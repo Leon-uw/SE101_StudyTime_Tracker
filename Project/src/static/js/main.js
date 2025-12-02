@@ -1412,6 +1412,12 @@ document.addEventListener('DOMContentLoaded',
                     console.log('Toast suppressed');
                 }
                 
+                // Hide the empty state after successful save
+                const emptyState = document.getElementById('empty-state-container');
+                if (emptyState) {
+                    emptyState.style.display = 'none';
+                }
+                
                 // Clear old weight preview state before re-render (DOM elements will be replaced)
                 weightPreviewState.clear();
                 
@@ -1679,6 +1685,16 @@ document.addEventListener('DOMContentLoaded',
                         if (type === 'assignment' && typeof updateDeleteButton === 'function') {
                             updateDeleteButton();
                         }
+                        // Show empty state if no more assignments (saved or unsaved)
+                        if (type === 'assignment') {
+                            const remainingRows = assignmentTableBody.querySelectorAll('tr.assignment-row');
+                            if (remainingRows.length === 0) {
+                                const emptyState = document.getElementById('empty-state-container');
+                                if (emptyState) {
+                                    emptyState.style.display = '';
+                                }
+                            }
+                        }
                         return;
                     }
 
@@ -1697,6 +1713,12 @@ document.addEventListener('DOMContentLoaded',
                             if (isAssignment) {
                                 renderAssignmentTable(result.updated_assignments, result.summary, currentFilter);
                                 if (typeof ensureDragHandles === 'function') ensureDragHandles();
+                                
+                                // Show empty state if no more assignments
+                                const emptyState = document.getElementById('empty-state-container');
+                                if (emptyState && result.updated_assignments && result.updated_assignments.length === 0) {
+                                    emptyState.style.display = '';
+                                }
                             } else {
                                 window.location.reload(); // Reload to see category deletion reflected
                             }
@@ -1762,6 +1784,27 @@ document.addEventListener('DOMContentLoaded',
             revertWeightPreview();
             revertPredictorWeightPreview();
 
+            // Check if there are any categories defined for the current subject
+            const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
+            const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
+            const allSubjects = Object.keys(weightCategoriesMap);
+            
+            // Determine which subject to check for categories
+            const subjectToCheck = isSubjectFiltered ? currentSubjectFilter : (allSubjects[0] || '');
+            const categoriesForSubject = weightCategoriesMap[subjectToCheck] || [];
+            
+            // If no categories defined, show info toast and don't add the row
+            if (categoriesForSubject.length === 0) {
+                if (isSubjectFiltered) {
+                    showToast(`Please define a grading scheme for ${subjectToCheck} first. Use the Add Grading Scheme Category button below.`, 'info');
+                } else if (allSubjects.length === 0) {
+                    showToast('Please add a subject first using the Subjects dropdown menu.', 'info');
+                } else {
+                    showToast('Please define a grading scheme first. Use the Add Grading Scheme Category button below.', 'info');
+                }
+                return;
+            }
+
             const newRow = document.createElement('tr');
             newRow.classList.add('assignment-row');               // <-- DnD relies on this
             if (isPrediction) {
@@ -1774,12 +1817,7 @@ document.addEventListener('DOMContentLoaded',
             const isGradeLockOn = currentSubject !== 'all' ? getGradeLock(currentSubject) : true;
             const gradeAttrs = isGradeLockOn ? 'min="0" max="100"' : 'min="0"';
 
-            // Get current subject filter
-            const currentSubjectFilter = subjectFilterDropdown ? subjectFilterDropdown.value : 'all';
-            const isSubjectFiltered = currentSubjectFilter && currentSubjectFilter !== 'all';
-            const allSubjects = Object.keys(weightCategoriesMap);
-
-            // Create subject select
+            // Create subject select (reuse the variables we already have)
             const subjectSelect = document.createElement('select');
             subjectSelect.name = 'subject';
             subjectSelect.required = true;
@@ -1869,6 +1907,12 @@ document.addEventListener('DOMContentLoaded',
             cells[2].appendChild(categorySelect);
 
             assignmentTableBody.appendChild(newRow);
+            
+            // Hide empty state when a new row is added
+            const emptyState = document.getElementById('empty-state-container');
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
 
             // If subject is filtered, trigger change event to populate categories and potentially default name
             if (isSubjectFiltered) {
@@ -3149,6 +3193,12 @@ document.addEventListener('DOMContentLoaded',
                                         if (typeof ensureDragHandles === 'function') ensureDragHandles();
                                         updateDeleteButton();
                                         showToast(data.message, 'success');
+                                        
+                                        // Show empty state if no more assignments
+                                        const emptyState = document.getElementById('empty-state-container');
+                                        if (emptyState && data.updated_assignments && data.updated_assignments.length === 0) {
+                                            emptyState.style.display = '';
+                                        }
                                     } else {
                                         showToast(data.message, 'error');
                                     }
