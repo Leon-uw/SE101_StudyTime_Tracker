@@ -2006,6 +2006,10 @@ def serve_static(filename):
     """Serve static files - needed for Vercel serverless deployment."""
     import mimetypes
     from flask import send_from_directory
+    from urllib.parse import unquote
+    
+    # Decode URL-encoded filename (e.g., %20 -> space)
+    filename = unquote(filename)
     
     # Get the full path to the static file
     static_folder = app.static_folder
